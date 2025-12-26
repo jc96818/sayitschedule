@@ -1,0 +1,71 @@
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "environment" {
+  description = "Environment name (development, staging, production)"
+  type        = string
+  default     = "development"
+}
+
+variable "app_name" {
+  description = "Application name"
+  type        = string
+  default     = "sayitschedule"
+}
+
+variable "domain_name" {
+  description = "Domain name for the application"
+  type        = string
+  default     = "sayitschedule.com"
+}
+
+variable "database_url" {
+  description = "PostgreSQL database connection URL"
+  type        = string
+  sensitive   = true
+}
+
+variable "jwt_secret" {
+  description = "JWT secret for token signing"
+  type        = string
+  sensitive   = true
+}
+
+variable "ai_api_key" {
+  description = "API key for AI/LLM service"
+  type        = string
+  sensitive   = true
+}
+
+variable "container_cpu" {
+  description = "CPU units for the container (1024 = 1 vCPU)"
+  type        = number
+  default     = 512
+}
+
+variable "container_memory" {
+  description = "Memory for the container in MB"
+  type        = number
+  default     = 1024
+}
+
+variable "desired_count" {
+  description = "Desired number of tasks"
+  type        = number
+  default     = 2
+}
+
+variable "min_capacity" {
+  description = "Minimum number of tasks for auto scaling"
+  type        = number
+  default     = 1
+}
+
+variable "max_capacity" {
+  description = "Maximum number of tasks for auto scaling"
+  type        = number
+  default     = 4
+}

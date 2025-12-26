@@ -1,0 +1,41 @@
+# Development Dockerfile for local development with hot reload
+
+# ==========================================
+# Backend Development
+# ==========================================
+FROM node:20-alpine AS backend
+
+WORKDIR /app
+
+# Copy package files
+COPY backend/package*.json ./
+
+# Install all dependencies (including dev)
+RUN npm install
+
+# Copy source code
+COPY backend/ ./
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]
+
+# ==========================================
+# Frontend Development
+# ==========================================
+FROM node:20-alpine AS frontend
+
+WORKDIR /app
+
+# Copy package files
+COPY frontend/package*.json ./
+
+# Install all dependencies (including dev)
+RUN npm install
+
+# Copy source code
+COPY frontend/ ./
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host"]

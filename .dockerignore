@@ -1,0 +1,47 @@
+# Dependencies
+node_modules
+*/node_modules
+
+# Build outputs
+dist
+*/dist
+build
+*/build
+
+# Development files
+.git
+.gitignore
+*.md
+!README.md
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage
+*.test.ts
+*.spec.ts
+
+# Terraform
+infrastructure/terraform/.terraform
+infrastructure/terraform/*.tfstate*
+infrastructure/terraform/*.tfplan
+
+# Logs
+*.log
+logs
+
+# Mockups (not needed in production)
+mockups
