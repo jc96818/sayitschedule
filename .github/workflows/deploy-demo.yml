@@ -102,12 +102,10 @@ jobs:
 
       - name: Get application URL
         run: |
-          # Using shared ALB from wss-prod
-          # The app is accessible via the configured host header
+          # Using shared ALB from wss-prod with HTTPS
           echo "========================================"
           echo "Deployment complete!"
-          echo "App accessible at your configured domain"
-          echo "(e.g., https://sayitschedule.wespeaksoon.com)"
+          echo "App accessible at: https://demo.sayitschedule.com"
           echo "========================================"
 
   # ====================

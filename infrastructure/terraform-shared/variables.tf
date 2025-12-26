@@ -59,7 +59,26 @@ variable "container_memory" {
 
 # ALB listener configuration
 variable "use_https" {
-  description = "Whether the shared ALB has an HTTPS listener (port 443). Set to false if ALB only has HTTP."
+  description = "Whether to create/use an HTTPS listener (port 443) with SSL certificate."
   type        = bool
-  default     = false
+  default     = true
+}
+
+variable "certificate_arn" {
+  description = "ARN of the ACM certificate to use for HTTPS"
+  type        = string
+  default     = ""
+}
+
+# Route53 configuration
+variable "route53_zone_name" {
+  description = "Route53 hosted zone name (e.g., sayitschedule.com)"
+  type        = string
+  default     = ""
+}
+
+variable "subdomain" {
+  description = "Subdomain to create (e.g., demo for demo.sayitschedule.com)"
+  type        = string
+  default     = "demo"
 }

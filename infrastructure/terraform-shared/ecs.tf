@@ -242,7 +242,7 @@ resource "aws_ecs_service" "app" {
   deployment_maximum_percent         = 200
   deployment_minimum_healthy_percent = 100
 
-  depends_on = [aws_lb_listener_rule.app]
+  depends_on = [aws_lb_target_group.app]
 
   tags = {
     Name = "${local.app_name}-service-demo"

@@ -39,10 +39,10 @@ data "aws_lb" "wss_prod" {
   name = "wss-prod-alb"
 }
 
-# Try to get HTTPS listener, fall back to HTTP
-data "aws_lb_listener" "wss_prod" {
+# HTTP listener on port 80 (always exists on wss-prod ALB)
+data "aws_lb_listener" "http" {
   load_balancer_arn = data.aws_lb.wss_prod.arn
-  port              = var.use_https ? 443 : 80
+  port              = 80
 }
 
 data "aws_security_group" "wss_prod_alb" {
@@ -80,7 +80,7 @@ locals {
   public_subnet_ids       = data.aws_subnets.public.ids
   alb_arn                 = data.aws_lb.wss_prod.arn
   alb_dns_name            = data.aws_lb.wss_prod.dns_name
-  alb_listener_arn        = data.aws_lb_listener.wss_prod.arn
+  alb_http_listener_arn   = data.aws_lb_listener.http.arn
   alb_security_group_id   = data.aws_security_group.wss_prod_alb.id
   rds_address             = data.aws_db_instance.wss_prod.address
   rds_port                = data.aws_db_instance.wss_prod.port
