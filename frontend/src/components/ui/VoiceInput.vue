@@ -1,6 +1,29 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 
+// Web Speech API types
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number
+  results: SpeechRecognitionResultList
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string
+}
+
+interface SpeechRecognitionInstance {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onstart: (() => void) | null
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+  abort: () => void
+}
+
 interface Props {
   title?: string
   description?: string
@@ -20,13 +43,15 @@ const isRecording = ref(false)
 const transcript = ref('')
 const status = ref('Click to start recording')
 
-let recognition: SpeechRecognition | null = null
+let recognition: SpeechRecognitionInstance | null = null
 
 onMounted(() => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const windowAny = window as any
   if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognition = (window as unknown as { SpeechRecognition?: typeof window.SpeechRecognition; webkitSpeechRecognition?: typeof window.SpeechRecognition }).SpeechRecognition || (window as unknown as { webkitSpeechRecognition?: typeof window.SpeechRecognition }).webkitSpeechRecognition
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition()
+    const SpeechRecognitionClass = windowAny.SpeechRecognition || windowAny.webkitSpeechRecognition
+    if (SpeechRecognitionClass) {
+      recognition = new SpeechRecognitionClass() as SpeechRecognitionInstance
       recognition.continuous = false
       recognition.interimResults = true
       recognition.lang = 'en-US'
@@ -36,7 +61,7 @@ onMounted(() => {
         status.value = 'Listening...'
       }
 
-      recognition.onresult = (event) => {
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
         const current = event.resultIndex
         transcript.value = event.results[current][0].transcript
 
@@ -45,7 +70,7 @@ onMounted(() => {
         }
       }
 
-      recognition.onerror = (event) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         isRecording.value = false
         status.value = `Error: ${event.error}`
         emit('error', event.error)

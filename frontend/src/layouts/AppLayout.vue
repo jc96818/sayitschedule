@@ -25,22 +25,6 @@ const userInitials = computed(() => {
     .slice(0, 2)
 })
 
-const mainItems = [
-  { name: 'Dashboard', path: '/' },
-  { name: 'Schedule', path: '/schedule' }
-]
-
-const managementItems = [
-  { name: 'Rules', path: '/rules' },
-  { name: 'Staff', path: '/staff' },
-  { name: 'Patients', path: '/patients' }
-]
-
-const adminItems = [
-  { name: 'Settings', path: '/settings' },
-  { name: 'Users', path: '/users' }
-]
-
 function isActive(path: string) {
   if (path === '/') return route.path === '/'
   return route.path.startsWith(path)

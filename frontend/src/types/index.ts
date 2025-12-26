@@ -39,6 +39,8 @@ export interface Staff {
   status: 'active' | 'inactive'
   hireDate: string | null
   createdAt: string
+  // Optional UI fields (not always present from API)
+  maxSessionsPerDay?: number
 }
 
 export interface DefaultHours {
@@ -67,6 +69,14 @@ export interface Patient {
   notes: string | null
   status: 'active' | 'inactive'
   createdAt: string
+  // Optional UI fields (used in forms, not always present from API)
+  dateOfBirth?: string
+  sessionsPerWeek?: number // alias for sessionFrequency
+  sessionDuration?: number // in minutes
+  genderPreference?: 'male' | 'female' | null
+  guardianName?: string
+  guardianPhone?: string
+  guardianEmail?: string
 }
 
 // Rule
@@ -104,6 +114,8 @@ export interface Schedule {
   createdAt: string
   publishedAt: string | null
   version: number
+  // Optional joined data (populated when fetching with sessions)
+  sessions?: Session[]
 }
 
 // Session

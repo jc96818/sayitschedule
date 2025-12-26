@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRulesStore } from '@/stores/rules'
 import { VoiceInput, Modal, Alert, Badge, Button, Toggle } from '@/components/ui'
 import type { Rule } from '@/types'

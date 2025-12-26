@@ -87,7 +87,7 @@ function getSessionsForTimeSlot(dayIndex: number, timeSlot: string): Session[] {
   if (!currentSchedule.value?.sessions) return []
   // Filter sessions by day and time
   // This is a simplified version - in production, match against actual start times
-  return currentSchedule.value.sessions.filter((session, idx) => {
+  return currentSchedule.value.sessions.filter((_session, idx) => {
     // Mock filtering - in real implementation, check session.startTime
     return idx % 5 === dayIndex && idx % 6 === timeSlots.indexOf(timeSlot)
   }).slice(0, 3)
@@ -96,7 +96,7 @@ function getSessionsForTimeSlot(dayIndex: number, timeSlot: string): Session[] {
 function getTherapistColor(session: Session): 'blue' | 'green' {
   // In real implementation, check therapist gender
   const therapistId = session.therapistId || session.staffId
-  return therapistId?.charCodeAt(0) % 2 === 0 ? 'blue' : 'green'
+  return (therapistId?.charCodeAt(0) ?? 0) % 2 === 0 ? 'blue' : 'green'
 }
 
 async function handleExportPdf() {

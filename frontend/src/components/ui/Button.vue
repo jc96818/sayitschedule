@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 interface Props {
-  variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'outline' | 'ghost'
+  variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'outline' | 'ghost'
   size?: 'sm' | 'md' | 'lg'
   block?: boolean
   icon?: boolean
@@ -111,6 +111,15 @@ function handleClick(event: MouseEvent) {
 
 .btn-danger:hover:not(:disabled) {
   background-color: #dc2626;
+}
+
+.btn-warning {
+  background-color: var(--warning-color);
+  color: white;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background-color: #d97706;
 }
 
 .btn-outline {

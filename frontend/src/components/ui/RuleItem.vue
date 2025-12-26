@@ -16,14 +16,6 @@ const emit = defineEmits<{
   delete: []
 }>()
 
-const categoryIcons = {
-  gender_pairing: 'users',
-  session: 'clock',
-  availability: 'calendar',
-  specific_pairing: 'link',
-  certification: 'badge'
-}
-
 const categoryColors = {
   gender_pairing: 'blue',
   session: 'green',

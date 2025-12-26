@@ -36,7 +36,7 @@ const filteredStaff = computed(() => {
     result = result.filter(
       (s) =>
         s.name.toLowerCase().includes(query) ||
-        s.email.toLowerCase().includes(query)
+        (s.email && s.email.toLowerCase().includes(query))
     )
   }
 

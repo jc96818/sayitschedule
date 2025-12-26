@@ -69,7 +69,7 @@ async function handlePublishSchedule(scheduleId: string) {
   await schedulesStore.publishSchedule(scheduleId)
 }
 
-function handleGenerateSchedule(weekStart: string) {
+function handleGenerateSchedule(_weekStart: string) {
   router.push('/schedule/generate')
 }
 
