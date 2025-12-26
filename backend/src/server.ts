@@ -88,8 +88,7 @@ async function start() {
   if (fs.existsSync(publicPath)) {
     await server.register(fastifyStatic, {
       root: publicPath,
-      prefix: '/',
-      decorateReply: false
+      prefix: '/'
     })
 
     // SPA fallback - serve index.html for non-API routes
