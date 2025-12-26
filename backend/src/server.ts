@@ -3,6 +3,10 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
+import fastifyStatic from '@fastify/static'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import fs from 'fs'
 
 import { authRoutes } from './routes/auth.js'
 import { organizationRoutes } from './routes/organizations.js'
@@ -75,6 +79,29 @@ async function start() {
 
     return health
   })
+
+  // Serve static frontend files in production
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = path.dirname(__filename)
+  const publicPath = path.join(__dirname, '..', 'public')
+
+  if (fs.existsSync(publicPath)) {
+    await server.register(fastifyStatic, {
+      root: publicPath,
+      prefix: '/',
+      decorateReply: false
+    })
+
+    // SPA fallback - serve index.html for non-API routes
+    server.setNotFoundHandler(async (request, reply) => {
+      // Don't handle API routes
+      if (request.url.startsWith('/api/')) {
+        return reply.code(404).send({ message: `Route ${request.method}:${request.url} not found`, error: 'Not Found', statusCode: 404 })
+      }
+      // Serve index.html for SPA routing
+      return reply.sendFile('index.html')
+    })
+  }
 
   const port = parseInt(process.env.PORT || '3000', 10)
   const host = process.env.HOST || '0.0.0.0'
