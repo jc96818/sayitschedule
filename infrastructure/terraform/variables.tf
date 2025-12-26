@@ -23,9 +23,16 @@ variable "domain_name" {
 }
 
 variable "database_url" {
-  description = "PostgreSQL database connection URL"
+  description = "PostgreSQL database connection URL (only needed if use_rds = false)"
   type        = string
   sensitive   = true
+  default     = ""
+}
+
+variable "use_rds" {
+  description = "Whether to create and use an RDS instance"
+  type        = bool
+  default     = true
 }
 
 variable "jwt_secret" {
@@ -68,4 +75,41 @@ variable "max_capacity" {
   description = "Maximum number of tasks for auto scaling"
   type        = number
   default     = 4
+}
+
+# RDS Configuration
+variable "db_instance_class" {
+  description = "RDS instance class"
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "db_allocated_storage" {
+  description = "Initial storage allocation in GB"
+  type        = number
+  default     = 20
+}
+
+variable "db_max_allocated_storage" {
+  description = "Maximum storage allocation in GB for autoscaling"
+  type        = number
+  default     = 100
+}
+
+variable "db_name" {
+  description = "Name of the database"
+  type        = string
+  default     = "sayitschedule"
+}
+
+variable "db_username" {
+  description = "Database master username"
+  type        = string
+  default     = "sayitadmin"
+}
+
+variable "db_password" {
+  description = "Database master password"
+  type        = string
+  sensitive   = true
 }

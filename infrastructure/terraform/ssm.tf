@@ -1,5 +1,8 @@
 # SSM Parameters for secrets
+# Note: If using RDS, the database URL is created in rds.tf
+# This parameter is for external database URLs (e.g., existing RDS, external providers)
 resource "aws_ssm_parameter" "database_url" {
+  count       = var.use_rds ? 0 : 1
   name        = "/${var.app_name}/${var.environment}/DATABASE_URL"
   description = "PostgreSQL database connection URL"
   type        = "SecureString"
@@ -46,12 +49,20 @@ resource "aws_iam_role_policy" "ecs_ssm" {
           "ssm:GetParameters",
           "ssm:GetParameter"
         ]
-        Resource = [
-          aws_ssm_parameter.database_url.arn,
-          aws_ssm_parameter.jwt_secret.arn,
-          aws_ssm_parameter.ai_api_key.arn
-        ]
+        Resource = concat(
+          var.use_rds ? [] : [aws_ssm_parameter.database_url[0].arn],
+          [
+            aws_ssm_parameter.jwt_secret.arn,
+            aws_ssm_parameter.ai_api_key.arn,
+            "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${var.app_name}/${var.environment}/database-url"
+          ]
+        )
       }
     ]
   })
+}
+
+# Local for database URL ARN (handles both RDS and external DB)
+locals {
+  database_url_arn = var.use_rds ? "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${var.app_name}/${var.environment}/database-url" : aws_ssm_parameter.database_url[0].arn
 }

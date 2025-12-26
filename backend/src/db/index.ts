@@ -1,4 +1,5 @@
 import { drizzle } from 'drizzle-orm/postgres-js'
+import { sql } from 'drizzle-orm'
 import postgres from 'postgres'
 import * as schema from './schema.js'
 
@@ -27,5 +28,25 @@ export async function closeDb() {
 
 // For backwards compatibility
 export { getDb as db }
+
+// Health check for database connectivity
+export async function checkDbHealth(): Promise<{ connected: boolean; latencyMs?: number; error?: string }> {
+  const start = Date.now()
+  try {
+    const database = getDb()
+    // Execute a simple query to check connectivity
+    await database.execute(sql`SELECT 1`)
+    return {
+      connected: true,
+      latencyMs: Date.now() - start
+    }
+  } catch (err) {
+    return {
+      connected: false,
+      latencyMs: Date.now() - start,
+      error: err instanceof Error ? err.message : 'Unknown database error'
+    }
+  }
+}
 
 export * from './schema.js'

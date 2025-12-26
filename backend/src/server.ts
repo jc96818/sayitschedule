@@ -13,6 +13,7 @@ import { scheduleRoutes } from './routes/schedules.js'
 import { userRoutes } from './routes/users.js'
 import { voiceRoutes } from './routes/voice.js'
 import { organizationMiddleware } from './middleware/organization.js'
+import { checkDbHealth } from './db/index.js'
 
 const server = Fastify({
   logger: true
@@ -44,9 +45,35 @@ async function start() {
   await server.register(userRoutes, { prefix: '/api/users' })
   await server.register(voiceRoutes, { prefix: '/api/voice' })
 
-  // Health check
+  // Health check - basic (for load balancer)
   server.get('/api/health', async () => {
     return { status: 'ok', timestamp: new Date().toISOString() }
+  })
+
+  // Deep health check - includes database connectivity
+  server.get('/api/health/deep', async (_request, reply) => {
+    const dbHealth = await checkDbHealth()
+
+    const health = {
+      status: dbHealth.connected ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || '0.1.0',
+      environment: process.env.NODE_ENV || 'development',
+      checks: {
+        database: {
+          status: dbHealth.connected ? 'ok' : 'error',
+          latencyMs: dbHealth.latencyMs,
+          error: dbHealth.error
+        }
+      }
+    }
+
+    // Return 503 if database is down
+    if (!dbHealth.connected) {
+      reply.code(503)
+    }
+
+    return health
   })
 
   const port = parseInt(process.env.PORT || '3000', 10)

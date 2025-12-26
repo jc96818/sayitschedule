@@ -121,7 +121,7 @@ resource "aws_ecs_task_definition" "app" {
       secrets = [
         {
           name      = "DATABASE_URL"
-          valueFrom = aws_ssm_parameter.database_url.arn
+          valueFrom = local.database_url_arn
         },
         {
           name      = "JWT_SECRET"

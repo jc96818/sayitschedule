@@ -1,0 +1,37 @@
+# Say It Schedule - Terraform Variables
+# Copy this file to terraform.tfvars and fill in your values
+
+# AWS Configuration
+aws_region  = "us-east-1"
+environment = "production"
+
+# Application
+app_name    = "sayitschedule"
+domain_name = "sayitschedule.com"
+
+# Secrets (REQUIRED - do NOT commit actual values)
+jwt_secret = "your-secure-jwt-secret-at-least-32-chars"
+ai_api_key = "your-openai-api-key"
+
+# Database Configuration
+# Set use_rds = true to create an RDS instance
+# Set use_rds = false and provide database_url for external database
+use_rds = true
+
+# RDS Configuration (only used when use_rds = true)
+db_instance_class        = "db.t3.micro"  # Use db.t3.small or larger for production
+db_allocated_storage     = 20             # Initial storage in GB
+db_max_allocated_storage = 100            # Maximum storage for autoscaling
+db_name                  = "sayitschedule"
+db_username              = "sayitadmin"
+db_password              = "your-secure-database-password"  # Use a strong password!
+
+# External Database (only used when use_rds = false)
+# database_url = "postgresql://user:pass@host:5432/dbname"
+
+# ECS Configuration
+container_cpu    = 512   # 0.5 vCPU
+container_memory = 1024  # 1 GB RAM
+desired_count    = 2     # Number of containers
+min_capacity     = 1     # Minimum for auto-scaling
+max_capacity     = 4     # Maximum for auto-scaling
