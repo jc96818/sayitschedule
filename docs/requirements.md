@@ -125,7 +125,31 @@ The platform supports multiple organizations, each with their own branding, subd
 - Hire date
 - Status (active/inactive)
 
-#### 4.2.2 Availability Management
+#### 4.2.2 Voice-Powered Staff Management
+
+Administrators can manage staff using voice commands or manual entry forms.
+
+**Example Voice Commands:**
+
+- "New staff member named Adam Smith, male"
+- "Add therapist Sarah Johnson, female, certified in pediatrics"
+- "Create staff member John Doe, male, email john.doe@example.com"
+- "Update Adam Smith's availability to Monday and Friday"
+- "Set Sarah Johnson's hours to 9 AM to 5 PM"
+- "Add certification ABA to John Doe"
+- "Remove Adam Smith's Tuesday availability"
+- "Mark Sarah Johnson as inactive"
+- "Change John Doe's phone number to 555-1234"
+
+**Voice Input Workflow:**
+
+1. Voice command captured and transcribed
+2. AI interprets intent (create, update, or query)
+3. Parsed data displayed for confirmation
+4. User confirms or edits before saving
+5. Manual form pre-populated for additional edits if needed
+
+#### 4.2.3 Availability Management
 
 - Weekly default availability
 - Time-off requests and approvals
@@ -144,6 +168,30 @@ The platform supports multiple organizations, each with their own branding, subd
 - Required therapist certifications
 - Special notes/requirements
 - Status (active/inactive)
+
+#### 4.3.2 Voice-Powered Patient Management
+
+Administrators can manage patients using voice commands or manual entry forms.
+
+**Example Voice Commands:**
+
+- "New patient named Emily Carter, female"
+- "Add patient Michael Brown, male, requires 2 sessions per week"
+- "Create patient ID 12345, named Lisa Wong, female, needs ABA certified therapist"
+- "Update Emily Carter's session frequency to 3 times per week"
+- "Set Michael Brown's preferred time to mornings"
+- "Add note to Lisa Wong: prefers quiet environment"
+- "Change Emily Carter's required certification to speech therapy"
+- "Mark patient Michael Brown as inactive"
+- "Update patient 12345 to require pediatric certification"
+
+**Voice Input Workflow:**
+
+1. Voice command captured and transcribed
+2. AI interprets intent (create, update, or query)
+3. Parsed data displayed for confirmation
+4. User confirms or edits before saving
+5. Manual form pre-populated for additional edits if needed
 
 ### 4.4 Schedule Generation
 
@@ -379,11 +427,15 @@ The platform supports multiple organizations, each with their own branding, subd
    - Individual staff profile view/edit
    - Availability calendar per staff member
    - Bulk availability updates
+   - Voice input button for adding/editing staff
+   - Manual entry form with all fields
 
 6. **Patient Management**
    - Patient directory with search/filter
    - Individual patient profile view/edit
    - Session requirements summary
+   - Voice input button for adding/editing patients
+   - Manual entry form with all fields
 
 7. **Schedule Generation**
    - Week selector (single or multiple weeks)
