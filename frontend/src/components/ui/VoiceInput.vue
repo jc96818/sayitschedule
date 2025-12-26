@@ -57,6 +57,7 @@ onMounted(() => {
       recognition.lang = 'en-US'
 
       recognition.onstart = () => {
+        console.log('[VoiceInput] Recognition started')
         isRecording.value = true
         status.value = 'Listening...'
       }
@@ -64,6 +65,7 @@ onMounted(() => {
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         const current = event.resultIndex
         transcript.value = event.results[current][0].transcript
+        console.log('[VoiceInput] Result:', transcript.value, 'isFinal:', event.results[current].isFinal)
 
         if (event.results[current].isFinal) {
           emit('result', transcript.value)
@@ -71,14 +73,27 @@ onMounted(() => {
       }
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.error('[VoiceInput] Error:', event.error)
         isRecording.value = false
-        status.value = `Error: ${event.error}`
+
+        // Provide user-friendly error messages
+        const errorMessages: Record<string, string> = {
+          'not-allowed': 'Microphone access denied. Please allow microphone permissions.',
+          'no-speech': 'No speech detected. Please try again.',
+          'audio-capture': 'No microphone found. Please connect a microphone.',
+          'network': 'Network error. Please check your connection.',
+          'aborted': 'Recording was cancelled.'
+        }
+        status.value = errorMessages[event.error] || `Error: ${event.error}`
         emit('error', event.error)
       }
 
       recognition.onend = () => {
+        console.log('[VoiceInput] Recognition ended')
         isRecording.value = false
-        status.value = 'Click to start recording'
+        if (!status.value.startsWith('Error')) {
+          status.value = 'Click to start recording'
+        }
       }
     }
   }

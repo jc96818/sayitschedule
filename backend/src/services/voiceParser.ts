@@ -222,8 +222,7 @@ export async function parseVoiceCommand(
 
   try {
     const response = await getOpenAI().chat.completions.create({
-      model: 'gpt-5',
-      reasoning_effort: 'low',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }

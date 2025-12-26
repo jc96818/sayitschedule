@@ -190,7 +190,7 @@ resource "aws_ecs_task_definition" "app" {
           valueFrom = aws_ssm_parameter.jwt_secret.arn
         },
         {
-          name      = "AI_API_KEY"
+          name      = "OPENAI_API_KEY"
           valueFrom = aws_ssm_parameter.ai_api_key.arn
         }
       ]
