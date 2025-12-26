@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schedule - Project Hope | Say It Schedule</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .schedule-grid {
+      display: grid;
+      grid-template-columns: 100px repeat(5, 1fr);
+      background: white;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .schedule-header {
+      background: #F9FAFB;
+      padding: 12px;
+      text-align: center;
+      border-bottom: 1px solid #E5E7EB;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .schedule-header small {
+      display: block;
+      font-weight: 400;
+      color: #6B7280;
+      font-size: 11px;
+    }
+    .time-slot {
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #6B7280;
+      border-bottom: 1px solid #F3F4F6;
+      border-right: 1px solid #E5E7EB;
+      background: #F9FAFB;
+      height: 70px;
+      display: flex;
+      align-items: flex-start;
+    }
+    .schedule-cell {
+      border-bottom: 1px solid #F3F4F6;
+      border-right: 1px solid #F3F4F6;
+      height: 70px;
+      padding: 2px;
+      position: relative;
+    }
+    .schedule-cell:last-child {
+      border-right: none;
+    }
+    .session-block {
+      background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+      border-left: 3px solid #4F46E5;
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-size: 10px;
+      height: 100%;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .session-block:hover {
+      transform: scale(1.02);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .session-block .therapist {
+      font-weight: 600;
+      color: #4F46E5;
+    }
+    .session-block .patient {
+      color: #6B7280;
+    }
+    .session-block.green {
+      background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+      border-left-color: #059669;
+    }
+    .session-block.green .therapist { color: #059669; }
+    .session-block.purple {
+      background: linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%);
+      border-left-color: #7C3AED;
+    }
+    .session-block.purple .therapist { color: #7C3AED; }
+    .session-block.orange {
+      background: linear-gradient(135deg, #FED7AA 0%, #FDBA74 100%);
+      border-left-color: #EA580C;
+    }
+    .session-block.orange .therapist { color: #EA580C; }
+    .session-block.pink {
+      background: linear-gradient(135deg, #FCE7F3 0%, #FBCFE8 100%);
+      border-left-color: #DB2777;
+    }
+    .session-block.pink .therapist { color: #DB2777; }
+    .holiday-cell {
+      background: repeating-linear-gradient(
+        45deg,
+        #FEF3C7,
+        #FEF3C7 10px,
+        #FDE68A 10px,
+        #FDE68A 20px
+      );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #92400E;
+      font-weight: 500;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon">🏥</div>
+          <div class="sidebar-logo-text">
+            <h2>Project Hope</h2>
+            <p>sayitschedule.com</p>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Main</div>
+          <a href="dashboard.html" class="nav-item">
+            <span class="nav-item-icon">📊</span>
+            Dashboard
+          </a>
+          <a href="schedule.html" class="nav-item active">
+            <span class="nav-item-icon">📅</span>
+            Schedule
+          </a>
+          <a href="schedule-generate.html" class="nav-item">
+            <span class="nav-item-icon">✨</span>
+            Generate Schedule
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Management</div>
+          <a href="staff.html" class="nav-item">
+            <span class="nav-item-icon">👨‍⚕️</span>
+            Staff
+          </a>
+          <a href="patients.html" class="nav-item">
+            <span class="nav-item-icon">👥</span>
+            Patients
+          </a>
+          <a href="rules.html" class="nav-item">
+            <span class="nav-item-icon">📋</span>
+            Rules
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Admin</div>
+          <a href="settings.html" class="nav-item">
+            <span class="nav-item-icon">⚙️</span>
+            Settings
+          </a>
+          <a href="#" class="nav-item">
+            <span class="nav-item-icon">📜</span>
+            Audit Log
+          </a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-menu">
+          <div class="user-avatar">JC</div>
+          <div class="user-info">
+            <div class="user-name">John Connor</div>
+            <div class="user-role">Administrator</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="page-header">
+        <div class="page-title">
+          <h1>Weekly Schedule</h1>
+          <span class="badge badge-success">Published</span>
+        </div>
+        <div class="page-actions">
+          <div class="flex items-center gap-2" style="margin-right: 16px;">
+            <button class="btn btn-secondary btn-sm">← Prev</button>
+            <span style="font-weight: 500;">Dec 23 - 27, 2024</span>
+            <button class="btn btn-secondary btn-sm">Next →</button>
+          </div>
+          <select class="form-input form-select" style="width: auto;">
+            <option>All Staff</option>
+            <option>Adam Smith</option>
+            <option>Sarah Johnson</option>
+            <option>John Doe</option>
+          </select>
+          <button class="btn btn-secondary">
+            <span>📄</span> Export PDF
+          </button>
+          <button class="btn btn-secondary">
+            <span>🖨️</span> Print
+          </button>
+        </div>
+      </header>
+
+      <div class="page-body">
+        <!-- Voice Modification Interface -->
+        <div class="voice-interface">
+          <div class="voice-interface-header">
+            <div class="voice-interface-title">🎤 Voice-Powered Schedule Modification</div>
+            <span style="font-size: 12px; opacity: 0.8;">Make changes to the schedule using voice commands</span>
+          </div>
+          <div class="voice-interface-body">
+            <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()">
+              🎤
+            </button>
+            <div class="voice-transcript">
+              <div class="voice-transcript-placeholder">Click the microphone and say something like "Move Ethan's 9 AM session to 2 PM"</div>
+            </div>
+          </div>
+          <div class="voice-examples">
+            <div class="voice-examples-title">Try saying:</div>
+            <div class="voice-examples-list">
+              <span class="voice-example">"Move Adam's 9 AM to 2 PM"</span>
+              <span class="voice-example">"Swap Tuesday and Wednesday for Sarah"</span>
+              <span class="voice-example">"Cancel Emily's Friday sessions"</span>
+              <span class="voice-example">"Add session for Emilio Thursday 10 AM"</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedule Grid -->
+        <div class="card" style="overflow-x: auto;">
+          <div class="schedule-grid" style="min-width: 900px;">
+            <!-- Header Row -->
+            <div class="schedule-header" style="border-right: 1px solid #E5E7EB;">Time</div>
+            <div class="schedule-header">Monday<small>Dec 23</small></div>
+            <div class="schedule-header">Tuesday<small>Dec 24</small></div>
+            <div class="schedule-header" style="background: #FEF3C7; color: #92400E;">Wednesday<small>Dec 25 - Holiday</small></div>
+            <div class="schedule-header" style="background: #DBEAFE;">Thursday<small>Dec 26 - Today</small></div>
+            <div class="schedule-header">Friday<small>Dec 27</small></div>
+
+            <!-- 8:00 AM -->
+            <div class="time-slot">8:00 AM</div>
+            <div class="schedule-cell">
+              <div class="session-block">
+                <div class="therapist">Sarah J.</div>
+                <div class="patient">→ Emily C.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block green">
+                <div class="therapist">Emily W.</div>
+                <div class="patient">→ Lisa W.</div>
+              </div>
+            </div>
+            <div class="schedule-cell holiday-cell" rowspan="10" style="grid-row: span 10;">
+              🎄 Christmas Day
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block purple">
+                <div class="therapist">Michael B.</div>
+                <div class="patient">→ Marcus R.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block">
+                <div class="therapist">Adam S.</div>
+                <div class="patient">→ Emily C.</div>
+              </div>
+            </div>
+
+            <!-- 9:00 AM -->
+            <div class="time-slot">9:00 AM</div>
+            <div class="schedule-cell">
+              <div class="session-block purple">
+                <div class="therapist">Adam S.</div>
+                <div class="patient">→ Emilio G.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block">
+                <div class="therapist">Sarah J.</div>
+                <div class="patient">→ Michael B.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block orange">
+                <div class="therapist">John D.</div>
+                <div class="patient">→ James T.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block green">
+                <div class="therapist">Sarah J.</div>
+                <div class="patient">→ Lisa W.</div>
+              </div>
+            </div>
+
+            <!-- 10:00 AM -->
+            <div class="time-slot">10:00 AM</div>
+            <div class="schedule-cell">
+              <div class="session-block orange">
+                <div class="therapist">John D.</div>
+                <div class="patient">→ Marcus R.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block pink">
+                <div class="therapist">Emily W.</div>
+                <div class="patient">→ Emily C.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block">
+                <div class="therapist">Adam S.</div>
+                <div class="patient">→ Emilio G.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block purple">
+                <div class="therapist">Michael B.</div>
+                <div class="patient">→ Marcus R.</div>
+              </div>
+            </div>
+
+            <!-- 11:00 AM -->
+            <div class="time-slot">11:00 AM</div>
+            <div class="schedule-cell">
+              <div class="session-block green">
+                <div class="therapist">Sarah J.</div>
+                <div class="patient">→ Lisa W.</div>
+              </div>
+            </div>
+            <div class="schedule-cell"></div>
+            <div class="schedule-cell">
+              <div class="session-block pink">
+                <div class="therapist">Emily W.</div>
+                <div class="patient">→ Emily C.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block orange">
+                <div class="therapist">John D.</div>
+                <div class="patient">→ James T.</div>
+              </div>
+            </div>
+
+            <!-- 12:00 PM -->
+            <div class="time-slot">12:00 PM</div>
+            <div class="schedule-cell" style="background: #F9FAFB;"></div>
+            <div class="schedule-cell" style="background: #F9FAFB;"></div>
+            <div class="schedule-cell" style="background: #F9FAFB;"></div>
+            <div class="schedule-cell" style="background: #F9FAFB;"></div>
+
+            <!-- 1:00 PM -->
+            <div class="time-slot">1:00 PM</div>
+            <div class="schedule-cell">
+              <div class="session-block">
+                <div class="therapist">Adam S.</div>
+                <div class="patient">→ Michael B.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block purple">
+                <div class="therapist">Michael B.</div>
+                <div class="patient">→ Emilio G.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block green">
+                <div class="therapist">Sarah J.</div>
+                <div class="patient">→ Lisa W.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block">
+                <div class="therapist">Adam S.</div>
+                <div class="patient">→ Michael B.</div>
+              </div>
+            </div>
+
+            <!-- 2:00 PM -->
+            <div class="time-slot">2:00 PM</div>
+            <div class="schedule-cell">
+              <div class="session-block pink">
+                <div class="therapist">Emily W.</div>
+                <div class="patient">→ Marcus R.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block orange">
+                <div class="therapist">John D.</div>
+                <div class="patient">→ James T.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block">
+                <div class="therapist">Adam S.</div>
+                <div class="patient">→ Emily C.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block green">
+                <div class="therapist">Emily W.</div>
+                <div class="patient">→ Lisa W.</div>
+              </div>
+            </div>
+
+            <!-- 3:00 PM -->
+            <div class="time-slot">3:00 PM</div>
+            <div class="schedule-cell">
+              <div class="session-block orange">
+                <div class="therapist">John D.</div>
+                <div class="patient">→ Emilio G.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block">
+                <div class="therapist">Sarah J.</div>
+                <div class="patient">→ Emily C.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block purple">
+                <div class="therapist">Michael B.</div>
+                <div class="patient">→ Marcus R.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block pink">
+                <div class="therapist">Emily W.</div>
+                <div class="patient">→ Emilio G.</div>
+              </div>
+            </div>
+
+            <!-- 4:00 PM -->
+            <div class="time-slot">4:00 PM</div>
+            <div class="schedule-cell">
+              <div class="session-block">
+                <div class="therapist">Sarah J.</div>
+                <div class="patient">→ Michael B.</div>
+              </div>
+            </div>
+            <div class="schedule-cell"></div>
+            <div class="schedule-cell">
+              <div class="session-block orange">
+                <div class="therapist">John D.</div>
+                <div class="patient">→ James T.</div>
+              </div>
+            </div>
+            <div class="schedule-cell">
+              <div class="session-block">
+                <div class="therapist">Adam S.</div>
+                <div class="patient">→ Marcus R.</div>
+              </div>
+            </div>
+
+            <!-- 5:00 PM -->
+            <div class="time-slot">5:00 PM</div>
+            <div class="schedule-cell"></div>
+            <div class="schedule-cell"></div>
+            <div class="schedule-cell"></div>
+            <div class="schedule-cell"></div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="card mt-4">
+          <div class="card-body">
+            <div class="flex items-center gap-4" style="flex-wrap: wrap;">
+              <span style="font-weight: 500; margin-right: 8px;">Staff:</span>
+              <div class="flex items-center gap-2">
+                <div style="width: 12px; height: 12px; background: #4F46E5; border-radius: 2px;"></div>
+                <span style="font-size: 13px;">Adam S.</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div style="width: 12px; height: 12px; background: #059669; border-radius: 2px;"></div>
+                <span style="font-size: 13px;">Sarah J.</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div style="width: 12px; height: 12px; background: #7C3AED; border-radius: 2px;"></div>
+                <span style="font-size: 13px;">Michael B.</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div style="width: 12px; height: 12px; background: #EA580C; border-radius: 2px;"></div>
+                <span style="font-size: 13px;">John D.</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div style="width: 12px; height: 12px; background: #DB2777; border-radius: 2px;"></div>
+                <span style="font-size: 13px;">Emily W.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function toggleRecording() {
+      const btn = document.getElementById('voiceBtn');
+      btn.classList.toggle('recording');
+    }
+  </script>
+</body>
+</html>

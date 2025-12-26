@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Say It Schedule</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>Say It Schedule</h1>
+        <span>sayitschedule.com</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Main</div>
+          <a href="02-dashboard.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            Dashboard
+          </a>
+          <a href="07-schedule-generate.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Schedule
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Management</div>
+          <a href="03-rules.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            Rules
+          </a>
+          <a href="04-staff-list.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Staff
+          </a>
+          <a href="06-patient-list.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            Patients
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Admin</div>
+          <a href="11-settings.html" class="nav-item active">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Settings
+          </a>
+          <a href="10-users.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Users
+          </a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">JC</div>
+          <div class="user-details">
+            <div class="user-name">Jane Connor</div>
+            <div class="user-role">Administrator</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="header">
+        <div class="header-title">
+          <h2>Settings</h2>
+          <p>Configure system preferences and options</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Save All Changes
+          </button>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <!-- Settings Navigation Tabs -->
+        <div class="tabs mb-3">
+          <div class="tab active">General</div>
+          <div class="tab">Scheduling</div>
+          <div class="tab">Holidays</div>
+          <div class="tab">PDF & Branding</div>
+          <div class="tab">Notifications</div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Organization Settings -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Organization</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label>Organization Name</label>
+                <input type="text" class="form-control" value="Bright Horizons Behavioral Therapy">
+              </div>
+              <div class="form-group">
+                <label>Address</label>
+                <textarea class="form-control" rows="2">123 Healthcare Drive, Suite 200
+Los Angeles, CA 90001</textarea>
+              </div>
+              <div class="form-group">
+                <label>Phone</label>
+                <input type="tel" class="form-control" value="(555) 123-4567">
+              </div>
+              <div class="form-group">
+                <label>Email</label>
+                <input type="email" class="form-control" value="scheduling@brighthorizons.com">
+              </div>
+              <div class="form-group">
+                <label>Timezone</label>
+                <select class="form-control">
+                  <option>America/Los_Angeles (Pacific Time)</option>
+                  <option>America/Denver (Mountain Time)</option>
+                  <option>America/Chicago (Central Time)</option>
+                  <option selected>America/New_York (Eastern Time)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Default Scheduling Settings -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Default Scheduling</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label>Default Session Duration</label>
+                <select class="form-control">
+                  <option>30 minutes</option>
+                  <option>45 minutes</option>
+                  <option selected>1 hour</option>
+                  <option>1.5 hours</option>
+                  <option>2 hours</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Sessions Per Day (Default)</label>
+                <input type="number" class="form-control" value="2" min="1" max="10">
+              </div>
+              <div class="grid-2">
+                <div class="form-group">
+                  <label>Business Hours Start</label>
+                  <input type="time" class="form-control" value="09:00">
+                </div>
+                <div class="form-group">
+                  <label>Business Hours End</label>
+                  <input type="time" class="form-control" value="17:00">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Working Days</label>
+                <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px;">
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox"> Sun
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" checked> Mon
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" checked> Tue
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" checked> Wed
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" checked> Thu
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" checked> Fri
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox"> Sat
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Holidays Section -->
+        <div class="card mt-3">
+          <div class="card-header">
+            <h3>Holidays & Closures (2025)</h3>
+            <button class="btn btn-outline btn-sm">Add Custom Date</button>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Holiday</th>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>New Year's Day</td>
+                  <td>January 1, 2025</td>
+                  <td><span class="badge badge-primary">Federal</span></td>
+                  <td>
+                    <label class="toggle">
+                      <input type="checkbox" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </td>
+                  <td><span class="text-muted">System Holiday</span></td>
+                </tr>
+                <tr>
+                  <td>Martin Luther King Jr. Day</td>
+                  <td>January 20, 2025</td>
+                  <td><span class="badge badge-primary">Federal</span></td>
+                  <td>
+                    <label class="toggle">
+                      <input type="checkbox" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </td>
+                  <td><span class="text-muted">System Holiday</span></td>
+                </tr>
+                <tr>
+                  <td>Presidents' Day</td>
+                  <td>February 17, 2025</td>
+                  <td><span class="badge badge-primary">Federal</span></td>
+                  <td>
+                    <label class="toggle">
+                      <input type="checkbox" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </td>
+                  <td><span class="text-muted">System Holiday</span></td>
+                </tr>
+                <tr>
+                  <td>Memorial Day</td>
+                  <td>May 26, 2025</td>
+                  <td><span class="badge badge-primary">Federal</span></td>
+                  <td>
+                    <label class="toggle">
+                      <input type="checkbox" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </td>
+                  <td><span class="text-muted">System Holiday</span></td>
+                </tr>
+                <tr>
+                  <td>Juneteenth</td>
+                  <td>June 19, 2025</td>
+                  <td><span class="badge badge-primary">Federal</span></td>
+                  <td>
+                    <label class="toggle">
+                      <input type="checkbox" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </td>
+                  <td><span class="text-muted">System Holiday</span></td>
+                </tr>
+                <tr>
+                  <td>Independence Day</td>
+                  <td>July 4, 2025</td>
+                  <td><span class="badge badge-primary">Federal</span></td>
+                  <td>
+                    <label class="toggle">
+                      <input type="checkbox" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </td>
+                  <td><span class="text-muted">System Holiday</span></td>
+                </tr>
+                <tr style="background-color: var(--warning-light);">
+                  <td>Staff Training Day</td>
+                  <td>March 14, 2025</td>
+                  <td><span class="badge badge-warning">Custom</span></td>
+                  <td>
+                    <label class="toggle">
+                      <input type="checkbox" checked>
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                    <button class="btn btn-ghost btn-sm" style="color: var(--danger-color);">Delete</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PDF Branding Settings -->
+        <div class="card mt-3">
+          <div class="card-header">
+            <h3>PDF & Branding</h3>
+          </div>
+          <div class="card-body">
+            <div class="grid-2">
+              <div>
+                <div class="form-group">
+                  <label>Company Logo</label>
+                  <div style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 24px; text-align: center; background: var(--background-color);">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="48" height="48" style="color: var(--text-muted); margin-bottom: 8px;">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p class="text-sm text-muted">Drag and drop logo or click to upload</p>
+                    <button class="btn btn-outline btn-sm" style="margin-top: 8px;">Upload Logo</button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Primary Brand Color</label>
+                  <div style="display: flex; gap: 12px; align-items: center;">
+                    <input type="color" value="#2563eb" style="width: 50px; height: 40px; border: none; cursor: pointer;">
+                    <input type="text" class="form-control" value="#2563eb" style="width: 120px;">
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div class="form-group">
+                  <label>PDF Header Text</label>
+                  <input type="text" class="form-control" value="Bright Horizons Behavioral Therapy - Weekly Schedule">
+                </div>
+                <div class="form-group">
+                  <label>PDF Footer Text</label>
+                  <input type="text" class="form-control" value="Confidential - For Internal Use Only">
+                </div>
+                <div class="form-group">
+                  <label>Include in PDF</label>
+                  <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" checked> Company logo
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" checked> Date generated
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" checked> Page numbers
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox"> Therapist contact info
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Voice & AI Settings -->
+        <div class="card mt-3">
+          <div class="card-header">
+            <h3>Voice & AI Settings</h3>
+          </div>
+          <div class="card-body">
+            <div class="grid-2">
+              <div>
+                <div class="form-group">
+                  <label>Voice Recognition Language</label>
+                  <select class="form-control">
+                    <option selected>English (US)</option>
+                    <option>English (UK)</option>
+                    <option>Spanish</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>AI Confirmation Mode</label>
+                  <select class="form-control">
+                    <option selected>Always confirm before applying changes</option>
+                    <option>Auto-apply low-risk changes, confirm high-risk</option>
+                    <option>Auto-apply all changes (not recommended)</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <div class="form-group">
+                  <label>Voice Feedback</label>
+                  <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" checked> Play sound when recording starts
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" checked> Play sound when recording ends
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                      <input type="checkbox" checked> Show real-time transcription
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data & Privacy -->
+        <div class="card mt-3">
+          <div class="card-header">
+            <h3>Data & Privacy</h3>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                This system is designed with HIPAA compliance in mind. Patient data is encrypted at rest and in transit.
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label>Audit Log Retention</label>
+                <select class="form-control">
+                  <option>30 days</option>
+                  <option>90 days</option>
+                  <option selected>1 year</option>
+                  <option>3 years</option>
+                  <option>7 years</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Schedule History Retention</label>
+                <select class="form-control">
+                  <option>6 months</option>
+                  <option selected>1 year</option>
+                  <option>2 years</option>
+                  <option>5 years</option>
+                </select>
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px; margin-top: 16px;">
+              <button class="btn btn-outline">Export All Data</button>
+              <button class="btn btn-outline" style="color: var(--danger-color); border-color: var(--danger-color);">Delete All Data</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

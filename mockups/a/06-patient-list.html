@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient Management - Say It Schedule</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>Say It Schedule</h1>
+        <span>sayitschedule.com</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Main</div>
+          <a href="02-dashboard.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            Dashboard
+          </a>
+          <a href="07-schedule-generate.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Schedule
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Management</div>
+          <a href="03-rules.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            Rules
+          </a>
+          <a href="04-staff-list.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Staff
+          </a>
+          <a href="06-patient-list.html" class="nav-item active">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            Patients
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Admin</div>
+          <a href="11-settings.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Settings
+          </a>
+          <a href="10-users.html" class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Users
+          </a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">JC</div>
+          <div class="user-details">
+            <div class="user-name">Jane Connor</div>
+            <div class="user-role">Administrator</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="header">
+        <div class="header-title">
+          <h2>Patient Management</h2>
+          <p>Manage patients and their session requirements</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Patient
+          </button>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <!-- Voice Interface for Patient Management -->
+        <div class="voice-interface">
+          <h3>Voice Patient Management</h3>
+          <p>Click the microphone and speak to add or update patients</p>
+
+          <button class="mic-button" id="micButton" onclick="toggleRecording()">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+          </button>
+
+          <div class="voice-status" id="voiceStatus">Click to start recording</div>
+
+          <!-- Example Templates -->
+          <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 16px;">
+            <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; font-size: 13px;">
+              "New patient, Alex Thompson, male, needs 2 sessions per week"
+            </div>
+            <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; font-size: 13px;">
+              "Sofia Anderson prefers morning sessions"
+            </div>
+            <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; font-size: 13px;">
+              "Marcus Chen requires BCBA certified therapist"
+            </div>
+          </div>
+
+          <!-- Transcription appears here when recording -->
+          <div class="transcription-box" id="transcriptionBox" style="display: none;">
+            <div class="label">You said:</div>
+            <div id="transcriptionText">"New patient, Alex Thompson, male, needs 2 sessions per week"</div>
+          </div>
+
+          <!-- AI Interpretation Confirmation -->
+          <div class="confirmation-card" id="confirmationCard" style="display: none; margin-top: 20px; background: white; color: var(--text-primary);">
+            <h4>AI Interpretation</h4>
+            <div class="interpreted-rule">
+              <strong>Add New Patient:</strong><br>
+              <div style="margin-top: 8px; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; text-align: left;">
+                <span style="color: var(--text-muted);">Name:</span> <span>Alex Thompson</span>
+                <span style="color: var(--text-muted);">Gender:</span> <span>Male</span>
+                <span style="color: var(--text-muted);">Sessions/Week:</span> <span>2</span>
+                <span style="color: var(--text-muted);">Preferred Time:</span> <span>Flexible (not specified)</span>
+                <span style="color: var(--text-muted);">Required Cert:</span> <span>Any</span>
+              </div>
+            </div>
+            <div class="confirmation-actions">
+              <button class="btn btn-success" onclick="confirmAction()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Add Patient
+              </button>
+              <button class="btn btn-outline" style="background: white;" onclick="editManually()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Details
+              </button>
+              <button class="btn btn-ghost" style="color: var(--danger-color);" onclick="cancelAction()">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="card mb-3">
+          <div class="card-body" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+            <div class="search-box" style="flex: 1; min-width: 250px;">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input type="text" placeholder="Search patients by name or ID...">
+            </div>
+            <select class="form-control" style="width: auto;">
+              <option>All Status</option>
+              <option>Active</option>
+              <option>Inactive</option>
+            </select>
+            <select class="form-control" style="width: auto;">
+              <option>All Genders</option>
+              <option>Male</option>
+              <option>Female</option>
+            </select>
+            <select class="form-control" style="width: auto;">
+              <option>All Session Frequencies</option>
+              <option>2x per week</option>
+              <option>3x per week</option>
+              <option>5x per week</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Patient Table -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Patients (48)</h3>
+            <button class="btn btn-outline btn-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Export
+            </button>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name / ID</th>
+                  <th>Gender</th>
+                  <th>Sessions/Week</th>
+                  <th>Required Certifications</th>
+                  <th>Preferred Times</th>
+                  <th>Status</th>
+                  <th>Assigned Therapist</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div class="user-avatar" style="width: 36px; height: 36px; font-size: 13px; background-color: var(--success-light); color: var(--success-color);">ER</div>
+                      <div>
+                        <div style="font-weight: 500;">Emilio Rodriguez</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">ID: PAT-001</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Male</td>
+                  <td>2 sessions</td>
+                  <td>
+                    <span class="badge badge-primary">BCBA</span>
+                  </td>
+                  <td>Morning (9-12)</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td>
+                    <span class="badge badge-warning">Ethan M. (Required)</span>
+                  </td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div class="user-avatar" style="width: 36px; height: 36px; font-size: 13px; background-color: #fce7f3; color: #be185d;">SA</div>
+                      <div>
+                        <div style="font-weight: 500;">Sofia Anderson</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">ID: PAT-002</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Female</td>
+                  <td>3 sessions</td>
+                  <td>
+                    <span class="badge badge-primary">RBT</span>
+                  </td>
+                  <td>Afternoon (1-5)</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td>Any Female</td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div class="user-avatar" style="width: 36px; height: 36px; font-size: 13px; background-color: var(--success-light); color: var(--success-color);">MC</div>
+                      <div>
+                        <div style="font-weight: 500;">Marcus Chen</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">ID: PAT-003</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Male</td>
+                  <td>2 sessions</td>
+                  <td>
+                    <span class="badge badge-secondary">Any</span>
+                  </td>
+                  <td>Flexible</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td>Any Male</td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div class="user-avatar" style="width: 36px; height: 36px; font-size: 13px; background-color: #fce7f3; color: #be185d;">OW</div>
+                      <div>
+                        <div style="font-weight: 500;">Olivia Williams</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">ID: PAT-004</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Female</td>
+                  <td>5 sessions</td>
+                  <td>
+                    <span class="badge badge-primary">BCBA</span>
+                    <span class="badge badge-secondary">ABA</span>
+                  </td>
+                  <td>Morning (9-12)</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td>Lisa J.</td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div class="user-avatar" style="width: 36px; height: 36px; font-size: 13px; background-color: var(--success-light); color: var(--success-color);">LT</div>
+                      <div>
+                        <div style="font-weight: 500;">Liam Thompson</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">ID: PAT-005</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Male</td>
+                  <td>2 sessions</td>
+                  <td>
+                    <span class="badge badge-primary">RBT</span>
+                  </td>
+                  <td>Afternoon (1-5)</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td>Michael B.</td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div class="user-avatar" style="width: 36px; height: 36px; font-size: 13px; background-color: #fce7f3; color: #be185d;">EM</div>
+                      <div>
+                        <div style="font-weight: 500;">Emma Martinez</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">ID: PAT-006</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Female</td>
+                  <td>3 sessions</td>
+                  <td>
+                    <span class="badge badge-secondary">Any</span>
+                  </td>
+                  <td>Flexible</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td>Sarah M.</td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div class="user-avatar" style="width: 36px; height: 36px; font-size: 13px; background-color: var(--success-light); color: var(--success-color);">NP</div>
+                      <div>
+                        <div style="font-weight: 500;">Noah Patel</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">ID: PAT-007</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Male</td>
+                  <td>2 sessions</td>
+                  <td>
+                    <span class="badge badge-primary">BCBA</span>
+                  </td>
+                  <td>Morning (9-12)</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td>John W.</td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                  </td>
+                </tr>
+                <tr style="opacity: 0.6;">
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div class="user-avatar" style="width: 36px; height: 36px; font-size: 13px; background-color: #f1f5f9; color: var(--text-muted);">AJ</div>
+                      <div>
+                        <div style="font-weight: 500;">Ava Johnson</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">ID: PAT-008</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>Female</td>
+                  <td>-</td>
+                  <td>
+                    <span class="badge badge-secondary">RBT</span>
+                  </td>
+                  <td>-</td>
+                  <td><span class="badge badge-secondary">Inactive</span></td>
+                  <td>-</td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm">Edit</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="text-sm text-muted">Showing 1-8 of 48 patients</span>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-outline btn-sm" disabled>Previous</button>
+              <button class="btn btn-outline btn-sm">Next</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="grid-3 mt-3">
+          <div class="stat-card">
+            <div class="stat-icon green">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div class="stat-content">
+              <h4>45</h4>
+              <p>Fully Scheduled This Week</p>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon yellow">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div class="stat-content">
+              <h4>3</h4>
+              <p>Partially Scheduled</p>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon red">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div class="stat-content">
+              <h4>0</h4>
+              <p>Unscheduled</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+<script>
+    // Demo functionality for voice interface
+    let isRecording = false;
+
+    function toggleRecording() {
+      const btn = document.getElementById('micButton');
+      const status = document.getElementById('voiceStatus');
+      const transcription = document.getElementById('transcriptionBox');
+      const confirmation = document.getElementById('confirmationCard');
+
+      if (!isRecording) {
+        // Start recording
+        isRecording = true;
+        btn.classList.add('recording');
+        status.textContent = 'Listening... Speak now';
+        transcription.style.display = 'none';
+        confirmation.style.display = 'none';
+      } else {
+        // Stop recording - show transcription
+        isRecording = false;
+        btn.classList.remove('recording');
+        status.textContent = 'Processing...';
+
+        // Simulate AI processing
+        setTimeout(() => {
+          status.textContent = 'Review the interpretation below';
+          transcription.style.display = 'block';
+          confirmation.style.display = 'block';
+        }, 1000);
+      }
+    }
+
+    function confirmAction() {
+      alert('Patient added successfully!');
+      document.getElementById('transcriptionBox').style.display = 'none';
+      document.getElementById('confirmationCard').style.display = 'none';
+      document.getElementById('voiceStatus').textContent = 'Click to start recording';
+    }
+
+    function editManually() {
+      alert('Opening patient edit form...');
+    }
+
+    function cancelAction() {
+      document.getElementById('transcriptionBox').style.display = 'none';
+      document.getElementById('confirmationCard').style.display = 'none';
+      document.getElementById('voiceStatus').textContent = 'Click to start recording';
+    }
+  </script>
+</body>
+</html>

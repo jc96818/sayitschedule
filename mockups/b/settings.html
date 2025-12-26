@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Project Hope | Say It Schedule</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon">🏥</div>
+          <div class="sidebar-logo-text">
+            <h2>Project Hope</h2>
+            <p>sayitschedule.com</p>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Main</div>
+          <a href="dashboard.html" class="nav-item">
+            <span class="nav-item-icon">📊</span>
+            Dashboard
+          </a>
+          <a href="schedule.html" class="nav-item">
+            <span class="nav-item-icon">📅</span>
+            Schedule
+          </a>
+          <a href="schedule-generate.html" class="nav-item">
+            <span class="nav-item-icon">✨</span>
+            Generate Schedule
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Management</div>
+          <a href="staff.html" class="nav-item">
+            <span class="nav-item-icon">👨‍⚕️</span>
+            Staff
+          </a>
+          <a href="patients.html" class="nav-item">
+            <span class="nav-item-icon">👥</span>
+            Patients
+          </a>
+          <a href="rules.html" class="nav-item">
+            <span class="nav-item-icon">📋</span>
+            Rules
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Admin</div>
+          <a href="settings.html" class="nav-item active">
+            <span class="nav-item-icon">⚙️</span>
+            Settings
+          </a>
+          <a href="#" class="nav-item">
+            <span class="nav-item-icon">📜</span>
+            Audit Log
+          </a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-menu">
+          <div class="user-avatar">JC</div>
+          <div class="user-info">
+            <div class="user-name">John Connor</div>
+            <div class="user-role">Administrator</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="page-header">
+        <div class="page-title">
+          <h1>Settings</h1>
+        </div>
+      </header>
+
+      <div class="page-body">
+        <div class="grid grid-cols-3 gap-4">
+          <!-- Sidebar Navigation -->
+          <div class="card" style="grid-column: span 1;">
+            <div class="card-body" style="padding: 8px;">
+              <a href="#branding" class="nav-item active" style="color: #374151;">
+                <span class="nav-item-icon">🎨</span>
+                Branding
+              </a>
+              <a href="#users" class="nav-item" style="color: #374151;">
+                <span class="nav-item-icon">👥</span>
+                User Management
+              </a>
+              <a href="#holidays" class="nav-item" style="color: #374151;">
+                <span class="nav-item-icon">📅</span>
+                Holidays
+              </a>
+              <a href="#scheduling" class="nav-item" style="color: #374151;">
+                <span class="nav-item-icon">⏰</span>
+                Scheduling Defaults
+              </a>
+              <a href="#notifications" class="nav-item" style="color: #374151;">
+                <span class="nav-item-icon">🔔</span>
+                Notifications
+              </a>
+            </div>
+          </div>
+
+          <!-- Settings Content -->
+          <div style="grid-column: span 2;">
+            <!-- Branding Section -->
+            <div class="card mb-4" id="branding">
+              <div class="card-header">
+                <h3>🎨 Organization Branding</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label class="form-label">Organization Name</label>
+                  <input type="text" class="form-input" value="Project Hope Therapy">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Logo</label>
+                  <div style="display: flex; align-items: center; gap: 16px;">
+                    <div style="width: 80px; height: 80px; background: #F3F4F6; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 32px;">🏥</div>
+                    <div>
+                      <button class="btn btn-secondary btn-sm">Upload New Logo</button>
+                      <p style="font-size: 12px; color: #6B7280; margin-top: 4px;">Recommended: 200x200px, PNG or SVG</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="form-group">
+                    <label class="form-label">Primary Color</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <input type="color" value="#4F46E5" style="width: 50px; height: 40px; border: none; border-radius: 4px; cursor: pointer;">
+                      <input type="text" class="form-input" value="#4F46E5" style="width: 120px;">
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Secondary Color</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <input type="color" value="#10B981" style="width: 50px; height: 40px; border: none; border-radius: 4px; cursor: pointer;">
+                      <input type="text" class="form-input" value="#10B981" style="width: 120px;">
+                    </div>
+                  </div>
+                </div>
+
+                <button class="btn btn-primary">Save Branding</button>
+              </div>
+            </div>
+
+            <!-- User Management Section -->
+            <div class="card mb-4" id="users">
+              <div class="card-header">
+                <h3>👥 User Management</h3>
+                <button class="btn btn-sm btn-primary">+ Add User</button>
+              </div>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Last Login</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="flex items-center gap-3">
+                        <div style="width: 36px; height: 36px; background: #DBEAFE; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #2563EB;">JC</div>
+                        <div>
+                          <div style="font-weight: 500;">John Connor</div>
+                          <div style="font-size: 12px; color: #6B7280;">john@projecthope.com</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="badge badge-info">Administrator</span></td>
+                    <td>Today, 9:30 AM</td>
+                    <td><span class="badge badge-success">Active</span></td>
+                    <td>
+                      <button class="btn btn-sm btn-secondary">Edit</button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="flex items-center gap-3">
+                        <div style="width: 36px; height: 36px; background: #FCE7F3; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #DB2777;">MA</div>
+                        <div>
+                          <div style="font-weight: 500;">Mary Admin</div>
+                          <div style="font-size: 12px; color: #6B7280;">mary@projecthope.com</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="badge" style="background: #E0E7FF; color: #4338CA;">Admin Assistant</span></td>
+                    <td>Yesterday, 4:15 PM</td>
+                    <td><span class="badge badge-success">Active</span></td>
+                    <td>
+                      <button class="btn btn-sm btn-secondary">Edit</button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="flex items-center gap-3">
+                        <div style="width: 36px; height: 36px; background: #D1FAE5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #059669;">AS</div>
+                        <div>
+                          <div style="font-weight: 500;">Adam Smith</div>
+                          <div style="font-size: 12px; color: #6B7280;">adam.smith@projecthope.com</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="badge badge-gray">Staff</span></td>
+                    <td>Dec 24, 2024</td>
+                    <td><span class="badge badge-success">Active</span></td>
+                    <td>
+                      <button class="btn btn-sm btn-secondary">Edit</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Holidays Section -->
+            <div class="card mb-4" id="holidays">
+              <div class="card-header">
+                <h3>📅 Holiday Configuration</h3>
+                <button class="btn btn-sm btn-primary">+ Add Holiday</button>
+              </div>
+              <div class="card-body">
+                <div style="margin-bottom: 16px;">
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" checked style="width: 18px; height: 18px;">
+                    <span>Automatically include US Federal Holidays</span>
+                  </label>
+                </div>
+
+                <h4 style="margin-bottom: 12px;">Upcoming Holidays</h4>
+                <div style="border: 1px solid #E5E7EB; border-radius: 8px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #E5E7EB;">
+                    <div>
+                      <div style="font-weight: 500;">New Year's Day</div>
+                      <div style="font-size: 12px; color: #6B7280;">January 1, 2025 • Federal Holiday</div>
+                    </div>
+                    <span class="badge badge-info">Auto</span>
+                  </div>
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #E5E7EB;">
+                    <div>
+                      <div style="font-weight: 500;">MLK Jr. Day</div>
+                      <div style="font-size: 12px; color: #6B7280;">January 20, 2025 • Federal Holiday</div>
+                    </div>
+                    <span class="badge badge-info">Auto</span>
+                  </div>
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #E5E7EB;">
+                    <div>
+                      <div style="font-weight: 500;">Staff Training Day</div>
+                      <div style="font-size: 12px; color: #6B7280;">January 15, 2025 • Custom</div>
+                    </div>
+                    <div class="flex gap-2">
+                      <button class="btn btn-sm btn-secondary">Edit</button>
+                      <button class="btn btn-sm btn-secondary" style="color: #EF4444;">Delete</button>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;">
+                    <div>
+                      <div style="font-weight: 500;">Presidents' Day</div>
+                      <div style="font-size: 12px; color: #6B7280;">February 17, 2025 • Federal Holiday</div>
+                    </div>
+                    <span class="badge badge-info">Auto</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Scheduling Defaults Section -->
+            <div class="card mb-4" id="scheduling">
+              <div class="card-header">
+                <h3>⏰ Scheduling Defaults</h3>
+              </div>
+              <div class="card-body">
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="form-group">
+                    <label class="form-label">Default Session Duration</label>
+                    <select class="form-input form-select">
+                      <option>30 minutes</option>
+                      <option>45 minutes</option>
+                      <option selected>60 minutes</option>
+                      <option>90 minutes</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Work Week</label>
+                    <select class="form-input form-select">
+                      <option selected>Monday - Friday</option>
+                      <option>Monday - Saturday</option>
+                      <option>Sunday - Thursday</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="form-group">
+                    <label class="form-label">Business Hours Start</label>
+                    <input type="time" class="form-input" value="08:00">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Business Hours End</label>
+                    <input type="time" class="form-input" value="18:00">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Timezone</label>
+                  <select class="form-input form-select">
+                    <option>America/New_York (Eastern)</option>
+                    <option>America/Chicago (Central)</option>
+                    <option>America/Denver (Mountain)</option>
+                    <option>America/Los_Angeles (Pacific)</option>
+                  </select>
+                </div>
+
+                <button class="btn btn-primary">Save Defaults</button>
+              </div>
+            </div>
+
+            <!-- Notifications Section -->
+            <div class="card" id="notifications">
+              <div class="card-header">
+                <h3>🔔 Notification Settings</h3>
+              </div>
+              <div class="card-body">
+                <div style="border: 1px solid #E5E7EB; border-radius: 8px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; border-bottom: 1px solid #E5E7EB;">
+                    <div>
+                      <div style="font-weight: 500;">Schedule Published</div>
+                      <div style="font-size: 12px; color: #6B7280;">Notify staff when a new schedule is published</div>
+                    </div>
+                    <label style="position: relative; display: inline-block; width: 48px; height: 24px;">
+                      <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
+                      <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #10B981; border-radius: 24px; transition: .3s;">
+                        <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 26px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s;"></span>
+                      </span>
+                    </label>
+                  </div>
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; border-bottom: 1px solid #E5E7EB;">
+                    <div>
+                      <div style="font-weight: 500;">Schedule Changes</div>
+                      <div style="font-size: 12px; color: #6B7280;">Notify affected staff when their schedule changes</div>
+                    </div>
+                    <label style="position: relative; display: inline-block; width: 48px; height: 24px;">
+                      <input type="checkbox" checked style="opacity: 0; width: 0; height: 0;">
+                      <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #10B981; border-radius: 24px; transition: .3s;">
+                        <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 26px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s;"></span>
+                      </span>
+                    </label>
+                  </div>
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px;">
+                    <div>
+                      <div style="font-weight: 500;">Daily Reminder</div>
+                      <div style="font-size: 12px; color: #6B7280;">Send daily schedule summary to staff each morning</div>
+                    </div>
+                    <label style="position: relative; display: inline-block; width: 48px; height: 24px;">
+                      <input type="checkbox" style="opacity: 0; width: 0; height: 0;">
+                      <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #D1D5DB; border-radius: 24px; transition: .3s;">
+                        <span style="position: absolute; content: ''; height: 18px; width: 18px; left: 4px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s;"></span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
