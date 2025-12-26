@@ -164,13 +164,18 @@ export class ScheduleRepository {
       .update(schedules)
       .set({
         status: 'draft',
-        publishedAt: null,
-        version: schedules.version
+        publishedAt: null
       })
       .where(and(eq(schedules.id, id), eq(schedules.organizationId, organizationId)))
       .returning()
 
     return result[0] || null
+  }
+
+  async archive(id: string, organizationId: string): Promise<Schedule | null> {
+    // For now, archive is the same as unpublish - returns to draft status
+    // Could add an 'archived' status in the future
+    return this.unpublish(id, organizationId)
   }
 
   async delete(id: string, organizationId: string): Promise<boolean> {
@@ -269,3 +274,68 @@ export class ScheduleRepository {
 }
 
 export const scheduleRepository = new ScheduleRepository()
+
+// SessionRepository as a separate class for route compatibility
+export class SessionRepository {
+  private get db() {
+    return getDb()
+  }
+
+  async findBySchedule(scheduleId: string): Promise<SessionWithDetails[]> {
+    const result = await this.db
+      .select({
+        session: sessions,
+        therapistName: staff.name,
+        patientName: patients.name
+      })
+      .from(sessions)
+      .leftJoin(staff, eq(sessions.therapistId, staff.id))
+      .leftJoin(patients, eq(sessions.patientId, patients.id))
+      .where(eq(sessions.scheduleId, scheduleId))
+      .orderBy(sessions.date, sessions.startTime)
+
+    return result.map(s => ({
+      ...s.session,
+      therapistName: s.therapistName || undefined,
+      patientName: s.patientName || undefined
+    }))
+  }
+
+  async create(data: SessionCreate): Promise<Session> {
+    const result = await this.db
+      .insert(sessions)
+      .values({
+        scheduleId: data.scheduleId,
+        therapistId: data.therapistId,
+        patientId: data.patientId,
+        date: data.date,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        notes: data.notes
+      })
+      .returning()
+
+    return result[0]
+  }
+
+  async update(sessionId: string, scheduleId: string, data: SessionUpdate): Promise<Session | null> {
+    const result = await this.db
+      .update(sessions)
+      .set(data)
+      .where(and(eq(sessions.id, sessionId), eq(sessions.scheduleId, scheduleId)))
+      .returning()
+
+    return result[0] || null
+  }
+
+  async delete(sessionId: string, scheduleId: string): Promise<boolean> {
+    const result = await this.db
+      .delete(sessions)
+      .where(and(eq(sessions.id, sessionId), eq(sessions.scheduleId, scheduleId)))
+      .returning({ id: sessions.id })
+
+    return result.length > 0
+  }
+}
+
+export const sessionRepository = new SessionRepository()

@@ -1,30 +1,86 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useStaffStore } from '@/stores/staff'
+import { usePatientsStore } from '@/stores/patients'
+import { useSchedulesStore } from '@/stores/schedules'
+import { StatCard, Badge, Button, Alert } from '@/components/ui'
 
+const router = useRouter()
 const authStore = useAuthStore()
+const staffStore = useStaffStore()
+const patientsStore = usePatientsStore()
+const schedulesStore = useSchedulesStore()
 
-const stats = ref({
-  activeTherapists: 0,
-  activePatients: 0,
-  sessionsThisWeek: 0,
-  conflicts: 0
+const loading = ref(true)
+
+const stats = computed(() => ({
+  activeTherapists: staffStore.totalCount,
+  activePatients: patientsStore.totalCount,
+  sessionsThisWeek: schedulesStore.currentWeekSchedule?.sessions?.length || 0,
+  conflicts: 0 // TODO: Calculate from sessions
+}))
+
+const currentWeekSchedule = computed(() => schedulesStore.currentWeekSchedule)
+
+const upcomingWeeks = computed(() => {
+  const weeks = []
+  const today = new Date()
+
+  for (let i = 1; i <= 3; i++) {
+    const weekStart = new Date(today)
+    weekStart.setDate(today.getDate() - today.getDay() + 1 + (i * 7))
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 4)
+
+    const weekStr = weekStart.toISOString().split('T')[0]
+    const schedule = schedulesStore.schedules.find(s => s.weekStartDate === weekStr)
+
+    weeks.push({
+      weekStart: weekStr,
+      weekLabel: `${formatShortDate(weekStart)} - ${formatShortDate(weekEnd)}`,
+      status: schedule?.status || 'not_started',
+      sessions: schedule?.sessions?.length || null,
+      conflicts: 0
+    })
+  }
+
+  return weeks
 })
 
-const upcomingWeeks = ref([
-  { week: 'Dec 30 - Jan 3', status: 'draft', sessions: 88, conflicts: 3 },
-  { week: 'Jan 6 - Jan 10', status: 'not_started', sessions: null, conflicts: null },
-  { week: 'Jan 13 - Jan 17', status: 'not_started', sessions: null, conflicts: null }
-])
+function formatShortDate(date: Date): string {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'secondary' {
+  if (status === 'published') return 'success'
+  if (status === 'draft') return 'warning'
+  return 'secondary'
+}
+
+function getStatusLabel(status: string): string {
+  if (status === 'published') return 'Published'
+  if (status === 'draft') return 'Draft'
+  return 'Not Started'
+}
+
+async function handlePublishSchedule(scheduleId: string) {
+  await schedulesStore.publishSchedule(scheduleId)
+}
+
+function handleGenerateSchedule(weekStart: string) {
+  router.push('/schedule/generate')
+}
 
 onMounted(async () => {
-  // TODO: Fetch real stats from API
-  stats.value = {
-    activeTherapists: 12,
-    activePatients: 48,
-    sessionsThisWeek: 96,
-    conflicts: 3
-  }
+  loading.value = true
+  await Promise.all([
+    staffStore.fetchStaff(),
+    patientsStore.fetchPatients(),
+    schedulesStore.fetchSchedules()
+  ])
+  loading.value = false
 })
 </script>
 
@@ -33,7 +89,7 @@ onMounted(async () => {
     <header class="header">
       <div class="header-title">
         <h2>Dashboard</h2>
-        <p>Welcome back, {{ authStore.user?.name?.split(' ')[0] }}</p>
+        <p>Welcome back, {{ authStore.user?.name?.split(' ')[0] || 'User' }}</p>
       </div>
       <div class="header-actions">
         <RouterLink to="/schedule/generate" class="btn btn-primary">
@@ -48,91 +104,80 @@ onMounted(async () => {
     <div class="page-content">
       <!-- Stats -->
       <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon blue">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-          <div class="stat-content">
-            <h4>{{ stats.activeTherapists }}</h4>
-            <p>Active Therapists</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon green">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </div>
-          <div class="stat-content">
-            <h4>{{ stats.activePatients }}</h4>
-            <p>Active Patients</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon yellow">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <div class="stat-content">
-            <h4>{{ stats.sessionsThisWeek }}</h4>
-            <p>Sessions This Week</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon red">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <div class="stat-content">
-            <h4>{{ stats.conflicts }}</h4>
-            <p>Scheduling Conflicts</p>
-          </div>
-        </div>
+        <StatCard
+          :value="stats.activeTherapists"
+          label="Active Therapists"
+          icon="users"
+          color="blue"
+        />
+        <StatCard
+          :value="stats.activePatients"
+          label="Active Patients"
+          icon="patients"
+          color="green"
+        />
+        <StatCard
+          :value="stats.sessionsThisWeek"
+          label="Sessions This Week"
+          icon="calendar"
+          color="yellow"
+        />
+        <StatCard
+          :value="stats.conflicts"
+          label="Scheduling Conflicts"
+          icon="alert"
+          :color="stats.conflicts > 0 ? 'red' : 'green'"
+        />
       </div>
 
-      <!-- Alert -->
-      <div class="alert alert-warning">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <div>
-          <strong>Attention:</strong> Sarah Martinez has requested time off for Friday, January 3rd.
-          <a href="#">Review availability updates</a>
-        </div>
-      </div>
+      <!-- Alert for pending actions -->
+      <Alert v-if="stats.conflicts > 0" variant="warning" class="mt-3">
+        <strong>Attention:</strong> There are {{ stats.conflicts }} scheduling conflicts that need your attention.
+        <RouterLink to="/schedule" style="margin-left: 8px;">Review now</RouterLink>
+      </Alert>
 
-      <div class="grid-2">
+      <div class="grid-2 mt-3">
         <!-- This Week's Schedule Preview -->
         <div class="card">
           <div class="card-header">
             <h3>This Week's Schedule</h3>
-            <span class="badge badge-success">Published</span>
+            <Badge
+              v-if="currentWeekSchedule"
+              :variant="getStatusBadgeVariant(currentWeekSchedule.status)"
+            >
+              {{ getStatusLabel(currentWeekSchedule.status) }}
+            </Badge>
+            <Badge v-else variant="secondary">No Schedule</Badge>
           </div>
           <div class="card-body">
-            <p class="text-muted mb-2">December 23 - 27, 2024</p>
-            <table>
-              <thead>
-                <tr>
-                  <th>Day</th>
-                  <th>Sessions</th>
-                  <th>Therapists</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td>Monday</td><td>24</td><td>12</td></tr>
-                <tr><td>Tuesday</td><td>24</td><td>12</td></tr>
-                <tr><td>Wednesday</td><td>22</td><td>11</td></tr>
-                <tr><td>Thursday</td><td>24</td><td>12</td></tr>
-                <tr><td>Friday</td><td>20</td><td>10</td></tr>
-              </tbody>
-            </table>
+            <div v-if="loading" class="text-center text-muted">
+              Loading...
+            </div>
+            <div v-else-if="!currentWeekSchedule" class="text-center">
+              <p class="text-muted mb-2">No schedule generated for this week.</p>
+              <RouterLink to="/schedule/generate" class="btn btn-primary btn-sm">
+                Generate Schedule
+              </RouterLink>
+            </div>
+            <div v-else>
+              <p class="text-muted mb-2">
+                {{ currentWeekSchedule.weekStartDate }}
+              </p>
+              <div class="schedule-summary">
+                <div class="summary-row">
+                  <span>Total Sessions</span>
+                  <strong>{{ currentWeekSchedule.sessions?.length || 0 }}</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Therapists</span>
+                  <strong>{{ stats.activeTherapists }}</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Patients</span>
+                  <strong>{{ stats.activePatients }}</strong>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="card-footer">
             <RouterLink to="/schedule">View Full Schedule</RouterLink>
@@ -145,17 +190,29 @@ onMounted(async () => {
             <h3>Quick Actions</h3>
           </div>
           <div class="card-body">
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-              <RouterLink to="/schedule/generate" class="btn btn-outline" style="justify-content: flex-start;">
+            <div class="quick-actions">
+              <RouterLink to="/schedule/generate" class="btn btn-outline quick-action-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
                 Generate New Schedule
               </RouterLink>
-              <RouterLink to="/rules" class="btn btn-outline" style="justify-content: flex-start;">
+              <RouterLink to="/rules" class="btn btn-outline quick-action-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
                 Add Voice Rule
               </RouterLink>
-              <RouterLink to="/staff" class="btn btn-outline" style="justify-content: flex-start;">
+              <RouterLink to="/staff" class="btn btn-outline quick-action-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
                 Add New Staff
               </RouterLink>
-              <RouterLink to="/patients" class="btn btn-outline" style="justify-content: flex-start;">
+              <RouterLink to="/patients" class="btn btn-outline quick-action-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
                 Add New Patient
               </RouterLink>
             </div>
@@ -168,7 +225,7 @@ onMounted(async () => {
         <div class="card-header">
           <h3>Upcoming Weeks</h3>
         </div>
-        <div class="card-body">
+        <div class="card-body" style="padding: 0;">
           <table>
             <thead>
               <tr>
@@ -180,28 +237,45 @@ onMounted(async () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="week in upcomingWeeks" :key="week.week">
-                <td>{{ week.week }}</td>
+              <tr v-for="week in upcomingWeeks" :key="week.weekStart">
+                <td>{{ week.weekLabel }}</td>
                 <td>
-                  <span
-                    class="badge"
-                    :class="{
-                      'badge-warning': week.status === 'draft',
-                      'badge-secondary': week.status === 'not_started'
-                    }"
-                  >
-                    {{ week.status === 'draft' ? 'Draft' : 'Not Started' }}
-                  </span>
+                  <Badge :variant="getStatusBadgeVariant(week.status)">
+                    {{ getStatusLabel(week.status) }}
+                  </Badge>
                 </td>
                 <td>{{ week.sessions ?? '-' }}</td>
                 <td>
-                  <span v-if="week.conflicts" class="badge badge-danger">{{ week.conflicts }}</span>
+                  <Badge v-if="week.conflicts > 0" variant="danger">{{ week.conflicts }}</Badge>
                   <span v-else>-</span>
                 </td>
                 <td>
-                  <button v-if="week.status === 'draft'" class="btn btn-sm btn-outline">Edit</button>
-                  <button v-if="week.status === 'draft'" class="btn btn-sm btn-primary" style="margin-left: 8px;">Publish</button>
-                  <button v-if="week.status === 'not_started'" class="btn btn-sm btn-primary">Generate</button>
+                  <template v-if="week.status === 'draft'">
+                    <RouterLink :to="`/schedule`" class="btn btn-sm btn-outline">Edit</RouterLink>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      style="margin-left: 8px;"
+                      @click="handlePublishSchedule(week.weekStart)"
+                    >
+                      Publish
+                    </Button>
+                  </template>
+                  <Button
+                    v-else-if="week.status === 'not_started'"
+                    size="sm"
+                    variant="primary"
+                    @click="handleGenerateSchedule(week.weekStart)"
+                  >
+                    Generate
+                  </Button>
+                  <RouterLink
+                    v-else
+                    :to="`/schedule`"
+                    class="btn btn-sm btn-outline"
+                  >
+                    View
+                  </RouterLink>
                 </td>
               </tr>
             </tbody>
@@ -213,8 +287,56 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.badge-secondary {
-  background-color: #f1f5f9;
-  color: var(--text-secondary);
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.schedule-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.summary-row:last-child {
+  border-bottom: none;
+}
+
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quick-action-btn {
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid,
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

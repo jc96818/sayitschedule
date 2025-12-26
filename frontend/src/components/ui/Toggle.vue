@@ -5,7 +5,7 @@ interface Props {
   label?: string
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   disabled: false
 })
 
@@ -16,8 +16,6 @@ const emit = defineEmits<{
 function toggle() {
   emit('update:modelValue', !props.modelValue)
 }
-
-const props = defineProps<Props>()
 </script>
 
 <template>

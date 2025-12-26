@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const authStore = useAuthStore()
+
+onMounted(async () => {
+  if (authStore.token && !authStore.user) {
+    await authStore.fetchCurrentUser()
+  }
+})
 
 const user = computed(() => authStore.user)
 const organization = computed(() => authStore.organization)

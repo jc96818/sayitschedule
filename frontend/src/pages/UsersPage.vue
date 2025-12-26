@@ -1,11 +1,161 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useUsersStore } from '@/stores/users'
+import { useAuthStore } from '@/stores/auth'
+import { Modal, Alert, Badge, Button } from '@/components/ui'
+import type { User, UserRole } from '@/types'
 
-const users = ref([
-  { id: '1', name: 'Jane Connor', email: 'jane@example.com', role: 'admin', lastLogin: '2024-12-26' },
-  { id: '2', name: 'Bob Smith', email: 'bob@example.com', role: 'admin_assistant', lastLogin: '2024-12-25' },
-  { id: '3', name: 'Sarah Martinez', email: 'sarah@example.com', role: 'staff', lastLogin: '2024-12-24' }
-])
+const usersStore = useUsersStore()
+const authStore = useAuthStore()
+
+// Filters
+const searchQuery = ref('')
+const roleFilter = ref<UserRole | ''>('')
+
+// Add/Edit modal
+const showModal = ref(false)
+const isEditing = ref(false)
+const formData = ref<Partial<User> & { password?: string }>({
+  name: '',
+  email: '',
+  role: 'staff',
+  password: ''
+})
+
+// Reset password modal
+const showResetPasswordModal = ref(false)
+const resetPasswordUserId = ref<string | null>(null)
+const newPassword = ref('')
+
+const roleLabels: Record<UserRole, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  admin_assistant: 'Admin Assistant',
+  staff: 'Staff'
+}
+
+const roleBadgeVariants: Record<UserRole, 'primary' | 'success' | 'warning' | 'secondary'> = {
+  super_admin: 'primary',
+  admin: 'success',
+  admin_assistant: 'warning',
+  staff: 'secondary'
+}
+
+const filteredUsers = computed(() => {
+  let result = usersStore.users
+
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(
+      user =>
+        user.name.toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query)
+    )
+  }
+
+  if (roleFilter.value) {
+    result = result.filter(user => user.role === roleFilter.value)
+  }
+
+  return result
+})
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return 'Never'
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function openAddModal() {
+  isEditing.value = false
+  formData.value = {
+    name: '',
+    email: '',
+    role: 'staff',
+    password: ''
+  }
+  showModal.value = true
+}
+
+function openEditModal(user: User) {
+  isEditing.value = true
+  formData.value = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  }
+  showModal.value = true
+}
+
+async function handleSubmit() {
+  try {
+    if (isEditing.value && formData.value.id) {
+      const { id, password, ...updateData } = formData.value
+      await usersStore.updateUser(id, updateData)
+    } else {
+      await usersStore.createUser(formData.value)
+    }
+    showModal.value = false
+  } catch (error) {
+    console.error('Failed to save user:', error)
+  }
+}
+
+function openResetPasswordModal(userId: string) {
+  resetPasswordUserId.value = userId
+  newPassword.value = ''
+  showResetPasswordModal.value = true
+}
+
+async function handleResetPassword() {
+  if (!resetPasswordUserId.value) return
+
+  try {
+    await usersStore.resetPassword(resetPasswordUserId.value, newPassword.value)
+    showResetPasswordModal.value = false
+    resetPasswordUserId.value = null
+    newPassword.value = ''
+  } catch (error) {
+    console.error('Failed to reset password:', error)
+  }
+}
+
+async function handleDeleteUser(id: string) {
+  if (id === authStore.user?.id) {
+    alert('You cannot delete your own account')
+    return
+  }
+
+  if (confirm('Are you sure you want to delete this user?')) {
+    try {
+      await usersStore.deleteUser(id)
+    } catch (error) {
+      console.error('Failed to delete user:', error)
+    }
+  }
+}
+
+function canManageUser(user: User): boolean {
+  // Super admins can manage everyone
+  if (authStore.user?.role === 'super_admin') return true
+
+  // Admins can manage admin assistants and staff
+  if (authStore.user?.role === 'admin') {
+    return user.role === 'admin_assistant' || user.role === 'staff'
+  }
+
+  return false
+}
+
+onMounted(() => {
+  usersStore.fetchUsers()
+})
 </script>
 
 <template>
@@ -13,19 +163,60 @@ const users = ref([
     <header class="header">
       <div class="header-title">
         <h2>Users</h2>
-        <p>Manage user accounts</p>
+        <p>Manage user accounts and permissions</p>
       </div>
       <div class="header-actions">
-        <button class="btn btn-primary">Add User</button>
+        <Button variant="primary" @click="openAddModal">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Add User
+        </Button>
       </div>
     </header>
 
     <div class="page-content">
+      <!-- Error Alert -->
+      <Alert v-if="usersStore.error" variant="danger" class="mb-3" dismissible @dismiss="usersStore.error = null">
+        {{ usersStore.error }}
+      </Alert>
+
+      <!-- Filters -->
+      <div class="filters-row mb-3">
+        <div class="search-input">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search users..."
+            class="form-control"
+          />
+        </div>
+        <select v-model="roleFilter" class="form-control" style="width: 180px;">
+          <option value="">All Roles</option>
+          <option value="admin">Admin</option>
+          <option value="admin_assistant">Admin Assistant</option>
+          <option value="staff">Staff</option>
+        </select>
+      </div>
+
+      <!-- Users Table -->
       <div class="card">
         <div class="card-header">
-          <h3>All Users ({{ users.length }})</h3>
+          <h3>All Users ({{ filteredUsers.length }})</h3>
         </div>
-        <div class="card-body" style="padding: 0;">
+
+        <div v-if="usersStore.loading && usersStore.users.length === 0" class="card-body text-center">
+          <p class="text-muted">Loading users...</p>
+        </div>
+
+        <div v-else-if="filteredUsers.length === 0" class="card-body text-center">
+          <p class="text-muted">No users found.</p>
+        </div>
+
+        <div v-else class="card-body" style="padding: 0;">
           <table>
             <thead>
               <tr>
@@ -37,15 +228,52 @@ const users = ref([
               </tr>
             </thead>
             <tbody>
-              <tr v-for="user in users" :key="user.id">
-                <td>{{ user.name }}</td>
+              <tr v-for="user in filteredUsers" :key="user.id">
+                <td>
+                  <div class="user-name">
+                    <div class="user-avatar">
+                      {{ user.name.charAt(0).toUpperCase() }}
+                    </div>
+                    <span>{{ user.name }}</span>
+                    <Badge v-if="user.id === authStore.user?.id" variant="secondary" style="margin-left: 8px;">
+                      You
+                    </Badge>
+                  </div>
+                </td>
                 <td>{{ user.email }}</td>
                 <td>
-                  <span class="badge badge-primary">{{ user.role.replace('_', ' ') }}</span>
+                  <Badge :variant="roleBadgeVariants[user.role]">
+                    {{ roleLabels[user.role] }}
+                  </Badge>
                 </td>
-                <td>{{ user.lastLogin }}</td>
+                <td>{{ formatDate(user.lastLogin) }}</td>
                 <td>
-                  <button class="btn btn-sm btn-outline">Edit</button>
+                  <div class="action-buttons">
+                    <Button
+                      v-if="canManageUser(user)"
+                      size="sm"
+                      variant="outline"
+                      @click="openEditModal(user)"
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      v-if="canManageUser(user)"
+                      size="sm"
+                      variant="outline"
+                      @click="openResetPasswordModal(user.id)"
+                    >
+                      Reset Password
+                    </Button>
+                    <Button
+                      v-if="canManageUser(user) && user.id !== authStore.user?.id"
+                      size="sm"
+                      variant="danger"
+                      @click="handleDeleteUser(user.id)"
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -53,5 +281,140 @@ const users = ref([
         </div>
       </div>
     </div>
+
+    <!-- Add/Edit User Modal -->
+    <Modal v-model="showModal" :title="isEditing ? 'Edit User' : 'Add User'" size="md">
+      <form @submit.prevent="handleSubmit">
+        <div class="form-group">
+          <label for="name">Full Name</label>
+          <input
+            id="name"
+            v-model="formData.name"
+            type="text"
+            class="form-control"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input
+            id="email"
+            v-model="formData.email"
+            type="email"
+            class="form-control"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="role">Role</label>
+          <select id="role" v-model="formData.role" class="form-control" required>
+            <option value="admin" v-if="authStore.user?.role === 'super_admin'">Admin</option>
+            <option value="admin_assistant">Admin Assistant</option>
+            <option value="staff">Staff</option>
+          </select>
+        </div>
+
+        <div v-if="!isEditing" class="form-group">
+          <label for="password">Password</label>
+          <input
+            id="password"
+            v-model="formData.password"
+            type="password"
+            class="form-control"
+            minlength="8"
+            required
+          />
+          <small class="text-muted">Minimum 8 characters</small>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+          <Button type="button" variant="outline" @click="showModal = false">
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" :loading="usersStore.loading">
+            {{ isEditing ? 'Save Changes' : 'Create User' }}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+
+    <!-- Reset Password Modal -->
+    <Modal v-model="showResetPasswordModal" title="Reset Password" size="sm">
+      <form @submit.prevent="handleResetPassword">
+        <div class="form-group">
+          <label for="newPassword">New Password</label>
+          <input
+            id="newPassword"
+            v-model="newPassword"
+            type="password"
+            class="form-control"
+            minlength="8"
+            required
+          />
+          <small class="text-muted">Minimum 8 characters</small>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+          <Button type="button" variant="outline" @click="showResetPasswordModal = false">
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" :loading="usersStore.loading">
+            Reset Password
+          </Button>
+        </div>
+      </form>
+    </Modal>
   </div>
 </template>
+
+<style scoped>
+.filters-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.search-input {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-input svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.search-input input {
+  padding-left: 40px;
+}
+
+.user-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+</style>

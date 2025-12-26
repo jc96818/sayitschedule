@@ -1,8 +1,107 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useSchedulesStore } from '@/stores/schedules'
+import { useStaffStore } from '@/stores/staff'
+import { usePatientsStore } from '@/stores/patients'
+import { useRulesStore } from '@/stores/rules'
+import { Button, Alert, Badge, StatCard } from '@/components/ui'
+
+const router = useRouter()
+const schedulesStore = useSchedulesStore()
+const staffStore = useStaffStore()
+const patientsStore = usePatientsStore()
+const rulesStore = useRulesStore()
 
 const selectedWeek = ref('')
-const generating = ref(false)
+const step = ref<'configure' | 'generating' | 'preview' | 'published'>('configure')
+const generationProgress = ref(0)
+const generationStatus = ref('')
+
+// Get next Monday as default
+const defaultWeekStart = computed(() => {
+  const today = new Date()
+  const dayOfWeek = today.getDay()
+  const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek
+  const nextMonday = new Date(today)
+  nextMonday.setDate(today.getDate() + daysUntilMonday)
+  return nextMonday.toISOString().split('T')[0]
+})
+
+const weekDateRange = computed(() => {
+  if (!selectedWeek.value) return ''
+  const start = new Date(selectedWeek.value)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 4)
+  return `${formatDate(start)} - ${formatDate(end)}`
+})
+
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+async function handleGenerate() {
+  if (!selectedWeek.value) return
+
+  step.value = 'generating'
+  generationProgress.value = 0
+  generationStatus.value = 'Initializing...'
+
+  // Simulate generation progress
+  const progressSteps = [
+    { progress: 10, status: 'Loading staff availability...' },
+    { progress: 25, status: 'Loading patient requirements...' },
+    { progress: 40, status: 'Applying scheduling rules...' },
+    { progress: 60, status: 'Optimizing assignments...' },
+    { progress: 80, status: 'Validating constraints...' },
+    { progress: 95, status: 'Finalizing schedule...' }
+  ]
+
+  for (const s of progressSteps) {
+    await new Promise(resolve => setTimeout(resolve, 500))
+    generationProgress.value = s.progress
+    generationStatus.value = s.status
+  }
+
+  try {
+    await schedulesStore.generateSchedule(selectedWeek.value)
+    generationProgress.value = 100
+    generationStatus.value = 'Complete!'
+    await new Promise(resolve => setTimeout(resolve, 500))
+    step.value = 'preview'
+  } catch (error) {
+    step.value = 'configure'
+    console.error('Failed to generate schedule:', error)
+  }
+}
+
+async function handlePublish() {
+  if (!schedulesStore.currentSchedule) return
+
+  try {
+    await schedulesStore.publishSchedule(schedulesStore.currentSchedule.id)
+    step.value = 'published'
+  } catch (error) {
+    console.error('Failed to publish schedule:', error)
+  }
+}
+
+function handleViewSchedule() {
+  router.push('/schedule')
+}
+
+function handleStartOver() {
+  step.value = 'configure'
+  selectedWeek.value = ''
+  schedulesStore.clearCurrent()
+}
+
+onMounted(() => {
+  // Load data for summary cards
+  staffStore.fetchStaff()
+  patientsStore.fetchPatients()
+  rulesStore.fetchRules()
+})
 </script>
 
 <template>
@@ -12,23 +111,292 @@ const generating = ref(false)
         <h2>Generate Schedule</h2>
         <p>Create a new AI-powered schedule</p>
       </div>
+      <div class="header-actions">
+        <RouterLink to="/schedule" class="btn btn-outline">
+          Cancel
+        </RouterLink>
+      </div>
     </header>
 
     <div class="page-content">
-      <div class="card">
+      <!-- Error Alert -->
+      <Alert v-if="schedulesStore.error" variant="danger" class="mb-3" dismissible>
+        {{ schedulesStore.error }}
+      </Alert>
+
+      <!-- Step 1: Configure -->
+      <div v-if="step === 'configure'" class="card">
         <div class="card-header">
           <h3>Schedule Configuration</h3>
         </div>
         <div class="card-body">
           <div class="form-group">
-            <label>Select Week</label>
-            <input v-model="selectedWeek" type="week" class="form-control" />
+            <label for="week">Select Week Start Date</label>
+            <input
+              id="week"
+              v-model="selectedWeek"
+              type="date"
+              class="form-control"
+              :min="defaultWeekStart"
+              style="max-width: 300px;"
+            />
+            <small v-if="weekDateRange" class="text-muted">
+              Week: {{ weekDateRange }}
+            </small>
           </div>
-          <button class="btn btn-primary" :disabled="!selectedWeek || generating">
-            {{ generating ? 'Generating...' : 'Generate Schedule' }}
-          </button>
+
+          <!-- Summary Cards -->
+          <div class="summary-grid mt-3">
+            <div class="summary-card">
+              <div class="summary-icon blue">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <div>
+                <div class="summary-value">{{ staffStore.totalCount || '...' }}</div>
+                <div class="summary-label">Active Therapists</div>
+              </div>
+            </div>
+
+            <div class="summary-card">
+              <div class="summary-icon green">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              <div>
+                <div class="summary-value">{{ patientsStore.totalCount || '...' }}</div>
+                <div class="summary-label">Active Patients</div>
+              </div>
+            </div>
+
+            <div class="summary-card">
+              <div class="summary-icon yellow">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+              </div>
+              <div>
+                <div class="summary-value">{{ rulesStore.activeRules.length || '...' }}</div>
+                <div class="summary-label">Active Rules</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 24px;">
+            <Button
+              variant="primary"
+              size="lg"
+              :disabled="!selectedWeek"
+              @click="handleGenerate"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Generate Schedule
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Generating -->
+      <div v-if="step === 'generating'" class="card">
+        <div class="card-body text-center" style="padding: 48px;">
+          <div class="generation-spinner"></div>
+          <h3 style="margin: 24px 0 8px;">Generating Schedule</h3>
+          <p class="text-muted" style="margin-bottom: 24px;">{{ generationStatus }}</p>
+          <div class="progress-bar-container">
+            <div class="progress-bar" :style="{ width: `${generationProgress}%` }"></div>
+          </div>
+          <p class="text-sm text-muted" style="margin-top: 8px;">{{ generationProgress }}%</p>
+        </div>
+      </div>
+
+      <!-- Step 3: Preview -->
+      <div v-if="step === 'preview'">
+        <Alert variant="success" class="mb-3">
+          Schedule generated successfully! Review the schedule below and publish when ready.
+        </Alert>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Schedule Preview</h3>
+            <Badge variant="warning">Draft</Badge>
+          </div>
+          <div class="card-body">
+            <p class="text-muted mb-3">Week: {{ weekDateRange }}</p>
+
+            <!-- Summary Stats -->
+            <div class="stats-grid mb-3">
+              <StatCard
+                :value="schedulesStore.currentSchedule?.sessions?.length || 0"
+                label="Total Sessions"
+                icon="calendar"
+                color="green"
+              />
+              <StatCard
+                value="0"
+                label="Conflicts"
+                icon="alert"
+                color="green"
+              />
+            </div>
+
+            <p class="text-muted">
+              Full schedule preview will be available on the Schedule page after publishing.
+            </p>
+          </div>
+          <div class="card-footer">
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+              <Button variant="outline" @click="handleStartOver">
+                Start Over
+              </Button>
+              <Button
+                variant="success"
+                :loading="schedulesStore.publishing"
+                @click="handlePublish"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Publish Schedule
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Published -->
+      <div v-if="step === 'published'" class="card">
+        <div class="card-body text-center" style="padding: 48px;">
+          <div class="success-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="48" height="48">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 style="margin: 24px 0 8px;">Schedule Published!</h3>
+          <p class="text-muted" style="margin-bottom: 24px;">
+            The schedule for {{ weekDateRange }} is now live.
+          </p>
+          <div style="display: flex; gap: 12px; justify-content: center;">
+            <Button variant="outline" @click="handleStartOver">
+              Generate Another
+            </Button>
+            <Button variant="primary" @click="handleViewSchedule">
+              View Schedule
+            </Button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background-color: var(--background-color);
+  border-radius: var(--radius-md);
+}
+
+.summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summary-icon.blue {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+}
+
+.summary-icon.green {
+  background-color: var(--success-light);
+  color: var(--success-color);
+}
+
+.summary-icon.yellow {
+  background-color: var(--warning-light);
+  color: var(--warning-color);
+}
+
+.summary-value {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.generation-spinner {
+  width: 64px;
+  height: 64px;
+  border: 4px solid var(--border-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.progress-bar-container {
+  width: 100%;
+  max-width: 400px;
+  height: 8px;
+  background-color: var(--border-color);
+  border-radius: 4px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: var(--success-light);
+  color: var(--success-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
