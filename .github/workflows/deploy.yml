@@ -4,12 +4,13 @@
 name: Deploy to AWS
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  # Disabled during demo phase - using deploy-demo.yml instead
+  # push:
+  #   branches:
+  #     - main
+  # pull_request:
+  #   branches:
+  #     - main
   workflow_dispatch:
     inputs:
       environment:
