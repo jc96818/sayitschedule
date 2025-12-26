@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Schedule, Session } from '@/types'
-import { scheduleService } from '@/services/api'
+import { scheduleService, voiceService } from '@/services/api'
+import type { ScheduleModification, VoiceModifyResult } from '@/services/api'
 
 export const useSchedulesStore = defineStore('schedules', () => {
   const schedules = ref<Schedule[]>([])
@@ -11,6 +12,13 @@ export const useSchedulesStore = defineStore('schedules', () => {
   const publishing = ref(false)
   const error = ref<string | null>(null)
   const totalCount = ref(0)
+
+  // Voice modification state
+  const pendingModification = ref<ScheduleModification | null>(null)
+  const modificationResult = ref<VoiceModifyResult | null>(null)
+  const parseConfidence = ref(0)
+  const parsing = ref(false)
+  const modifying = ref(false)
 
   const publishedSchedules = computed(() =>
     schedules.value.filter((s) => s.status === 'published')
@@ -144,6 +152,114 @@ export const useSchedulesStore = defineStore('schedules', () => {
     currentSchedule.value = null
   }
 
+  // Voice modification methods
+  async function parseVoiceModification(transcript: string) {
+    parsing.value = true
+    error.value = null
+    try {
+      const response = await voiceService.parseSchedule(transcript)
+      const parsed = response.data
+
+      if (
+        (parsed.commandType === 'modify_session' || parsed.commandType === 'cancel_session') &&
+        parsed.confidence >= 0.5
+      ) {
+        const data = parsed.data as Record<string, unknown>
+        pendingModification.value = {
+          action: (data.action as ScheduleModification['action']) || 'move',
+          therapistName: data.therapistName as string | undefined,
+          patientName: data.patientName as string | undefined,
+          currentDate: data.currentDate as string | undefined,
+          currentDayOfWeek: data.currentDayOfWeek as string | undefined,
+          currentStartTime: data.currentStartTime as string | undefined,
+          newDate: data.newDate as string | undefined,
+          newDayOfWeek: data.newDayOfWeek as string | undefined,
+          newStartTime: data.newStartTime as string | undefined,
+          newEndTime: data.newEndTime as string | undefined,
+          notes: data.notes as string | undefined
+        }
+        parseConfidence.value = parsed.confidence
+      } else {
+        error.value = 'Could not understand the command. Try something like "Move John\'s 9 AM to 2 PM"'
+        throw new Error(error.value)
+      }
+      return parsed
+    } catch (e) {
+      if (!error.value) {
+        error.value = e instanceof Error ? e.message : 'Failed to parse voice command'
+      }
+      throw e
+    } finally {
+      parsing.value = false
+    }
+  }
+
+  async function applyVoiceModification() {
+    if (!currentSchedule.value || !pendingModification.value) {
+      throw new Error('No schedule or modification to apply')
+    }
+
+    modifying.value = true
+    error.value = null
+    try {
+      const response = await scheduleService.modifyByVoice(
+        currentSchedule.value.id,
+        pendingModification.value
+      )
+      modificationResult.value = response.data
+
+      // Update local sessions based on the action
+      if (response.data.action === 'cancelled') {
+        // Remove the cancelled session from local state
+        currentSchedule.value.sessions = currentSchedule.value.sessions.filter(
+          (s) => s.id !== response.data.session.id
+        )
+      } else if (response.data.action === 'moved') {
+        // Update the moved session in local state
+        const sessionIndex = currentSchedule.value.sessions.findIndex(
+          (s) => s.id === response.data.session.id
+        )
+        if (sessionIndex !== -1) {
+          currentSchedule.value.sessions[sessionIndex] = response.data.session
+        }
+      }
+
+      clearPendingModification()
+      return response.data
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to apply modification'
+      throw e
+    } finally {
+      modifying.value = false
+    }
+  }
+
+  async function deleteSession(sessionId: string) {
+    if (!currentSchedule.value) {
+      throw new Error('No current schedule')
+    }
+
+    loading.value = true
+    error.value = null
+    try {
+      await scheduleService.deleteSession(currentSchedule.value.id, sessionId)
+      currentSchedule.value.sessions = currentSchedule.value.sessions.filter(
+        (s) => s.id !== sessionId
+      )
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to delete session'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function clearPendingModification() {
+    pendingModification.value = null
+    parseConfidence.value = 0
+    modificationResult.value = null
+  }
+
   return {
     schedules,
     currentSchedule,
@@ -155,12 +271,24 @@ export const useSchedulesStore = defineStore('schedules', () => {
     publishedSchedules,
     draftSchedules,
     currentWeekSchedule,
+    // Voice modification state
+    pendingModification,
+    modificationResult,
+    parseConfidence,
+    parsing,
+    modifying,
+    // Methods
     fetchSchedules,
     fetchScheduleById,
     generateSchedule,
     publishSchedule,
     updateSession,
+    deleteSession,
     exportToPdf,
-    clearCurrent
+    clearCurrent,
+    // Voice modification methods
+    parseVoiceModification,
+    applyVoiceModification,
+    clearPendingModification
   }
 })

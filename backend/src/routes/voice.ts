@@ -7,6 +7,7 @@ import {
   parseStaffCommand,
   parseRuleCommand,
   parseScheduleCommand,
+  parseScheduleModifyCommand,
   type VoiceContext,
   type ParsedVoiceCommand
 } from '../services/voiceParser.js'
@@ -156,6 +157,31 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     } catch (error) {
       console.error('Rule voice parsing failed:', error)
       return reply.status(500).send({ error: 'Failed to parse rule command.' })
+    }
+  })
+
+  // Parse schedule modification voice command (move, cancel, swap sessions)
+  fastify.post('/parse/schedule', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const organizationId = request.ctx.organizationId
+
+    if (!organizationId) {
+      return reply.status(400).send({ error: 'Organization context required' })
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return reply.status(503).send({
+        error: 'Voice parsing service not configured.'
+      })
+    }
+
+    const { transcript } = z.object({ transcript: z.string().min(1) }).parse(request.body)
+
+    try {
+      const result = await parseScheduleModifyCommand(transcript)
+      return { data: result }
+    } catch (error) {
+      console.error('Schedule voice parsing failed:', error)
+      return reply.status(500).send({ error: 'Failed to parse schedule command.' })
     }
   })
 }

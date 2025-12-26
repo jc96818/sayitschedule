@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useSchedulesStore } from '@/stores/schedules'
-import { Button, Badge, Alert, StatCard, Tabs } from '@/components/ui'
+import { Button, Badge, Alert, StatCard, VoiceInput } from '@/components/ui'
 import type { Session } from '@/types'
 
 const schedulesStore = useSchedulesStore()
+
+// Voice modification state
+const showVoiceConfirmation = ref(false)
+const voiceTranscript = ref('')
+const voiceError = ref('')
 
 const viewMode = ref<'calendar' | 'therapist' | 'patient'>('calendar')
 const selectedTherapist = ref('')
@@ -116,6 +121,48 @@ async function loadSchedule() {
   }
 }
 
+// Voice modification handlers
+async function handleVoiceResult(transcript: string) {
+  voiceTranscript.value = transcript
+  voiceError.value = ''
+  try {
+    await schedulesStore.parseVoiceModification(transcript)
+    showVoiceConfirmation.value = true
+  } catch (error) {
+    voiceError.value = error instanceof Error ? error.message : 'Failed to parse voice command'
+  }
+}
+
+async function confirmModification() {
+  try {
+    await schedulesStore.applyVoiceModification()
+    showVoiceConfirmation.value = false
+    voiceTranscript.value = ''
+  } catch (error) {
+    voiceError.value = error instanceof Error ? error.message : 'Failed to apply modification'
+  }
+}
+
+function cancelModification() {
+  schedulesStore.clearPendingModification()
+  showVoiceConfirmation.value = false
+  voiceTranscript.value = ''
+}
+
+function formatTime(time?: string): string {
+  if (!time) return ''
+  const [hours, minutes] = time.split(':')
+  const hour = parseInt(hours, 10)
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  const displayHour = hour % 12 || 12
+  return `${displayHour}:${minutes} ${ampm}`
+}
+
+function capitalizeFirst(str?: string): string {
+  if (!str) return ''
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
 onMounted(() => {
   loadSchedule()
 })
@@ -189,6 +236,105 @@ onMounted(() => {
 
       <!-- Schedule View -->
       <template v-else>
+        <!-- Voice Interface (only show for draft schedules) -->
+        <VoiceInput
+          v-if="currentSchedule.status === 'draft'"
+          title="Voice Schedule Modification"
+          description="Say commands like 'Move John's 9 AM to 2 PM' or 'Cancel Sarah's Friday session'"
+          @result="handleVoiceResult"
+        />
+
+        <!-- Voice Loading State -->
+        <div v-if="schedulesStore.parsing" class="card mb-3">
+          <div class="card-body text-center">
+            <p class="text-muted">Processing voice command...</p>
+          </div>
+        </div>
+
+        <!-- Voice Error -->
+        <Alert v-if="voiceError" variant="warning" class="mb-3" dismissible @dismiss="voiceError = ''">
+          {{ voiceError }}
+        </Alert>
+
+        <!-- Voice Modification Confirmation -->
+        <div v-if="showVoiceConfirmation && schedulesStore.pendingModification" class="confirmation-card">
+          <h4>Confirm Schedule Change</h4>
+          <div class="transcription-box mb-2">
+            <div class="label">You said:</div>
+            <div>"{{ voiceTranscript }}"</div>
+          </div>
+          <div class="modification-preview">
+            <!-- Move action -->
+            <template v-if="schedulesStore.pendingModification.action === 'move'">
+              <strong>Move Session:</strong>
+              <div class="modification-details">
+                <div class="detail-row">
+                  <span class="detail-label">Who:</span>
+                  <span>{{ schedulesStore.pendingModification.therapistName || schedulesStore.pendingModification.patientName || 'Session' }}</span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.currentDayOfWeek || schedulesStore.pendingModification.currentStartTime" class="detail-row">
+                  <span class="detail-label">From:</span>
+                  <span>
+                    {{ capitalizeFirst(schedulesStore.pendingModification.currentDayOfWeek) }}
+                    {{ formatTime(schedulesStore.pendingModification.currentStartTime) }}
+                  </span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">To:</span>
+                  <span>
+                    {{ schedulesStore.pendingModification.newDayOfWeek ? capitalizeFirst(schedulesStore.pendingModification.newDayOfWeek) : '' }}
+                    {{ formatTime(schedulesStore.pendingModification.newStartTime) }}
+                  </span>
+                </div>
+              </div>
+            </template>
+            <!-- Cancel action -->
+            <template v-else-if="schedulesStore.pendingModification.action === 'cancel'">
+              <strong>Cancel Session:</strong>
+              <div class="modification-details">
+                <div class="detail-row">
+                  <span class="detail-label">Who:</span>
+                  <span>{{ schedulesStore.pendingModification.therapistName || schedulesStore.pendingModification.patientName || 'Session' }}</span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.currentDayOfWeek || schedulesStore.pendingModification.currentStartTime" class="detail-row">
+                  <span class="detail-label">When:</span>
+                  <span>
+                    {{ capitalizeFirst(schedulesStore.pendingModification.currentDayOfWeek) }}
+                    {{ formatTime(schedulesStore.pendingModification.currentStartTime) }}
+                  </span>
+                </div>
+              </div>
+            </template>
+            <div v-if="schedulesStore.parseConfidence" class="confidence-indicator">
+              Confidence: {{ Math.round(schedulesStore.parseConfidence * 100) }}%
+            </div>
+          </div>
+          <div class="confirmation-actions">
+            <Button variant="success" @click="confirmModification" :loading="schedulesStore.modifying">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Apply Change
+            </Button>
+            <Button variant="ghost" class="text-danger" @click="cancelModification">Cancel</Button>
+          </div>
+        </div>
+
+        <!-- Example Voice Commands -->
+        <div v-if="currentSchedule.status === 'draft'" class="card mb-3">
+          <div class="card-header">
+            <h4>Example Voice Commands</h4>
+          </div>
+          <div class="card-body">
+            <div class="example-commands">
+              <div class="example-chip">"Move John's 9 AM session to 2 PM"</div>
+              <div class="example-chip">"Cancel Sarah's Friday 10 AM"</div>
+              <div class="example-chip">"Reschedule Monday's 11 AM to Wednesday"</div>
+              <div class="example-chip">"Remove the 3 PM session with Emma"</div>
+            </div>
+          </div>
+        </div>
+
         <!-- View Toggle & Filters -->
         <div class="card mb-3">
           <div class="card-body" style="display: flex; justify-content: space-between; align-items: center;">
@@ -444,6 +590,90 @@ onMounted(() => {
 
 .legend-box.holiday {
   background: #fef2f2;
+}
+
+/* Voice Modification Styles */
+.text-danger {
+  color: var(--danger-color);
+}
+
+.confirmation-card {
+  background-color: var(--card-background);
+  border: 2px solid var(--primary-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.confirmation-card h4 {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.transcription-box {
+  background-color: var(--background-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: left;
+}
+
+.transcription-box .label {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+
+.modification-preview {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  padding: 16px;
+  background-color: var(--background-color);
+  border-radius: var(--radius-md);
+}
+
+.modification-details {
+  margin-top: 12px;
+}
+
+.detail-row {
+  display: flex;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.detail-label {
+  color: var(--text-muted);
+  min-width: 60px;
+}
+
+.confidence-indicator {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.confirmation-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.example-commands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.example-chip {
+  background-color: var(--background-color);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 @media (max-width: 1024px) {

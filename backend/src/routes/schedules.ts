@@ -4,6 +4,12 @@ import { authenticate, requireAdminOrAssistant } from '../middleware/auth.js'
 import { scheduleRepository, sessionRepository } from '../repositories/schedules.js'
 import { logAudit } from '../repositories/audit.js'
 import { generateSchedule } from '../services/scheduler.js'
+import {
+  findMatchingSessions,
+  checkForConflicts,
+  calculateNewEndTime,
+  getDateForDayOfWeek
+} from '../services/sessionLookup.js'
 
 const generateScheduleSchema = z.object({
   weekStartDate: z.string()
@@ -16,6 +22,20 @@ const updateSessionSchema = z.object({
   startTime: z.string().optional(),
   endTime: z.string().optional(),
   status: z.enum(['scheduled', 'completed', 'cancelled', 'no_show']).optional(),
+  notes: z.string().optional()
+})
+
+const voiceModifySchema = z.object({
+  action: z.enum(['move', 'cancel', 'swap', 'create']),
+  therapistName: z.string().optional(),
+  patientName: z.string().optional(),
+  currentDate: z.string().optional(),
+  currentDayOfWeek: z.string().optional(),
+  currentStartTime: z.string().optional(),
+  newDate: z.string().optional(),
+  newDayOfWeek: z.string().optional(),
+  newStartTime: z.string().optional(),
+  newEndTime: z.string().optional(),
   notes: z.string().optional()
 })
 
@@ -284,6 +304,166 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
     await logAudit(ctx.userId, 'delete', 'session', sessionId, organizationId)
 
     return reply.status(204).send()
+  })
+
+  // Modify schedule via voice command (move, cancel sessions)
+  fastify.post('/:id/modify-voice', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string }
+    const body = voiceModifySchema.parse(request.body)
+    const organizationId = request.ctx.organizationId
+    const ctx = request.ctx.user!
+
+    if (!organizationId) {
+      return reply.status(400).send({ error: 'Organization context required' })
+    }
+
+    // Verify schedule exists and belongs to organization
+    const schedule = await scheduleRepository.findByIdWithSessions(id, organizationId)
+    if (!schedule) {
+      return reply.status(404).send({ error: 'Schedule not found' })
+    }
+
+    // Only allow modifications on draft schedules
+    if (schedule.status !== 'draft') {
+      return reply.status(400).send({
+        error: 'Cannot modify a published schedule. Please unpublish it first.'
+      })
+    }
+
+    // Find matching session(s) based on the voice command criteria
+    const matchingResults = await findMatchingSessions({
+      scheduleId: id,
+      therapistName: body.therapistName,
+      patientName: body.patientName,
+      dayOfWeek: body.currentDayOfWeek,
+      startTime: body.currentStartTime
+    })
+
+    if (matchingResults.length === 0) {
+      let searchCriteria = []
+      if (body.therapistName) searchCriteria.push(`therapist "${body.therapistName}"`)
+      if (body.patientName) searchCriteria.push(`patient "${body.patientName}"`)
+      if (body.currentDayOfWeek) searchCriteria.push(`on ${body.currentDayOfWeek}`)
+      if (body.currentStartTime) searchCriteria.push(`at ${body.currentStartTime}`)
+
+      return reply.status(404).send({
+        error: `Could not find a session matching: ${searchCriteria.join(', ')}`
+      })
+    }
+
+    // Handle different actions
+    switch (body.action) {
+      case 'cancel': {
+        // Cancel (delete) the matching session(s)
+        const session = matchingResults[0].session
+        const deleted = await sessionRepository.delete(session.id, id)
+
+        if (!deleted) {
+          return reply.status(500).send({ error: 'Failed to cancel session' })
+        }
+
+        await logAudit(ctx.userId, 'delete', 'session', session.id, organizationId, {
+          action: 'voice_cancel',
+          therapistName: session.therapistName,
+          patientName: session.patientName
+        })
+
+        return {
+          data: {
+            action: 'cancelled',
+            session: session,
+            message: `Cancelled ${session.therapistName || 'therapist'}'s session with ${session.patientName || 'patient'} at ${session.startTime}`
+          }
+        }
+      }
+
+      case 'move': {
+        const session = matchingResults[0].session
+
+        // Calculate new date if dayOfWeek provided
+        let newDate: Date | undefined
+        if (body.newDayOfWeek) {
+          newDate = getDateForDayOfWeek(schedule.weekStartDate, body.newDayOfWeek)
+        } else if (body.newDate) {
+          newDate = new Date(body.newDate)
+        } else {
+          // Keep the same date, just changing time
+          newDate = new Date(session.date)
+        }
+
+        const newStartTime = body.newStartTime || session.startTime
+        const newEndTime = body.newEndTime || calculateNewEndTime(newStartTime)
+
+        // Check for conflicts at the new time
+        const conflicts = await checkForConflicts({
+          scheduleId: id,
+          therapistId: session.therapistId,
+          patientId: session.patientId,
+          date: newDate,
+          startTime: newStartTime,
+          endTime: newEndTime,
+          excludeSessionId: session.id
+        })
+
+        if (conflicts.length > 0) {
+          const conflict = conflicts[0]
+          return reply.status(409).send({
+            error: `Time conflict: ${conflict.therapistName || 'Therapist'} already has a session with ${conflict.patientName || 'patient'} at ${conflict.startTime}`,
+            conflictWith: conflict
+          })
+        }
+
+        // Update the session
+        const updatedSession = await sessionRepository.update(session.id, id, {
+          date: newDate,
+          startTime: newStartTime,
+          endTime: newEndTime
+        })
+
+        if (!updatedSession) {
+          return reply.status(500).send({ error: 'Failed to move session' })
+        }
+
+        await logAudit(ctx.userId, 'update', 'session', session.id, organizationId, {
+          action: 'voice_move',
+          from: { date: session.date, startTime: session.startTime },
+          to: { date: newDate, startTime: newStartTime }
+        })
+
+        return {
+          data: {
+            action: 'moved',
+            session: updatedSession,
+            from: {
+              date: session.date,
+              startTime: session.startTime
+            },
+            to: {
+              date: newDate,
+              startTime: newStartTime
+            },
+            message: `Moved ${session.therapistName || 'therapist'}'s session from ${session.startTime} to ${newStartTime}`
+          }
+        }
+      }
+
+      case 'swap': {
+        // Swap requires two sessions - not fully implemented yet
+        return reply.status(501).send({
+          error: 'Session swap is not yet implemented. Please use move to reschedule sessions individually.'
+        })
+      }
+
+      case 'create': {
+        // Create action should redirect to regular session creation
+        return reply.status(400).send({
+          error: 'To create a new session, use the regular add session endpoint.'
+        })
+      }
+
+      default:
+        return reply.status(400).send({ error: 'Invalid action' })
+    }
   })
 
   // Export schedule as PDF

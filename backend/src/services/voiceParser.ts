@@ -14,8 +14,16 @@ function getOpenAI(): OpenAI {
   return openaiClient
 }
 
-export type VoiceCommandType = 'create_patient' | 'create_staff' | 'create_rule' | 'schedule_session' | 'unknown'
-export type VoiceContext = 'patient' | 'staff' | 'rule' | 'schedule' | 'general'
+export type VoiceCommandType =
+  | 'create_patient'
+  | 'create_staff'
+  | 'create_rule'
+  | 'schedule_session'
+  | 'modify_session'
+  | 'cancel_session'
+  | 'unknown'
+
+export type VoiceContext = 'patient' | 'staff' | 'rule' | 'schedule' | 'schedule_modify' | 'general'
 
 export interface ParsedPatientData {
   name: string
@@ -49,6 +57,20 @@ export interface ParsedSessionData {
   dayOfWeek?: string
   startTime?: string
   endTime?: string
+  notes?: string
+}
+
+export interface ParsedScheduleModifyData {
+  action: 'move' | 'cancel' | 'swap' | 'create'
+  therapistName?: string
+  patientName?: string
+  currentDate?: string
+  currentDayOfWeek?: string
+  currentStartTime?: string
+  newDate?: string
+  newDayOfWeek?: string
+  newStartTime?: string
+  newEndTime?: string
   notes?: string
 }
 
@@ -114,6 +136,39 @@ Extract session information like:
 - endTime (in HH:mm format, usually startTime + 1 hour)
 - notes (any additional info)`,
 
+    schedule_modify: `${basePrompt}
+
+The user is MODIFYING an existing therapy schedule. They want to move, cancel, or swap sessions.
+Determine the action and extract the relevant information:
+
+ACTIONS:
+- move: Reschedule a session to a different time or day
+- cancel: Remove/delete a session
+- swap: Exchange two sessions' times
+- create: Add a new session (if they're not modifying existing)
+
+EXTRACT:
+- action (required): one of [move, cancel, swap, create]
+- therapistName: the therapist's name (to identify the session)
+- patientName: the patient's name (alternative way to identify)
+- currentDayOfWeek: current day (monday/tuesday/etc) - lowercase
+- currentStartTime: current time in HH:mm format (24-hour)
+- newDayOfWeek: new day for move/swap - lowercase
+- newStartTime: new time in HH:mm format (24-hour)
+- newEndTime: new end time (usually startTime + 1 hour)
+- notes: any additional context
+
+TIME PARSING:
+- "9 AM" = "09:00"
+- "2 PM" = "14:00"
+- "10:30 AM" = "10:30"
+- "3:30 PM" = "15:30"
+
+EXAMPLES:
+- "Move John's 9 AM session to 2 PM" → action: move, therapistName: John, currentStartTime: 09:00, newStartTime: 14:00
+- "Cancel Sarah's Friday 10 AM" → action: cancel, therapistName: Sarah, currentDayOfWeek: friday, currentStartTime: 10:00
+- "Reschedule Monday 2 PM with Emma to Wednesday" → action: move, patientName: Emma, currentDayOfWeek: monday, currentStartTime: 14:00, newDayOfWeek: wednesday`,
+
     general: `${basePrompt}
 
 Determine what type of command the user is trying to execute:
@@ -128,11 +183,21 @@ Determine what type of command the user is trying to execute:
 }
 
 function getUserPrompt(transcript: string, context: VoiceContext): string {
+  // For schedule_modify, use a different command type pattern
+  let commandTypeHint: string
+  if (context === 'general') {
+    commandTypeHint = '<detected_type>'
+  } else if (context === 'schedule_modify') {
+    commandTypeHint = '<modify_session or cancel_session based on action>'
+  } else {
+    commandTypeHint = `create_${context}`
+  }
+
   return `Parse this voice command: "${transcript}"
 
 Return a JSON object with this structure:
 {
-  "commandType": "${context === 'general' ? '<detected_type>' : `create_${context}`}",
+  "commandType": "${commandTypeHint}",
   "confidence": <0.0-1.0 based on how complete/clear the command is>,
   "data": {
     <extracted fields based on command type>
@@ -216,7 +281,12 @@ export async function parseRuleCommand(transcript: string): Promise<ParsedVoiceC
   return parseVoiceCommand(transcript, 'rule')
 }
 
-// Helper function to parse schedule-specific commands
+// Helper function to parse schedule-specific commands (for creating new sessions)
 export async function parseScheduleCommand(transcript: string): Promise<ParsedVoiceCommand> {
   return parseVoiceCommand(transcript, 'schedule')
+}
+
+// Helper function to parse schedule modification commands (move, cancel, swap)
+export async function parseScheduleModifyCommand(transcript: string): Promise<ParsedVoiceCommand> {
+  return parseVoiceCommand(transcript, 'schedule_modify')
 }

@@ -164,6 +164,29 @@ export const rulesService = {
   }
 }
 
+// Schedule Modification Types (used by scheduleService)
+export interface ScheduleModification {
+  action: 'move' | 'cancel' | 'swap' | 'create'
+  therapistName?: string
+  patientName?: string
+  currentDate?: string
+  currentDayOfWeek?: string
+  currentStartTime?: string
+  newDate?: string
+  newDayOfWeek?: string
+  newStartTime?: string
+  newEndTime?: string
+  notes?: string
+}
+
+export interface VoiceModifyResult {
+  action: string
+  session: Session
+  message: string
+  from?: { date: string; startTime: string }
+  to?: { date: string; startTime: string }
+}
+
 // Schedule Service
 export const scheduleService = {
   async list(params?: { status?: string }): Promise<PaginatedResponse<Schedule>> {
@@ -194,14 +217,23 @@ export const scheduleService = {
   async exportPdf(id: string): Promise<Blob> {
     const { data } = await api.get(`/schedules/${id}/export/pdf`, { responseType: 'blob' })
     return data
+  },
+
+  async modifyByVoice(scheduleId: string, modification: ScheduleModification): Promise<ApiResponse<VoiceModifyResult>> {
+    const { data } = await api.post(`/schedules/${scheduleId}/modify-voice`, modification)
+    return data
+  },
+
+  async deleteSession(scheduleId: string, sessionId: string): Promise<void> {
+    await api.delete(`/schedules/${scheduleId}/sessions/${sessionId}`)
   }
 }
 
 // Voice Service Types
-export type VoiceContext = 'patient' | 'staff' | 'rule' | 'schedule' | 'general'
+export type VoiceContext = 'patient' | 'staff' | 'rule' | 'schedule' | 'schedule_modify' | 'general'
 
 export interface ParsedVoiceCommand {
-  commandType: 'create_patient' | 'create_staff' | 'create_rule' | 'schedule_session' | 'unknown'
+  commandType: 'create_patient' | 'create_staff' | 'create_rule' | 'schedule_session' | 'modify_session' | 'cancel_session' | 'unknown'
   confidence: number
   data: Record<string, unknown>
   warnings: string[]
@@ -227,6 +259,11 @@ export const voiceService = {
 
   async parseRule(transcript: string): Promise<ApiResponse<ParsedVoiceCommand>> {
     const { data } = await api.post('/voice/parse/rule', { transcript })
+    return data
+  },
+
+  async parseSchedule(transcript: string): Promise<ApiResponse<ParsedVoiceCommand>> {
+    const { data } = await api.post('/voice/parse/schedule', { transcript })
     return data
   }
 }
