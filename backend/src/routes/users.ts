@@ -58,7 +58,7 @@ export async function userRoutes(fastify: FastifyInstance) {
       return reply.status(404).send({ error: 'User not found' })
     }
 
-    return { data: userRepository.sanitizeUser(user) }
+    return { data: user }
   })
 
   // Create user
@@ -87,7 +87,7 @@ export async function userRoutes(fastify: FastifyInstance) {
 
     await logAudit(ctx.userId, 'create', 'user', user.id, organizationId, { email: body.email, name: body.name, role: body.role })
 
-    return reply.status(201).send({ data: userRepository.sanitizeUser(user) })
+    return reply.status(201).send({ data: user })
   })
 
   // Update user
@@ -128,7 +128,7 @@ export async function userRoutes(fastify: FastifyInstance) {
 
     await logAudit(ctx.userId, 'update', 'user', id, organizationId, { email: body.email, name: body.name, role: body.role })
 
-    return { data: userRepository.sanitizeUser(user) }
+    return { data: user }
   })
 
   // Delete user

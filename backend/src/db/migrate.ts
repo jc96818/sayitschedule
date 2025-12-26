@@ -1,7 +1,5 @@
 import { drizzle } from 'drizzle-orm/postgres-js'
-import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
-import { sql } from 'drizzle-orm'
 import * as schema from './schema.js'
 
 async function runMigration() {
@@ -12,7 +10,8 @@ async function runMigration() {
 
   console.log('Connecting to database...')
   const client = postgres(connectionString, { max: 1 })
-  const db = drizzle(client, { schema })
+  // Create drizzle instance (used for schema inference, actual migration uses raw SQL)
+  drizzle(client, { schema })
 
   console.log('Creating schema...')
 

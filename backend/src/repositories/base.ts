@@ -1,4 +1,3 @@
-import { eq, and, SQL } from 'drizzle-orm'
 import { PgTable } from 'drizzle-orm/pg-core'
 import { getDb } from '../db/index.js'
 
