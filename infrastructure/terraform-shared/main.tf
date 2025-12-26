@@ -87,5 +87,6 @@ locals {
   rds_security_group_id   = data.aws_security_group.wss_prod_rds.id
 
   # Database URL for sayitschedule (uses shared RDS with separate database)
-  database_url = "postgresql://${var.db_username}:${var.db_password}@${local.rds_address}:${local.rds_port}/${var.db_name}"
+  # sslmode=require is needed because RDS enforces SSL connections
+  database_url = "postgresql://${var.db_username}:${var.db_password}@${local.rds_address}:${local.rds_port}/${var.db_name}?sslmode=require"
 }
