@@ -76,6 +76,8 @@ export type RuleCategory =
   | 'availability'
   | 'specific_pairing'
   | 'certification'
+  | 'scheduling'
+  | 'custom'
 
 export interface Rule {
   id: string

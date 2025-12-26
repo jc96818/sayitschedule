@@ -197,10 +197,36 @@ export const scheduleService = {
   }
 }
 
+// Voice Service Types
+export type VoiceContext = 'patient' | 'staff' | 'rule' | 'schedule' | 'general'
+
+export interface ParsedVoiceCommand {
+  commandType: 'create_patient' | 'create_staff' | 'create_rule' | 'schedule_session' | 'unknown'
+  confidence: number
+  data: Record<string, unknown>
+  warnings: string[]
+  originalTranscript: string
+}
+
 // Voice Service
 export const voiceService = {
-  async parseCommand(transcript: string, context: 'rule' | 'staff' | 'patient' | 'schedule'): Promise<ApiResponse<unknown>> {
+  async parseCommand(transcript: string, context: VoiceContext = 'general'): Promise<ApiResponse<ParsedVoiceCommand>> {
     const { data } = await api.post('/voice/parse', { transcript, context })
+    return data
+  },
+
+  async parsePatient(transcript: string): Promise<ApiResponse<ParsedVoiceCommand>> {
+    const { data } = await api.post('/voice/parse/patient', { transcript })
+    return data
+  },
+
+  async parseStaff(transcript: string): Promise<ApiResponse<ParsedVoiceCommand>> {
+    const { data } = await api.post('/voice/parse/staff', { transcript })
+    return data
+  },
+
+  async parseRule(transcript: string): Promise<ApiResponse<ParsedVoiceCommand>> {
+    const { data } = await api.post('/voice/parse/rule', { transcript })
     return data
   }
 }

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Rule } from '@/types'
-import { rulesService } from '@/services/api'
+import type { Rule, RuleCategory } from '@/types'
+import { rulesService, voiceService } from '@/services/api'
 
 export const useRulesStore = defineStore('rules', () => {
   const rules = ref<Rule[]>([])
@@ -103,12 +103,26 @@ export const useRulesStore = defineStore('rules', () => {
     parsing.value = true
     error.value = null
     try {
-      const response = await rulesService.parseVoice(transcript)
-      pendingRule.value = response.data.rule
-      parseConfidence.value = response.data.confidence
-      return response.data
+      const response = await voiceService.parseRule(transcript)
+      const parsed = response.data
+
+      if (parsed.commandType === 'create_rule' && parsed.confidence >= 0.5) {
+        pendingRule.value = {
+          category: (parsed.data.category as RuleCategory) || 'custom',
+          description: (parsed.data.description as string) || transcript,
+          isActive: true,
+          priority: (parsed.data.priority as number) || 50
+        }
+        parseConfidence.value = parsed.confidence
+      } else {
+        error.value = 'Could not understand the rule. Please try again or use the form.'
+        throw new Error(error.value)
+      }
+      return parsed
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to parse voice command'
+      if (!error.value) {
+        error.value = e instanceof Error ? e.message : 'Failed to parse voice command'
+      }
       throw e
     } finally {
       parsing.value = false

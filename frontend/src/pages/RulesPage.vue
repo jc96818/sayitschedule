@@ -11,7 +11,6 @@ const showAddModal = ref(false)
 const newRule = ref<Partial<Rule>>({
   category: 'scheduling',
   description: '',
-  ruleType: 'custom',
   isActive: true,
   priority: 50
 })
@@ -108,7 +107,6 @@ function resetForm() {
   newRule.value = {
     category: 'scheduling',
     description: '',
-    ruleType: 'custom',
     isActive: true,
     priority: 50
   }
@@ -140,9 +138,16 @@ onMounted(() => {
       <!-- Voice Interface -->
       <VoiceInput
         title="Add Rule by Voice"
-        description="Click the microphone and speak your scheduling rule"
+        description="Click the microphone and speak your scheduling rule. Example: 'Female patients should be paired with female therapists'"
         @result="handleVoiceResult"
       />
+
+      <!-- Voice Loading State -->
+      <div v-if="rulesStore.parsing" class="card mb-3">
+        <div class="card-body text-center">
+          <p class="text-muted">Processing voice command...</p>
+        </div>
+      </div>
 
       <!-- Voice Confirmation Card -->
       <div v-if="showVoiceConfirmation && rulesStore.pendingRule" class="confirmation-card">

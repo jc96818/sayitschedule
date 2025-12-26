@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { usePatientsStore } from '@/stores/patients'
 import { VoiceInput, Modal, Alert, Badge, Button, SearchBox } from '@/components/ui'
+import { voiceService } from '@/services/api'
 import type { Patient } from '@/types'
 
 const patientsStore = usePatientsStore()
@@ -67,16 +68,39 @@ function getAvatarStyle(gender: string) {
   return {}
 }
 
+const voiceLoading = ref(false)
+const voiceError = ref('')
+
 async function handleVoiceResult(transcript: string) {
   voiceTranscript.value = transcript
-  // TODO: Call API to parse voice command
-  parsedPatient.value = {
-    name: 'New Patient',
-    gender: 'male',
-    sessionsPerWeek: 2,
-    status: 'active'
+  voiceLoading.value = true
+  voiceError.value = ''
+
+  try {
+    const response = await voiceService.parsePatient(transcript)
+    const parsed = response.data
+
+    if (parsed.commandType === 'create_patient' && parsed.confidence >= 0.5) {
+      parsedPatient.value = {
+        name: (parsed.data.name as string) || '',
+        gender: (parsed.data.gender as 'male' | 'female') || 'female',
+        sessionsPerWeek: (parsed.data.sessionsPerWeek as number) || 2,
+        sessionDuration: (parsed.data.sessionDuration as number) || 60,
+        requiredCertifications: (parsed.data.requiredCertifications as string[]) || [],
+        genderPreference: (parsed.data.genderPreference as 'male' | 'female' | null) || null,
+        notes: (parsed.data.notes as string) || '',
+        status: 'active'
+      }
+      showVoiceConfirmation.value = true
+    } else {
+      voiceError.value = 'Could not understand the command. Please try again or use the form.'
+    }
+  } catch (error) {
+    console.error('Voice parsing failed:', error)
+    voiceError.value = 'Voice service unavailable. Please use the form instead.'
+  } finally {
+    voiceLoading.value = false
   }
-  showVoiceConfirmation.value = true
 }
 
 async function confirmVoicePatient() {
@@ -157,9 +181,21 @@ watch([statusFilter, genderFilter], () => {
       <!-- Voice Interface -->
       <VoiceInput
         title="Voice Patient Management"
-        description="Click the microphone and speak to add or update patients"
+        description="Click the microphone and speak to add or update patients. Example: 'Add a new patient named John Smith who needs 3 sessions per week'"
         @result="handleVoiceResult"
       />
+
+      <!-- Voice Loading State -->
+      <div v-if="voiceLoading" class="card mb-3">
+        <div class="card-body text-center">
+          <p class="text-muted">Processing voice command...</p>
+        </div>
+      </div>
+
+      <!-- Voice Error -->
+      <Alert v-if="voiceError" variant="warning" class="mb-3">
+        {{ voiceError }}
+      </Alert>
 
       <!-- Voice Confirmation Card -->
       <div v-if="showVoiceConfirmation" class="confirmation-card">

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useStaffStore } from '@/stores/staff'
 import { VoiceInput, Modal, Alert, Badge, Button, SearchBox } from '@/components/ui'
+import { voiceService } from '@/services/api'
 import type { Staff } from '@/types'
 
 const staffStore = useStaffStore()
@@ -66,17 +67,38 @@ function getAvatarStyle(gender: string) {
   return {}
 }
 
+const voiceLoading = ref(false)
+const voiceError = ref('')
+
 async function handleVoiceResult(transcript: string) {
   voiceTranscript.value = transcript
-  // TODO: Call API to parse voice command
-  // For now, simulate parsing
-  parsedStaff.value = {
-    name: 'Eric Jones',
-    gender: 'male',
-    status: 'active',
-    maxSessionsPerDay: 2
+  voiceLoading.value = true
+  voiceError.value = ''
+
+  try {
+    const response = await voiceService.parseStaff(transcript)
+    const parsed = response.data
+
+    if (parsed.commandType === 'create_staff' && parsed.confidence >= 0.5) {
+      parsedStaff.value = {
+        name: (parsed.data.name as string) || '',
+        email: (parsed.data.email as string) || '',
+        phone: (parsed.data.phone as string) || '',
+        gender: (parsed.data.gender as 'male' | 'female') || 'female',
+        certifications: (parsed.data.certifications as string[]) || [],
+        maxSessionsPerDay: (parsed.data.maxSessionsPerDay as number) || 2,
+        status: 'active'
+      }
+      showVoiceConfirmation.value = true
+    } else {
+      voiceError.value = 'Could not understand the command. Please try again or use the form.'
+    }
+  } catch (error) {
+    console.error('Voice parsing failed:', error)
+    voiceError.value = 'Voice service unavailable. Please use the form instead.'
+  } finally {
+    voiceLoading.value = false
   }
-  showVoiceConfirmation.value = true
 }
 
 async function confirmVoiceStaff() {
@@ -152,9 +174,21 @@ watch([statusFilter, genderFilter], () => {
       <!-- Voice Interface -->
       <VoiceInput
         title="Voice Staff Management"
-        description="Click the microphone and speak to add or update staff members"
+        description="Click the microphone and speak to add or update staff members. Example: 'Add a therapist named Sarah Jones with speech therapy certification'"
         @result="handleVoiceResult"
       />
+
+      <!-- Voice Loading State -->
+      <div v-if="voiceLoading" class="card mb-3">
+        <div class="card-body text-center">
+          <p class="text-muted">Processing voice command...</p>
+        </div>
+      </div>
+
+      <!-- Voice Error -->
+      <Alert v-if="voiceError" variant="warning" class="mb-3">
+        {{ voiceError }}
+      </Alert>
 
       <!-- Voice Confirmation Card -->
       <div v-if="showVoiceConfirmation" class="confirmation-card">

@@ -11,6 +11,7 @@ import { patientRoutes } from './routes/patients.js'
 import { ruleRoutes } from './routes/rules.js'
 import { scheduleRoutes } from './routes/schedules.js'
 import { userRoutes } from './routes/users.js'
+import { voiceRoutes } from './routes/voice.js'
 import { organizationMiddleware } from './middleware/organization.js'
 
 const server = Fastify({
@@ -41,6 +42,7 @@ async function start() {
   await server.register(ruleRoutes, { prefix: '/api/rules' })
   await server.register(scheduleRoutes, { prefix: '/api/schedules' })
   await server.register(userRoutes, { prefix: '/api/users' })
+  await server.register(voiceRoutes, { prefix: '/api/voice' })
 
   // Health check
   server.get('/api/health', async () => {
