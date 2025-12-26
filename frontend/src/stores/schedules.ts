@@ -67,9 +67,11 @@ export const useSchedulesStore = defineStore('schedules', () => {
     error.value = null
     try {
       const response = await scheduleService.generate(weekStartDate)
+      currentSchedule.value = response.data
       schedules.value.push(response.data)
       totalCount.value++
-      return response.data
+      // Return full response including meta for stats and warnings
+      return response
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to generate schedule'
       throw e

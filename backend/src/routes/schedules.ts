@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { authenticate, requireAdminOrAssistant } from '../middleware/auth.js'
 import { scheduleRepository, sessionRepository } from '../repositories/schedules.js'
 import { logAudit } from '../repositories/audit.js'
+import { generateSchedule } from '../services/scheduler.js'
 
 const generateScheduleSchema = z.object({
   weekStartDate: z.string()
@@ -77,19 +78,75 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    // Create the schedule record
-    const schedule = await scheduleRepository.create({
-      organizationId,
-      weekStartDate: new Date(body.weekStartDate),
-      createdBy: ctx.userId
-    })
+    const weekStartDate = new Date(body.weekStartDate)
 
-    // TODO: Call AI scheduling service to generate optimal sessions
-    // For now, just create an empty draft schedule
+    // Check if OPENAI_API_KEY is configured
+    if (!process.env.OPENAI_API_KEY) {
+      return reply.status(503).send({
+        error: 'AI scheduling service not configured. Please set OPENAI_API_KEY.'
+      })
+    }
 
-    await logAudit(ctx.userId, 'create', 'schedule', schedule.id, organizationId, body)
+    try {
+      // Generate sessions using AI
+      console.log(`Generating schedule for week starting ${body.weekStartDate}...`)
+      const result = await generateSchedule(organizationId, weekStartDate)
+      console.log(`Generated ${result.stats.totalSessions} sessions`)
 
-    return reply.status(201).send({ data: schedule })
+      // Create the schedule record
+      const schedule = await scheduleRepository.create({
+        organizationId,
+        weekStartDate,
+        createdBy: ctx.userId
+      })
+
+      // Add generated sessions to the schedule
+      if (result.sessions.length > 0) {
+        const sessionsWithScheduleId = result.sessions.map(s => ({
+          ...s,
+          scheduleId: schedule.id
+        }))
+        await scheduleRepository.addSessions(sessionsWithScheduleId)
+      }
+
+      await logAudit(ctx.userId, 'create', 'schedule', schedule.id, organizationId, {
+        weekStartDate: body.weekStartDate,
+        sessionsGenerated: result.stats.totalSessions,
+        patientsScheduled: result.stats.patientsScheduled,
+        therapistsUsed: result.stats.therapistsUsed
+      })
+
+      // Return schedule with sessions and generation metadata
+      const sessions = await sessionRepository.findBySchedule(schedule.id)
+
+      return reply.status(201).send({
+        data: {
+          ...schedule,
+          sessions
+        },
+        meta: {
+          stats: result.stats,
+          warnings: result.warnings
+        }
+      })
+    } catch (error) {
+      console.error('Schedule generation failed:', error)
+
+      if (error instanceof Error) {
+        if (error.message.includes('AI service error')) {
+          return reply.status(503).send({
+            error: 'AI scheduling service temporarily unavailable. Please try again.'
+          })
+        }
+        if (error.message.includes('No active staff') || error.message.includes('No active patients')) {
+          return reply.status(400).send({ error: error.message })
+        }
+      }
+
+      return reply.status(500).send({
+        error: 'Failed to generate schedule. Please try again.'
+      })
+    }
   })
 
   // Publish schedule
@@ -159,7 +216,7 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
 
     const session = await sessionRepository.create({
       scheduleId: id,
-      staffId: body.staffId,
+      therapistId: body.staffId,
       patientId: body.patientId,
       date: new Date(body.date),
       startTime: body.startTime,

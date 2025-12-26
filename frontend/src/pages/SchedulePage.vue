@@ -50,7 +50,7 @@ const stats = computed(() => {
     return { totalSessions: 0, therapistsScheduled: 0, patientsCovered: 0, coverageRate: 0 }
   }
   const sessions = currentSchedule.value.sessions || []
-  const uniqueTherapists = new Set(sessions.map(s => s.staffId))
+  const uniqueTherapists = new Set(sessions.map(s => s.therapistId || s.staffId))
   const uniquePatients = new Set(sessions.map(s => s.patientId))
   return {
     totalSessions: sessions.length,
@@ -90,7 +90,8 @@ function getSessionsForTimeSlot(dayIndex: number, timeSlot: string): Session[] {
 
 function getTherapistColor(session: Session): 'blue' | 'green' {
   // In real implementation, check therapist gender
-  return session.staffId.charCodeAt(0) % 2 === 0 ? 'blue' : 'green'
+  const therapistId = session.therapistId || session.staffId
+  return therapistId?.charCodeAt(0) % 2 === 0 ? 'blue' : 'green'
 }
 
 async function handleExportPdf() {
@@ -103,7 +104,11 @@ async function loadSchedule() {
   const weekStart = currentWeekDate.value.toISOString().split('T')[0]
   // Find schedule for this week
   await schedulesStore.fetchSchedules()
-  const schedule = schedulesStore.schedules.find(s => s.weekStartDate === weekStart)
+  const schedule = schedulesStore.schedules.find(s => {
+    // Handle both date string formats (YYYY-MM-DD or full ISO timestamp)
+    const scheduleDate = s.weekStartDate?.split('T')[0]
+    return scheduleDate === weekStart
+  })
   if (schedule) {
     await schedulesStore.fetchScheduleById(schedule.id)
   } else {
@@ -272,8 +277,8 @@ onMounted(() => {
                     :key="session.id"
                     :class="['calendar-event', getTherapistColor(session)]"
                   >
-                    <div class="therapist">{{ session.staffId.slice(0, 8) }}</div>
-                    <div class="patient">{{ session.patientId.slice(0, 8) }}</div>
+                    <div class="therapist">{{ session.therapistName || (session.therapistId || session.staffId)?.slice(0, 8) }}</div>
+                    <div class="patient">{{ session.patientName || session.patientId?.slice(0, 8) }}</div>
                   </div>
                 </div>
               </template>

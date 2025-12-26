@@ -17,6 +17,9 @@ const selectedWeek = ref('')
 const step = ref<'configure' | 'generating' | 'preview' | 'published'>('configure')
 const generationProgress = ref(0)
 const generationStatus = ref('')
+const generationWarnings = ref<string[]>([])
+const generationStats = ref<{ totalSessions: number; patientsScheduled: number; therapistsUsed: number } | null>(null)
+const generationError = ref('')
 
 // Get next Monday as default
 const defaultWeekStart = computed(() => {
@@ -45,32 +48,55 @@ async function handleGenerate() {
 
   step.value = 'generating'
   generationProgress.value = 0
-  generationStatus.value = 'Initializing...'
+  generationStatus.value = 'Initializing AI scheduler...'
+  generationError.value = ''
+  generationWarnings.value = []
+  generationStats.value = null
 
-  // Simulate generation progress
-  const progressSteps = [
-    { progress: 10, status: 'Loading staff availability...' },
-    { progress: 25, status: 'Loading patient requirements...' },
-    { progress: 40, status: 'Applying scheduling rules...' },
-    { progress: 60, status: 'Optimizing assignments...' },
-    { progress: 80, status: 'Validating constraints...' },
-    { progress: 95, status: 'Finalizing schedule...' }
-  ]
+  // Show progress animation while waiting for AI
+  const progressInterval = setInterval(() => {
+    if (generationProgress.value < 90) {
+      generationProgress.value += Math.random() * 10
 
-  for (const s of progressSteps) {
-    await new Promise(resolve => setTimeout(resolve, 500))
-    generationProgress.value = s.progress
-    generationStatus.value = s.status
-  }
+      // Update status messages based on progress
+      if (generationProgress.value < 20) {
+        generationStatus.value = 'Loading staff and patient data...'
+      } else if (generationProgress.value < 40) {
+        generationStatus.value = 'Analyzing scheduling rules...'
+      } else if (generationProgress.value < 60) {
+        generationStatus.value = 'AI is optimizing assignments...'
+      } else if (generationProgress.value < 80) {
+        generationStatus.value = 'Validating constraints...'
+      } else {
+        generationStatus.value = 'Finalizing schedule...'
+      }
+    }
+  }, 500)
 
   try {
-    await schedulesStore.generateSchedule(selectedWeek.value)
+    const result = await schedulesStore.generateSchedule(selectedWeek.value)
+
+    clearInterval(progressInterval)
     generationProgress.value = 100
     generationStatus.value = 'Complete!'
-    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // Store generation metadata if available
+    if (result?.meta) {
+      generationWarnings.value = result.meta.warnings || []
+      generationStats.value = result.meta.stats || null
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 300))
     step.value = 'preview'
-  } catch (error) {
+  } catch (error: unknown) {
+    clearInterval(progressInterval)
     step.value = 'configure'
+
+    if (error instanceof Error) {
+      generationError.value = error.message
+    } else {
+      generationError.value = 'Failed to generate schedule. Please try again.'
+    }
     console.error('Failed to generate schedule:', error)
   }
 }
@@ -120,8 +146,8 @@ onMounted(() => {
 
     <div class="page-content">
       <!-- Error Alert -->
-      <Alert v-if="schedulesStore.error" variant="danger" class="mb-3" dismissible>
-        {{ schedulesStore.error }}
+      <Alert v-if="schedulesStore.error || generationError" variant="danger" class="mb-3" dismissible>
+        {{ schedulesStore.error || generationError }}
       </Alert>
 
       <!-- Step 1: Configure -->
@@ -209,7 +235,7 @@ onMounted(() => {
           <div class="progress-bar-container">
             <div class="progress-bar" :style="{ width: `${generationProgress}%` }"></div>
           </div>
-          <p class="text-sm text-muted" style="margin-top: 8px;">{{ generationProgress }}%</p>
+          <p class="text-sm text-muted" style="margin-top: 8px;">{{ Math.round(generationProgress) }}%</p>
         </div>
       </div>
 
@@ -217,6 +243,16 @@ onMounted(() => {
       <div v-if="step === 'preview'">
         <Alert variant="success" class="mb-3">
           Schedule generated successfully! Review the schedule below and publish when ready.
+        </Alert>
+
+        <!-- Warnings from AI generation -->
+        <Alert v-if="generationWarnings.length > 0" variant="warning" class="mb-3">
+          <strong>Scheduling Notes:</strong>
+          <ul style="margin: 8px 0 0 16px; padding: 0;">
+            <li v-for="(warning, index) in generationWarnings" :key="index">
+              {{ warning }}
+            </li>
+          </ul>
         </Alert>
 
         <div class="card">
@@ -230,16 +266,22 @@ onMounted(() => {
             <!-- Summary Stats -->
             <div class="stats-grid mb-3">
               <StatCard
-                :value="schedulesStore.currentSchedule?.sessions?.length || 0"
+                :value="generationStats?.totalSessions || schedulesStore.currentSchedule?.sessions?.length || 0"
                 label="Total Sessions"
                 icon="calendar"
+                color="blue"
+              />
+              <StatCard
+                :value="generationStats?.patientsScheduled || 0"
+                label="Patients Scheduled"
+                icon="patients"
                 color="green"
               />
               <StatCard
-                value="0"
-                label="Conflicts"
-                icon="alert"
-                color="green"
+                :value="generationStats?.therapistsUsed || 0"
+                label="Therapists Assigned"
+                icon="staff"
+                color="yellow"
               />
             </div>
 
@@ -390,7 +432,7 @@ onMounted(() => {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 

@@ -176,7 +176,7 @@ export const scheduleService = {
     return data
   },
 
-  async generate(weekStartDate: string): Promise<ApiResponse<Schedule>> {
+  async generate(weekStartDate: string): Promise<ApiResponse<Schedule & { sessions: Session[] }, { stats: { totalSessions: number; patientsScheduled: number; therapistsUsed: number }; warnings: string[] }>> {
     const { data } = await api.post('/schedules/generate', { weekStartDate })
     return data
   },

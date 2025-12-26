@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 interface Props {
   variant?: 'info' | 'success' | 'warning' | 'danger'
   dismissible?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   variant: 'info',
   dismissible: false
 })

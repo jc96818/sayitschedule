@@ -115,6 +115,11 @@ export interface Session {
   endTime: string
   notes: string | null
   createdAt: string
+  // Joined fields from API
+  therapistName?: string
+  patientName?: string
+  // Legacy field names (for backwards compatibility)
+  staffId?: string
 }
 
 // Staff Availability
@@ -141,9 +146,10 @@ export interface AuditLog {
 }
 
 // API Response types
-export interface ApiResponse<T> {
+export interface ApiResponse<T, M = unknown> {
   data: T
   message?: string
+  meta?: M
 }
 
 export interface PaginatedResponse<T> {
