@@ -1,0 +1,28 @@
+# Say It Schedule - Demo Terraform Variables
+# Copy to terraform.tfvars and fill in your values
+
+aws_region = "us-east-1"
+app_name   = "sayitschedule"
+
+# Generate a secure JWT secret (32+ characters)
+# Example: openssl rand -base64 32
+jwt_secret = "your-secure-jwt-secret-32-chars-minimum"
+
+# OpenAI API key for voice processing
+ai_api_key = "sk-your-openai-api-key"
+
+# Database password (use a strong password)
+# Example: openssl rand -base64 24
+db_password = "your-secure-database-password"
+
+# ACM Certificate ARN (required for HTTPS)
+# Get this from AWS Console > Certificate Manager
+certificate_arn = "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/CERTIFICATE_ID"
+
+# Optional: Custom domain name (for documentation purposes)
+# domain_name = "demo.sayitschedule.com"
+
+# Optional: Adjust container size
+# container_cpu    = 256   # 0.25 vCPU (minimum)
+# container_memory = 512   # 512 MB
+# db_instance_class = "db.t3.micro"

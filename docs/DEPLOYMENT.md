@@ -1,78 +1,128 @@
 # Say It Schedule - Deployment Guide
 
-This guide covers deploying Say It Schedule to AWS using ECS Fargate with CI/CD via GitHub Actions.
+This guide covers deploying Say It Schedule to AWS using ECS Fargate.
 
-## Architecture Overview
+## Deployment Options
+
+| Option | Cost | Best For |
+|--------|------|----------|
+| **Shared Infrastructure** | ~$15/month | When you have existing wss-prod infrastructure |
+| **Standalone Demo** | ~$48/month | Completely isolated deployment |
+| **Production** | ~$130/month | High availability with auto-scaling |
+
+---
+
+## Shared Infrastructure Deployment (Recommended)
+
+**Use this if you have the wss-prod project deployed.** This option shares the ALB and RDS from wss-prod to minimize costs.
+
+### What's Shared
+
+- **ALB**: Uses host-based routing to share the existing load balancer
+- **RDS**: Creates a separate database in the existing PostgreSQL instance
+- **VPC**: Runs in the same VPC/subnets
+
+### Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                          Internet                                │
+│                         (HTTPS/443)                              │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                   Application Load Balancer                      │
-│                   (HTTPS on port 443)                            │
+│              Shared ALB (wss-prod-alb)                           │
+│                  Host-based routing                              │
+│   api.wespeaksoon.com → wss-prod                                │
+│   sayitschedule.wespeaksoon.com → sayitschedule                 │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
+            ┌───────────────┴───────────────┐
+            ▼                               ▼
+┌──────────────────────┐      ┌──────────────────────┐
+│   wss-prod ECS       │      │  sayitschedule ECS   │
+│   (existing)         │      │  (new, 0.25 vCPU)    │
+└──────────────────────┘      └──────────────────────┘
+            │                               │
+            └───────────────┬───────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                        ECS Fargate                               │
-│  ┌──────────────────┐  ┌──────────────────┐                     │
-│  │   Container 1    │  │   Container 2    │  (auto-scaling)     │
-│  │   Node.js App    │  │   Node.js App    │                     │
-│  └────────┬─────────┘  └────────┬─────────┘                     │
-└───────────┼─────────────────────┼───────────────────────────────┘
-            │                     │
-            ▼                     ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      RDS PostgreSQL                              │
-│                    (Multi-AZ in production)                      │
+│                    Shared RDS PostgreSQL                         │
+│              wss_prod DB  |  sayitschedule DB                    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Prerequisites
+### Cost Estimate (Incremental)
 
-1. **AWS Account** with appropriate permissions
-2. **Domain name** registered and configured in Route 53
-3. **GitHub repository** with this codebase
-4. **Terraform** installed locally (for initial setup)
-5. **AWS CLI** configured with credentials
+| Resource | Monthly Cost |
+|----------|-------------|
+| ECS Fargate (0.25 vCPU, 512MB) | ~$10 |
+| Data transfer | ~$5 |
+| **Total Additional** | **~$15/month** |
 
-## Initial Setup
+*ALB and RDS costs are already covered by wss-prod*
 
-### 1. Create S3 Bucket for Terraform State
+### Setup Steps
+
+#### 1. Prerequisites
+
+- wss-prod must be deployed and running
+- AWS CLI configured with appropriate permissions
+- Terraform installed
+- ACM certificate that covers your sayitschedule subdomain
+
+#### 2. Update wss-prod Terraform
+
+First, apply the updated outputs to the wss-prod project:
 
 ```bash
-aws s3 mb s3://sayitschedule-terraform-state --region us-east-1
-aws s3api put-bucket-versioning \
-  --bucket sayitschedule-terraform-state \
-  --versioning-configuration Status=Enabled
+cd /path/to/wss-prod/terraform/environments/prod
+terraform apply
 ```
 
-### 2. Configure Terraform Variables
+This exports the shared resource IDs needed by sayitschedule.
+
+#### 3. Create Database User and Database
+
+Connect to the shared RDS and create the sayitschedule database:
 
 ```bash
-cd infrastructure/terraform
+# Get RDS endpoint
+RDS_HOST=$(aws rds describe-db-instances \
+  --db-instance-identifier wss-prod-postgres \
+  --query 'DBInstances[0].Endpoint.Address' \
+  --output text)
+
+# Connect (you'll need the admin password)
+psql -h $RDS_HOST -U wss_admin -d postgres
+
+# In psql, create user and database:
+CREATE USER sayitschedule WITH PASSWORD 'your-secure-password';
+CREATE DATABASE sayitschedule OWNER sayitschedule;
+GRANT ALL PRIVILEGES ON DATABASE sayitschedule TO sayitschedule;
+\q
+```
+
+#### 4. Configure Terraform
+
+```bash
+cd infrastructure/terraform-shared
 cp terraform.tfvars.example terraform.tfvars
 ```
 
-Edit `terraform.tfvars` with your values:
+Edit `terraform.tfvars`:
 
 ```hcl
-aws_region  = "us-east-1"
-environment = "production"
-domain_name = "yourdomain.com"
-
-# Generate secure values
-jwt_secret = "your-32-char-minimum-jwt-secret"
-ai_api_key = "sk-your-openai-api-key"
-
-# Database
-db_password = "your-secure-database-password"
+host_header = "sayitschedule.wespeaksoon.com"
+db_name     = "sayitschedule"
+db_username = "sayitschedule"
+db_password = "your-secure-password"
+jwt_secret  = "generate-32-char-secret"
+ai_api_key  = "sk-your-openai-api-key"
 ```
 
-### 3. Initialize and Apply Terraform
+#### 5. Deploy Infrastructure
 
 ```bash
 terraform init
@@ -80,210 +130,307 @@ terraform plan
 terraform apply
 ```
 
-This creates:
-- VPC with public/private subnets
-- ECS cluster and service
-- RDS PostgreSQL instance
-- Application Load Balancer
-- SSL certificate
-- Security groups
-- SSM parameters for secrets
+#### 6. Create DNS Record
 
-### 4. Configure GitHub Secrets
+Create a CNAME record pointing to the shared ALB:
 
-In your GitHub repository, go to **Settings > Secrets and variables > Actions** and add:
-
-| Secret | Description |
-|--------|-------------|
-| `AWS_ACCESS_KEY_ID` | IAM user access key |
-| `AWS_SECRET_ACCESS_KEY` | IAM user secret key |
-
-The IAM user needs these permissions:
-- `AmazonECS_FullAccess`
-- `AmazonEC2ContainerRegistryFullAccess`
-- `AmazonSSMReadOnlyAccess`
-
-### 5. Configure DNS
-
-After Terraform applies, update your domain's DNS to point to the ALB:
-
-```bash
-# Get the ALB DNS name
-terraform output alb_dns_name
+```
+sayitschedule.wespeaksoon.com → wss-prod-alb-XXXXX.us-east-1.elb.amazonaws.com
 ```
 
-Create an A record alias in Route 53 pointing to this ALB.
+#### 7. Configure GitHub Secrets
 
-## CI/CD Pipeline
+Go to **GitHub > Settings > Secrets > Actions** and add:
 
-The GitHub Actions workflow (`.github/workflows/deploy.yml`) runs on:
-- **Push to main**: Full deployment to production
-- **Pull requests**: Lint, type-check, and build only
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
 
-### Pipeline Stages
-
-1. **Lint & Type Check** - Validates code quality
-2. **Build** - Compiles frontend and backend
-3. **Docker** - Builds and pushes image to ECR
-4. **Deploy** - Updates ECS service with new image
-5. **Migrate** - Runs database migrations
-
-### Manual Deployment
-
-Trigger a manual deployment from GitHub Actions:
-
-1. Go to **Actions > Deploy to AWS**
-2. Click **Run workflow**
-3. Select the environment
-
-## Database Migrations
-
-Migrations run automatically after deployment. To run manually:
+#### 8. Deploy Application
 
 ```bash
-# Via ECS run-task
-aws ecs run-task \
-  --cluster sayitschedule-cluster-production \
-  --task-definition sayitschedule-production \
-  --launch-type FARGATE \
-  --network-configuration "..." \
-  --overrides '{"containerOverrides": [{"name": "sayitschedule", "command": ["node", "dist/db/migrate.js"]}]}'
+git push origin main
 ```
 
-## Seeding Demo Data
+---
 
-To seed the database with demo data:
+## Standalone Demo Deployment
+
+Use this for a completely isolated deployment with its own ALB and RDS.
+
+The demo deployment is a cost-effective setup with SSL:
+
+- Single ECS Fargate task behind ALB
+- HTTPS with your ACM certificate
+- No NAT Gateway (saves ~$35/month)
+- Single-AZ RDS (saves ~$15/month)
+- Stable URL via ALB
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                          Internet                                │
+│                         (HTTPS/443)                              │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Application Load Balancer (ALB)                     │
+│                  SSL termination with ACM cert                   │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     ECS Fargate Task                             │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                    Node.js App                            │   │
+│  │              (0.25 vCPU, 512MB RAM)                       │   │
+│  └────────────────────────────┬─────────────────────────────┘   │
+└───────────────────────────────┼─────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      RDS PostgreSQL                              │
+│                   (db.t3.micro, Single-AZ)                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Demo Cost Estimate
+
+| Resource | Monthly Cost |
+|----------|-------------|
+| ECS Fargate (0.25 vCPU, 512MB) | ~$10 |
+| Application Load Balancer | ~$18 |
+| RDS db.t3.micro | ~$15 |
+| Data transfer | ~$5 |
+| **Total** | **~$48/month** |
+
+### Demo Setup Steps
+
+#### 1. Prerequisites
+
+- AWS CLI installed and configured
+- Terraform installed
+- ACM certificate provisioned in us-east-1
 
 ```bash
+# Install tools (macOS)
+brew install awscli terraform
+
+# Configure AWS credentials
+aws configure
+```
+
+#### 2. Get Your ACM Certificate ARN
+
+```bash
+# List certificates
+aws acm list-certificates --region us-east-1
+
+# Copy the CertificateArn for your domain
+```
+
+#### 3. Create S3 Bucket for Terraform State
+
+```bash
+aws s3 mb s3://sayitschedule-terraform-state --region us-east-1
+```
+
+#### 4. Configure Terraform
+
+```bash
+cd infrastructure/terraform-demo
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Edit `terraform.tfvars`:
+
+```hcl
+jwt_secret      = "generate-32-char-secret-here"
+ai_api_key      = "sk-your-openai-api-key"
+db_password     = "generate-secure-password"
+certificate_arn = "arn:aws:acm:us-east-1:123456789:certificate/abc-123"
+```
+
+Generate secrets:
+
+```bash
+# JWT secret
+openssl rand -base64 32
+
+# Database password
+openssl rand -base64 24
+```
+
+#### 5. Deploy Infrastructure
+
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+This takes ~10-15 minutes (mostly waiting for RDS).
+
+After completion, note the outputs:
+
+```
+app_url = "https://sayitschedule-alb-demo-123456.us-east-1.elb.amazonaws.com"
+```
+
+#### 6. Configure GitHub Secrets
+
+Go to **GitHub > Settings > Secrets > Actions** and add:
+
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+
+#### 7. Push to Deploy
+
+```bash
+git add .
+git commit -m "Deploy to demo"
+git push origin main
+```
+
+The GitHub Action will:
+
+1. Build the Docker image
+2. Push to ECR
+3. Update ECS service
+4. Run database migrations
+
+#### 8. Access the Application
+
+After deployment completes:
+
+```
+https://sayitschedule-alb-demo-XXXXX.us-east-1.elb.amazonaws.com
+```
+
+Or set up a custom domain by creating a CNAME record pointing to the ALB DNS name.
+
+### Seeding Demo Data
+
+Run the seed script as a one-off ECS task:
+
+```bash
+# Get network config
+CLUSTER=sayitschedule-cluster-demo
+SERVICE=sayitschedule-service-demo
+
+SERVICE_INFO=$(aws ecs describe-services --cluster $CLUSTER --services $SERVICE)
+SUBNETS=$(echo $SERVICE_INFO | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.subnets | join(",")')
+SG=$(echo $SERVICE_INFO | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.securityGroups[0]')
+TASK_DEF=$(echo $SERVICE_INFO | jq -r '.services[0].taskDefinition')
+
+# Run seed
 aws ecs run-task \
-  --cluster sayitschedule-cluster-production \
-  --task-definition sayitschedule-production \
+  --cluster $CLUSTER \
+  --task-definition $TASK_DEF \
   --launch-type FARGATE \
-  --network-configuration "..." \
+  --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SG],assignPublicIp=ENABLED}" \
   --overrides '{"containerOverrides": [{"name": "sayitschedule", "command": ["node", "dist/db/seed.js"]}]}'
 ```
 
-## Health Checks
+### Custom Domain Setup
 
-The application exposes two health endpoints:
+To use a custom domain like `demo.sayitschedule.com`:
 
-| Endpoint | Purpose | Used By |
-|----------|---------|---------|
-| `GET /api/health` | Basic health check | ALB target group |
-| `GET /api/health/deep` | Database connectivity check | Monitoring |
+1. Create a CNAME record in your DNS:
+   ```
+   demo.sayitschedule.com → sayitschedule-alb-demo-XXX.us-east-1.elb.amazonaws.com
+   ```
 
-Example deep health response:
-```json
-{
-  "status": "ok",
-  "timestamp": "2025-12-26T00:00:00.000Z",
-  "version": "0.1.0",
-  "environment": "production",
-  "checks": {
-    "database": {
-      "status": "ok",
-      "latencyMs": 5
-    }
-  }
-}
-```
+2. Ensure your ACM certificate covers this domain (or use a wildcard cert)
 
-## Monitoring
+---
 
-### CloudWatch Logs
+## Production Deployment
 
-View application logs in CloudWatch:
-- Log group: `/ecs/sayitschedule-production`
+For production with auto-scaling and multi-AZ, use `infrastructure/terraform/`.
 
-```bash
-aws logs tail /ecs/sayitschedule-production --follow
-```
+### Additional Production Features
 
-### ECS Service Status
+- Multi-AZ RDS with automatic backups
+- Auto-scaling (1-4 containers)
+- NAT Gateway for private subnets
+- Performance Insights on RDS
 
-```bash
-aws ecs describe-services \
-  --cluster sayitschedule-cluster-production \
-  --services sayitschedule-service-production
-```
+### Production Cost Estimate
 
-## Scaling
-
-The ECS service auto-scales based on CPU utilization:
-- **Target**: 70% CPU
-- **Min tasks**: 1
-- **Max tasks**: 4
-
-To manually scale:
-
-```bash
-aws ecs update-service \
-  --cluster sayitschedule-cluster-production \
-  --service sayitschedule-service-production \
-  --desired-count 3
-```
-
-## Rollback
-
-To rollback to a previous version:
-
-1. Find the previous task definition revision:
-```bash
-aws ecs list-task-definitions --family-prefix sayitschedule-production
-```
-
-2. Update the service to use it:
-```bash
-aws ecs update-service \
-  --cluster sayitschedule-cluster-production \
-  --service sayitschedule-service-production \
-  --task-definition sayitschedule-production:REVISION_NUMBER
-```
-
-## Cost Estimation
-
-Monthly costs for a minimal production setup:
-
-| Resource | Estimated Cost |
-|----------|----------------|
-| ECS Fargate (2 tasks, 0.5 vCPU, 1GB) | ~$35 |
-| RDS db.t3.micro (Multi-AZ) | ~$25 |
-| ALB | ~$20 |
+| Resource | Monthly Cost |
+|----------|-------------|
+| ECS Fargate (2x 0.5 vCPU, 1GB) | ~$35 |
+| Application Load Balancer | ~$20 |
+| RDS db.t3.micro (Multi-AZ) | ~$30 |
 | NAT Gateway | ~$35 |
 | Data transfer | ~$10 |
-| **Total** | **~$125/month** |
+| **Total** | **~$130/month** |
+
+---
+
+## Health Checks
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/health` | Basic health (for ALB) |
+| `GET /api/health/deep` | Database connectivity check |
+
+---
 
 ## Troubleshooting
 
-### Container failing to start
+### Container won't start
 
-1. Check CloudWatch logs for errors
-2. Verify SSM parameters exist and have values
-3. Check security group allows RDS access
+Check CloudWatch logs:
+
+```bash
+aws logs tail /ecs/sayitschedule-demo --follow
+```
+
+Verify SSM parameters exist:
+
+```bash
+aws ssm get-parameter --name /sayitschedule/demo/DATABASE_URL --with-decryption
+```
 
 ### Database connection issues
 
-1. Verify RDS security group allows inbound from ECS
-2. Check the database URL in SSM Parameter Store
-3. Try the deep health check: `curl https://yourdomain.com/api/health/deep`
+Check RDS is running:
+
+```bash
+aws rds describe-db-instances --db-instance-identifier sayitschedule-db-demo
+```
 
 ### Deployment stuck
 
-1. Check ECS service events:
+Check ECS events:
+
 ```bash
 aws ecs describe-services \
-  --cluster sayitschedule-cluster-production \
-  --services sayitschedule-service-production \
-  --query 'services[0].events[:10]'
+  --cluster sayitschedule-cluster-demo \
+  --services sayitschedule-service-demo \
+  --query 'services[0].events[:5]'
 ```
 
-2. Verify the new container can pass health checks
-3. Check for port conflicts or resource constraints
+Force a new deployment:
 
-## Security Notes
+```bash
+aws ecs update-service \
+  --cluster sayitschedule-cluster-demo \
+  --service sayitschedule-service-demo \
+  --force-new-deployment
+```
 
-- All secrets stored in SSM Parameter Store (encrypted)
-- Database not publicly accessible
-- HTTPS enforced via ALB
-- Containers run as non-root user
-- RDS storage encrypted at rest
+### SSL certificate issues
+
+Ensure the ACM certificate:
+
+1. Is in the **us-east-1** region
+2. Is in **Issued** status (not Pending Validation)
+3. Covers your domain (check Subject Alternative Names)
+
+```bash
+aws acm describe-certificate --certificate-arn YOUR_CERT_ARN
+```
