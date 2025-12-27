@@ -3,7 +3,7 @@ import { ref, onMounted, watch } from 'vue'
 import Modal from './Modal.vue'
 import Button from './Button.vue'
 
-type PageType = 'rules' | 'staff' | 'patients' | 'schedule' | 'schedule_generate'
+type PageType = 'rules' | 'staff' | 'patients' | 'room' | 'schedule' | 'schedule_generate'
 
 interface VoiceHint {
   example: string
@@ -91,6 +91,24 @@ const hintsData: Record<PageType, { title: string; intro: string; hints: VoiceHi
       {
         example: 'Add patient Lisa Wong who requires an ABA certified therapist',
         description: 'Creates a patient with specific certification requirements for their therapist.'
+      }
+    ]
+  },
+  room: {
+    title: 'Voice Commands for Room Management',
+    intro: 'Add therapy rooms using voice commands. Specify the room name and any equipment or capabilities it has.',
+    hints: [
+      {
+        example: 'Create room 101 with sensory equipment',
+        description: 'Creates a new room with the specified name and sensory equipment capability.'
+      },
+      {
+        example: 'Add a new room called Therapy Suite A with wheelchair access',
+        description: 'Creates a room with wheelchair accessibility as a capability.'
+      },
+      {
+        example: 'New room B2 with sensory equipment, computer station, and wheelchair access',
+        description: 'Creates a room with multiple capabilities listed.'
       }
     ]
   },

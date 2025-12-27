@@ -13,6 +13,7 @@ import { organizationRoutes } from './routes/organizations.js'
 import { staffRoutes } from './routes/staff.js'
 import { patientRoutes } from './routes/patients.js'
 import { ruleRoutes } from './routes/rules.js'
+import { roomRoutes } from './routes/rooms.js'
 import { scheduleRoutes } from './routes/schedules.js'
 import { userRoutes } from './routes/users.js'
 import { voiceRoutes } from './routes/voice.js'
@@ -45,6 +46,7 @@ async function start() {
   await server.register(staffRoutes, { prefix: '/api/staff' })
   await server.register(patientRoutes, { prefix: '/api/patients' })
   await server.register(ruleRoutes, { prefix: '/api/rules' })
+  await server.register(roomRoutes, { prefix: '/api/rooms' })
   await server.register(scheduleRoutes, { prefix: '/api/schedules' })
   await server.register(userRoutes, { prefix: '/api/users' })
   await server.register(voiceRoutes, { prefix: '/api/voice' })

@@ -18,13 +18,14 @@ export type VoiceCommandType =
   | 'create_patient'
   | 'create_staff'
   | 'create_rule'
+  | 'create_room'
   | 'schedule_session'
   | 'modify_session'
   | 'cancel_session'
   | 'generate_schedule'
   | 'unknown'
 
-export type VoiceContext = 'patient' | 'staff' | 'rule' | 'schedule' | 'schedule_modify' | 'schedule_generate' | 'general'
+export type VoiceContext = 'patient' | 'staff' | 'rule' | 'room' | 'schedule' | 'schedule_modify' | 'schedule_generate' | 'general'
 
 export interface ParsedPatientData {
   name: string
@@ -49,6 +50,12 @@ export interface ParsedRuleData {
   description: string
   priority?: number
   ruleLogic?: Record<string, unknown>
+}
+
+export interface ParsedRoomData {
+  name: string
+  description?: string
+  capabilities?: string[]
 }
 
 export interface ParsedSessionData {
@@ -78,7 +85,7 @@ export interface ParsedScheduleModifyData {
 export interface ParsedVoiceCommand {
   commandType: VoiceCommandType
   confidence: number
-  data: ParsedPatientData | ParsedStaffData | ParsedRuleData | ParsedSessionData | Record<string, unknown>
+  data: ParsedPatientData | ParsedStaffData | ParsedRuleData | ParsedRoomData | ParsedSessionData | Record<string, unknown>
   warnings: string[]
   originalTranscript: string
 }
@@ -124,6 +131,28 @@ Extract rule information like:
 - description: clear description of the rule
 - priority: 1-10 (default 5)
 - ruleLogic: structured logic object`,
+
+    room: `${basePrompt}
+
+The user is creating or managing THERAPY ROOMS for the center.
+Extract room information like:
+- name (required): the room name or identifier (e.g., "Room 101", "Sensory Room", "Therapy Suite A")
+- description: optional description of the room
+- capabilities: array of equipment/features available in the room
+  Common capabilities include:
+  - wheelchair_accessible: room is accessible to wheelchairs
+  - sensory_equipment: has sensory therapy equipment
+  - computer_station: has computers/tablets for therapy
+  - therapy_swing: has a therapy swing
+  - quiet_room: soundproofed/quiet environment
+  - large_space: larger room for movement therapy
+  - outdoor_access: access to outdoor area
+  - video_recording: has video recording capability
+
+EXAMPLES:
+- "Add room 101 with wheelchair access and sensory equipment" → name: "Room 101", capabilities: ["wheelchair_accessible", "sensory_equipment"]
+- "Create a new room called Therapy Suite A" → name: "Therapy Suite A"
+- "Add the sensory room with therapy swing and quiet room capabilities" → name: "Sensory Room", capabilities: ["therapy_swing", "quiet_room"]`,
 
     schedule: `${basePrompt}
 
@@ -310,6 +339,11 @@ export async function parseStaffCommand(transcript: string): Promise<ParsedVoice
 // Helper function to parse rule-specific commands
 export async function parseRuleCommand(transcript: string): Promise<ParsedVoiceCommand> {
   return parseVoiceCommand(transcript, 'rule')
+}
+
+// Helper function to parse room-specific commands
+export async function parseRoomCommand(transcript: string): Promise<ParsedVoiceCommand> {
+  return parseVoiceCommand(transcript, 'room')
 }
 
 // Helper function to parse schedule-specific commands (for creating new sessions)

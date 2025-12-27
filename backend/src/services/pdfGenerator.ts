@@ -11,6 +11,7 @@ interface SessionData {
   time: string
   therapistName: string
   patientName: string
+  roomName?: string
 }
 
 interface DayColumn {
@@ -77,7 +78,8 @@ function buildDayColumns(schedule: ScheduleWithSessions): DayColumn[] {
         sessions.push({
           time: formatTime(timeSlot),
           therapistName: session.therapistName || 'Unknown',
-          patientName: session.patientName || 'Unknown'
+          patientName: session.patientName || 'Unknown',
+          roomName: session.roomName
         })
         sessionsMap.set(timeSlot, sessions)
       }
@@ -259,12 +261,12 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
         // Draw sessions
         let sessionY = rowY + 3
         for (const session of sessions) {
-          if (sessionY + 25 > rowY + rowHeight - 2) break // Prevent overflow
+          const cardHeight = session.roomName ? 30 : 22
+          if (sessionY + cardHeight + 2 > rowY + rowHeight - 2) break // Prevent overflow
 
           // Session card with light border
           const cardX = cellX + 3
           const cardWidth = dayColWidth - 6
-          const cardHeight = 22
 
           // Background with border
           doc.rect(cardX, sessionY, cardWidth, cardHeight)
@@ -294,6 +296,18 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
               lineBreak: false,
               ellipsis: true
             })
+
+          // Room name (if assigned)
+          if (session.roomName) {
+            doc.fillColor(COLORS.textSecondary)
+              .fontSize(5)
+              .font('Helvetica-Oblique')
+              .text(session.roomName, cardX + 4, sessionY + 21, {
+                width: cardWidth - 6,
+                lineBreak: false,
+                ellipsis: true
+              })
+          }
 
           sessionY += cardHeight + 2
         }

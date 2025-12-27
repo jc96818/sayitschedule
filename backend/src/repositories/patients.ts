@@ -13,6 +13,8 @@ export interface PatientCreate {
   sessionFrequency?: number
   preferredTimes?: string[] | null
   requiredCertifications?: string[]
+  preferredRoomId?: string | null
+  requiredRoomCapabilities?: string[]
   notes?: string | null
 }
 
@@ -23,6 +25,8 @@ export interface PatientUpdate {
   sessionFrequency?: number
   preferredTimes?: string[] | null
   requiredCertifications?: string[]
+  preferredRoomId?: string | null
+  requiredRoomCapabilities?: string[]
   notes?: string | null
   status?: Status
 }
@@ -117,6 +121,8 @@ export class PatientRepository {
         sessionFrequency: data.sessionFrequency || 2,
         preferredTimes: data.preferredTimes,
         requiredCertifications: data.requiredCertifications || [],
+        preferredRoomId: data.preferredRoomId,
+        requiredRoomCapabilities: data.requiredRoomCapabilities || [],
         notes: data.notes
       })
       .returning()

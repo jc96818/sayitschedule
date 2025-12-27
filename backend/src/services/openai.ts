@@ -30,6 +30,8 @@ export interface PatientForScheduling {
   sessionFrequency: number
   requiredCertifications: string[]
   preferredTimes: string[] | null
+  preferredRoomId?: string | null
+  requiredRoomCapabilities?: string[]
 }
 
 export interface RuleForScheduling {
@@ -40,9 +42,16 @@ export interface RuleForScheduling {
   priority: number
 }
 
+export interface RoomForScheduling {
+  id: string
+  name: string
+  capabilities: string[]
+}
+
 export interface GeneratedSession {
   therapistId: string
   patientId: string
+  roomId?: string
   date: string // YYYY-MM-DD
   startTime: string // HH:mm
   endTime: string // HH:mm
@@ -72,13 +81,25 @@ function formatStaffForPrompt(staff: StaffForScheduling[]): string {
 function formatPatientsForPrompt(patients: PatientForScheduling[]): string {
   return patients.map(p => {
     const displayId = p.identifier || p.id
+    const roomCaps = (p.requiredRoomCapabilities || []).join(', ')
     return `- ID: ${p.id}
   Patient ID: ${displayId}
   Name: ${p.name}
   Gender: ${p.gender}
   Sessions Per Week: ${p.sessionFrequency}
   Required Certifications: [${p.requiredCertifications.join(', ')}]
-  Preferred Times: [${(p.preferredTimes || []).join(', ')}]`
+  Preferred Times: [${(p.preferredTimes || []).join(', ')}]
+  Preferred Room: ${p.preferredRoomId || 'None'}
+  Required Room Capabilities: [${roomCaps}]`
+  }).join('\n')
+}
+
+function formatRoomsForPrompt(rooms: RoomForScheduling[]): string {
+  if (rooms.length === 0) return 'No rooms configured.'
+  return rooms.map(r => {
+    return `- ID: ${r.id}
+  Name: ${r.name}
+  Capabilities: [${r.capabilities.join(', ')}]`
   }).join('\n')
 }
 
@@ -102,9 +123,11 @@ export async function generateScheduleWithAI(
   weekStartDate: Date,
   staff: StaffForScheduling[],
   patients: PatientForScheduling[],
-  rules: RuleForScheduling[]
+  rules: RuleForScheduling[],
+  rooms: RoomForScheduling[] = []
 ): Promise<ScheduleGenerationResult> {
   const weekDates = getWeekDates(weekStartDate)
+  const hasRooms = rooms.length > 0
 
   const systemPrompt = `You are an expert therapy scheduling assistant. Your task is to generate an optimal weekly schedule that assigns therapists to patients while respecting all constraints.
 
@@ -116,9 +139,18 @@ CRITICAL RULES:
 5. Try to honor gender pairing rules when possible
 6. Each patient should receive their required number of sessions per week
 7. Distribute sessions evenly across the week when possible
-8. Standard session duration is 60 minutes unless otherwise specified
+8. Standard session duration is 60 minutes unless otherwise specified${hasRooms ? `
+9. Assign rooms to sessions when rooms are available
+10. Each room can only have ONE session at a time (no overlapping sessions)
+11. If a patient requires specific room capabilities, only assign rooms that have ALL required capabilities
+12. If a patient has a preferred room, try to use that room when possible` : ''}
 
 You must return ONLY a valid JSON object with no additional text.`
+
+  const roomsSection = hasRooms ? `
+
+ROOMS (${rooms.length} rooms):
+${formatRoomsForPrompt(rooms)}` : ''
 
   const userPrompt = `Generate a schedule for the week of ${weekDates[0]} to ${weekDates[4]}.
 
@@ -128,7 +160,7 @@ STAFF (${staff.length} therapists):
 ${formatStaffForPrompt(staff)}
 
 PATIENTS (${patients.length} patients):
-${formatPatientsForPrompt(patients)}
+${formatPatientsForPrompt(patients)}${roomsSection}
 
 SCHEDULING RULES:
 ${rules.length > 0 ? formatRulesForPrompt(rules) : 'No specific rules defined.'}
@@ -138,7 +170,8 @@ Generate a complete schedule. Return a JSON object with this exact structure:
   "sessions": [
     {
       "therapistId": "<staff UUID>",
-      "patientId": "<patient UUID>",
+      "patientId": "<patient UUID>",${hasRooms ? `
+      "roomId": "<room UUID or null>",` : ''}
       "date": "YYYY-MM-DD",
       "startTime": "HH:mm",
       "endTime": "HH:mm",
@@ -149,10 +182,10 @@ Generate a complete schedule. Return a JSON object with this exact structure:
 }
 
 Ensure:
-- Use exact UUIDs from the staff and patient lists above
+- Use exact UUIDs from the staff${hasRooms ? ', patient, and room' : ' and patient'} lists above
 - Times are in 24-hour format (e.g., "09:00", "14:30")
 - Each patient gets approximately their required sessions per week
-- No time conflicts for any therapist or patient`
+- No time conflicts for any therapist${hasRooms ? ', patient, or room' : ' or patient'}`
 
   try {
     const response = await getOpenAI().chat.completions.create({

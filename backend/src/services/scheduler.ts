@@ -1,11 +1,13 @@
 import { staffRepository } from '../repositories/staff.js'
 import { patientRepository } from '../repositories/patients.js'
 import { ruleRepository } from '../repositories/rules.js'
+import { roomRepository } from '../repositories/rooms.js'
 import {
   generateScheduleWithAI,
   type StaffForScheduling,
   type PatientForScheduling,
   type RuleForScheduling,
+  type RoomForScheduling,
   type GeneratedSession
 } from './openai.js'
 
@@ -13,6 +15,7 @@ export interface SessionCreate {
   scheduleId: string
   therapistId: string
   patientId: string
+  roomId?: string | null
   date: Date
   startTime: string
   endTime: string
@@ -62,7 +65,8 @@ export function getDayOfWeek(dateStr: string): string {
 export function validateSessions(
   sessions: GeneratedSession[],
   staff: StaffForScheduling[],
-  patients: PatientForScheduling[]
+  patients: PatientForScheduling[],
+  rooms: RoomForScheduling[] = []
 ): { valid: SessionCreate[]; errors: ValidationError[]; warnings: string[] } {
   const valid: SessionCreate[] = []
   const errors: ValidationError[] = []
@@ -70,10 +74,12 @@ export function validateSessions(
 
   const staffMap = new Map(staff.map(s => [s.id, s]))
   const patientMap = new Map(patients.map(p => [p.id, p]))
+  const roomMap = new Map(rooms.map(r => [r.id, r]))
 
   // Track scheduled sessions for overlap detection
   const therapistSessions: Map<string, { date: string; start: string; end: string }[]> = new Map()
   const patientSessions: Map<string, { date: string; start: string; end: string }[]> = new Map()
+  const roomSessions: Map<string, { date: string; start: string; end: string }[]> = new Map()
 
   for (const session of sessions) {
     const sessionErrors: string[] = []
@@ -149,6 +155,45 @@ export function validateSessions(
           break
         }
       }
+
+      // Check room assignment if provided
+      if (session.roomId) {
+        const room = roomMap.get(session.roomId)
+        if (!room) {
+          sessionErrors.push(`Room ${session.roomId} not found`)
+        } else {
+          // Check for room time conflicts
+          const existingRoomSessions = roomSessions.get(session.roomId) || []
+          for (const existing of existingRoomSessions) {
+            if (
+              existing.date === session.date &&
+              sessionsOverlap(existing.start, existing.end, session.startTime, session.endTime)
+            ) {
+              sessionErrors.push(
+                `Room ${room.name} has overlapping sessions on ${session.date}`
+              )
+              break
+            }
+          }
+
+          // Check if room has required capabilities for patient
+          if (patient.requiredRoomCapabilities && patient.requiredRoomCapabilities.length > 0) {
+            const missingCapabilities = patient.requiredRoomCapabilities.filter(
+              cap => !room.capabilities.includes(cap)
+            )
+            if (missingCapabilities.length > 0) {
+              sessionErrors.push(
+                `Room ${room.name} missing required capabilities: ${missingCapabilities.join(', ')}`
+              )
+            }
+          }
+        }
+      } else if (patient.requiredRoomCapabilities && patient.requiredRoomCapabilities.length > 0) {
+        // Patient requires room capabilities but no room assigned
+        warnings.push(
+          `Patient ${patient.name} requires room capabilities (${patient.requiredRoomCapabilities.join(', ')}) but no room was assigned to this session`
+        )
+      }
     }
 
     if (sessionErrors.length > 0) {
@@ -173,10 +218,23 @@ export function validateSessions(
         end: session.endTime
       })
 
+      // Track room session if room assigned
+      if (session.roomId) {
+        if (!roomSessions.has(session.roomId)) {
+          roomSessions.set(session.roomId, [])
+        }
+        roomSessions.get(session.roomId)!.push({
+          date: session.date,
+          start: session.startTime,
+          end: session.endTime
+        })
+      }
+
       valid.push({
         scheduleId: '', // Will be set by caller
         therapistId: session.therapistId,
         patientId: session.patientId,
+        roomId: session.roomId || null,
         date: new Date(session.date),
         startTime: session.startTime,
         endTime: session.endTime,
@@ -204,14 +262,20 @@ export async function generateSchedule(
   weekStartDate: Date
 ): Promise<ScheduleGenerationOutput> {
   // Fetch all required data
-  const [staffResult, patientsResult, rules] = await Promise.all([
+  const [staffResult, patientsResult, rules, roomsResult] = await Promise.all([
     staffRepository.findByOrganization(organizationId, 'active'),
     patientRepository.findByOrganization(organizationId, 'active'),
-    ruleRepository.findActiveByOrganization(organizationId)
+    ruleRepository.findActiveByOrganization(organizationId),
+    roomRepository.findByOrganization(organizationId, 'active')
   ])
 
   const staff = staffResult as StaffForScheduling[]
   const patients = patientsResult as PatientForScheduling[]
+  const rooms: RoomForScheduling[] = roomsResult.map(r => ({
+    id: r.id,
+    name: r.name,
+    capabilities: r.capabilities || []
+  }))
 
   if (staff.length === 0) {
     throw new Error('No active staff members found')
@@ -231,12 +295,12 @@ export async function generateSchedule(
   }))
 
   // Call OpenAI to generate schedule
-  console.log(`Generating schedule for ${staff.length} staff and ${patients.length} patients...`)
-  const aiResult = await generateScheduleWithAI(weekStartDate, staff, patients, rulesForAI)
+  console.log(`Generating schedule for ${staff.length} staff, ${patients.length} patients, and ${rooms.length} rooms...`)
+  const aiResult = await generateScheduleWithAI(weekStartDate, staff, patients, rulesForAI, rooms)
   console.log(`AI generated ${aiResult.sessions.length} sessions`)
 
   // Validate the generated sessions
-  const { valid, errors, warnings } = validateSessions(aiResult.sessions, staff, patients)
+  const { valid, errors, warnings } = validateSessions(aiResult.sessions, staff, patients, rooms)
 
   // Log validation errors for debugging
   if (errors.length > 0) {

@@ -108,12 +108,12 @@ onMounted(async () => {
           </svg>
           Back to Staff
         </RouterLink>
-        <h2>{{ staff?.name || 'Staff Profile' }}</h2>
-        <p v-if="staff">
-          <Badge :variant="staff.status === 'active' ? 'success' : 'secondary'">
+        <div class="title-row">
+          <h2>{{ staff?.name || 'Staff Profile' }}</h2>
+          <Badge v-if="staff" :variant="staff.status === 'active' ? 'success' : 'secondary'">
             {{ staff.status === 'active' ? 'Active' : 'Inactive' }}
           </Badge>
-        </p>
+        </div>
       </div>
       <div v-if="staff" class="header-actions">
         <Button variant="outline" @click="openEditModal">
@@ -306,6 +306,12 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.header {
+  height: auto;
+  min-height: var(--header-height);
+  padding: 16px 24px;
+}
+
 .back-link {
   display: inline-flex;
   align-items: center;
@@ -318,6 +324,16 @@ onMounted(async () => {
 
 .back-link:hover {
   color: var(--primary-color);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title-row h2 {
+  margin: 0;
 }
 
 .grid-2 {

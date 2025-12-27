@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useSchedulesStore } from '@/stores/schedules'
 import { useStaffStore } from '@/stores/staff'
+import { useRoomsStore } from '@/stores/rooms'
 import { Button, Badge, Alert, StatCard, VoiceInput, VoiceHintsModal } from '@/components/ui'
 import { voiceService } from '@/services/api'
 import { getFederalHoliday } from '@/utils/holidays'
@@ -9,6 +10,7 @@ import type { Session } from '@/types'
 
 const schedulesStore = useSchedulesStore()
 const staffStore = useStaffStore()
+const roomsStore = useRoomsStore()
 
 // Voice hints modal ref
 const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
@@ -28,8 +30,9 @@ const parsedWeekDate = ref('')
 const parsedWeekReference = ref('')
 const parseGenerateConfidence = ref(0)
 
-const viewMode = ref<'calendar' | 'therapist' | 'patient'>('calendar')
+const viewMode = ref<'calendar' | 'therapist' | 'patient' | 'room'>('calendar')
 const selectedTherapist = ref('')
+const selectedRoom = ref('')
 
 // Navigation
 const weekOffset = ref(0)
@@ -130,13 +133,17 @@ function getSessionsForTimeSlot(dayIndex: number, timeSlot: string): Session[] {
   const targetDate = formatWeekDayDate(weekDays.value[dayIndex].date)
   const targetTime = parseTimeSlot(timeSlot)
 
-  // Filter sessions to apply therapist filter if set
+  // Filter sessions to apply therapist and room filters if set
   let sessions = currentSchedule.value.sessions
 
   if (selectedTherapist.value) {
     sessions = sessions.filter(
       (s) => (s.therapistId || s.staffId) === selectedTherapist.value
     )
+  }
+
+  if (selectedRoom.value) {
+    sessions = sessions.filter((s) => s.roomId === selectedRoom.value)
   }
 
   return sessions.filter((session) => {
@@ -214,6 +221,39 @@ const sessionsByPatient = computed(() => {
   )
 })
 
+// Group sessions by room for "By Room" view
+const sessionsByRoom = computed(() => {
+  if (!currentSchedule.value?.sessions) return []
+
+  const grouped = new Map<string, { roomId: string; roomName: string; sessions: Session[] }>()
+
+  for (const session of currentSchedule.value.sessions) {
+    const roomId = session.roomId || 'unassigned'
+    const roomName = session.roomName || (roomId === 'unassigned' ? 'Unassigned' : roomId.slice(0, 8))
+
+    if (!grouped.has(roomId)) {
+      grouped.set(roomId, { roomId, roomName, sessions: [] })
+    }
+    grouped.get(roomId)!.sessions.push(session)
+  }
+
+  // Sort sessions by date and time within each room
+  for (const group of grouped.values()) {
+    group.sessions.sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date)
+      if (dateCompare !== 0) return dateCompare
+      return (a.startTime || '').localeCompare(b.startTime || '')
+    })
+  }
+
+  // Sort rooms alphabetically, but keep "Unassigned" at the end
+  return Array.from(grouped.values()).sort((a, b) => {
+    if (a.roomId === 'unassigned') return 1
+    if (b.roomId === 'unassigned') return -1
+    return a.roomName.localeCompare(b.roomName)
+  })
+})
+
 // Get unique therapists from current schedule for filter dropdown
 const scheduleTherapists = computed(() => {
   if (!currentSchedule.value?.sessions) return []
@@ -228,6 +268,24 @@ const scheduleTherapists = computed(() => {
   }
 
   return Array.from(therapists.entries())
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+})
+
+// Get unique rooms from current schedule for filter dropdown
+const scheduleRooms = computed(() => {
+  if (!currentSchedule.value?.sessions) return []
+
+  const rooms = new Map<string, string>()
+  for (const session of currentSchedule.value.sessions) {
+    const id = session.roomId
+    const name = session.roomName
+    if (id && !rooms.has(id)) {
+      rooms.set(id, name || id.slice(0, 8))
+    }
+  }
+
+  return Array.from(rooms.entries())
     .map(([id, name]) => ({ id, name }))
     .sort((a, b) => a.name.localeCompare(b.name))
 })
@@ -390,6 +448,7 @@ async function handlePublish() {
 onMounted(() => {
   loadSchedule()
   staffStore.fetchStaff() // Load staff for therapist filter and gender lookup
+  roomsStore.fetchRooms() // Load rooms for room display
 })
 </script>
 
@@ -662,13 +721,27 @@ onMounted(() => {
               >
                 By Patient
               </button>
+              <button
+                :class="['view-tab', { active: viewMode === 'room' }]"
+                @click="viewMode = 'room'"
+              >
+                By Room
+              </button>
             </div>
-            <select v-if="viewMode === 'calendar'" v-model="selectedTherapist" class="form-control" style="width: auto;">
-              <option value="">All Therapists</option>
-              <option v-for="therapist in scheduleTherapists" :key="therapist.id" :value="therapist.id">
-                {{ therapist.name }}
-              </option>
-            </select>
+            <div v-if="viewMode === 'calendar'" class="filter-dropdowns">
+              <select v-model="selectedTherapist" class="form-control" style="width: auto;">
+                <option value="">All Therapists</option>
+                <option v-for="therapist in scheduleTherapists" :key="therapist.id" :value="therapist.id">
+                  {{ therapist.name }}
+                </option>
+              </select>
+              <select v-model="selectedRoom" class="form-control" style="width: auto;">
+                <option value="">All Rooms</option>
+                <option v-for="room in scheduleRooms" :key="room.id" :value="room.id">
+                  {{ room.name }}
+                </option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -732,6 +805,7 @@ onMounted(() => {
                   >
                     <div class="therapist">{{ session.therapistName || (session.therapistId || session.staffId)?.slice(0, 8) }}</div>
                     <div class="patient">{{ session.patientName || session.patientId?.slice(0, 8) }}</div>
+                    <div v-if="session.roomName" class="room">{{ session.roomName }}</div>
                   </div>
                 </div>
               </template>
@@ -788,6 +862,7 @@ onMounted(() => {
                       <th>Day</th>
                       <th>Time</th>
                       <th>Patient</th>
+                      <th>Room</th>
                       <th>Type</th>
                     </tr>
                   </thead>
@@ -799,6 +874,7 @@ onMounted(() => {
                       </td>
                       <td>{{ formatTime(session.startTime) }}</td>
                       <td>{{ session.patientName || session.patientId?.slice(0, 8) }}</td>
+                      <td>{{ session.roomName || '-' }}</td>
                       <td>
                         <Badge variant="secondary">Standard</Badge>
                       </td>
@@ -837,6 +913,7 @@ onMounted(() => {
                       <th>Day</th>
                       <th>Time</th>
                       <th>Therapist</th>
+                      <th>Room</th>
                       <th>Type</th>
                     </tr>
                   </thead>
@@ -853,6 +930,65 @@ onMounted(() => {
                           {{ session.therapistName || (session.therapistId || session.staffId)?.slice(0, 8) }}
                         </div>
                       </td>
+                      <td>{{ session.roomName || '-' }}</td>
+                      <td>
+                        <Badge variant="secondary">Standard</Badge>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- By Room View -->
+        <div v-else-if="viewMode === 'room'" class="room-view">
+          <div v-if="sessionsByRoom.length === 0" class="card">
+            <div class="card-body text-center">
+              <p class="text-muted">No sessions scheduled for this week.</p>
+            </div>
+          </div>
+          <div v-else class="room-list">
+            <div v-for="group in sessionsByRoom" :key="group.roomId" class="card room-card">
+              <div class="card-header room-header">
+                <div class="room-info">
+                  <div class="room-avatar">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4>{{ group.roomName }}</h4>
+                    <span class="text-muted text-sm">{{ group.sessions.length }} session{{ group.sessions.length !== 1 ? 's' : '' }} this week</span>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body" style="padding: 0;">
+                <table class="session-table">
+                  <thead>
+                    <tr>
+                      <th>Day</th>
+                      <th>Time</th>
+                      <th>Therapist</th>
+                      <th>Patient</th>
+                      <th>Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="session in group.sessions" :key="session.id">
+                      <td>
+                        <span class="day-badge">{{ formatDayOfWeek(session.date) }}</span>
+                        <span class="text-muted text-sm">{{ formatShortDate(new Date(session.date)) }}</span>
+                      </td>
+                      <td>{{ formatTime(session.startTime) }}</td>
+                      <td>
+                        <div class="therapist-cell">
+                          <span :class="['therapist-dot', getTherapistColor(session)]"></span>
+                          {{ session.therapistName || (session.therapistId || session.staffId)?.slice(0, 8) }}
+                        </div>
+                      </td>
+                      <td>{{ session.patientName || session.patientId?.slice(0, 8) }}</td>
                       <td>
                         <Badge variant="secondary">Standard</Badge>
                       </td>
@@ -989,6 +1125,17 @@ onMounted(() => {
 
 .calendar-event .patient {
   color: var(--text-secondary);
+}
+
+.calendar-event .room {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.filter-dropdowns {
+  display: flex;
+  gap: 8px;
 }
 
 .legend-box {
@@ -1196,5 +1343,44 @@ onMounted(() => {
 
 .therapist-dot.green {
   background-color: var(--success-color);
+}
+
+/* By Room View Styles */
+.room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.room-card {
+  overflow: hidden;
+}
+
+.room-header {
+  background-color: var(--background-color);
+}
+
+.room-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.room-info h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.room-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 </style>

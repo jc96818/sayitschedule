@@ -1,27 +1,21 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { authenticate, requireAdminOrAssistant } from '../middleware/auth.js'
-import { patientRepository } from '../repositories/patients.js'
+import { roomRepository } from '../repositories/rooms.js'
 import { logAudit } from '../repositories/audit.js'
 
-const createPatientSchema = z.object({
+const createRoomSchema = z.object({
   name: z.string().min(1),
-  identifier: z.string().nullish(),
-  gender: z.enum(['male', 'female', 'other']),
-  sessionFrequency: z.number().min(1).max(10),
-  preferredTimes: z.array(z.string()).nullish(),
-  requiredCertifications: z.array(z.string()).optional(),
-  preferredRoomId: z.string().uuid().nullish(),
-  requiredRoomCapabilities: z.array(z.string()).optional(),
-  notes: z.string().nullish()
+  capabilities: z.array(z.string()).optional(),
+  description: z.string().optional()
 })
 
-const updatePatientSchema = createPatientSchema.partial().extend({
+const updateRoomSchema = createRoomSchema.partial().extend({
   status: z.enum(['active', 'inactive']).optional()
 })
 
-export async function patientRoutes(fastify: FastifyInstance) {
-  // List all patients
+export async function roomRoutes(fastify: FastifyInstance) {
+  // List all rooms
   fastify.get('/', { preHandler: authenticate }, async (request: FastifyRequest, reply: FastifyReply) => {
     const organizationId = request.ctx.organizationId
 
@@ -29,26 +23,24 @@ export async function patientRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    const { page, limit, search, status, gender } = request.query as {
+    const { page, limit, search, status } = request.query as {
       page?: string
       limit?: string
       search?: string
       status?: string
-      gender?: string
     }
 
-    const result = await patientRepository.findAll(organizationId, {
+    const result = await roomRepository.findAll(organizationId, {
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
       search,
-      status,
-      gender
+      status
     })
 
     return result
   })
 
-  // Get single patient
+  // Get single room
   fastify.get('/:id', { preHandler: authenticate }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string }
     const organizationId = request.ctx.organizationId
@@ -57,17 +49,17 @@ export async function patientRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    const patient = await patientRepository.findById(id, organizationId)
-    if (!patient) {
-      return reply.status(404).send({ error: 'Patient not found' })
+    const room = await roomRepository.findById(id, organizationId)
+    if (!room) {
+      return reply.status(404).send({ error: 'Room not found' })
     }
 
-    return { data: patient }
+    return { data: room }
   })
 
-  // Create patient
+  // Create room
   fastify.post('/', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = createPatientSchema.parse(request.body)
+    const body = createRoomSchema.parse(request.body)
     const organizationId = request.ctx.organizationId
     const ctx = request.ctx.user!
 
@@ -75,28 +67,22 @@ export async function patientRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    const patient = await patientRepository.create({
+    const room = await roomRepository.create({
       organizationId,
       name: body.name,
-      identifier: body.identifier,
-      gender: body.gender,
-      sessionFrequency: body.sessionFrequency,
-      preferredTimes: body.preferredTimes,
-      requiredCertifications: body.requiredCertifications,
-      preferredRoomId: body.preferredRoomId,
-      requiredRoomCapabilities: body.requiredRoomCapabilities,
-      notes: body.notes
+      capabilities: body.capabilities,
+      description: body.description
     })
 
-    await logAudit(ctx.userId, 'create', 'patient', patient.id, organizationId, body)
+    await logAudit(ctx.userId, 'create', 'room', room.id, organizationId, body)
 
-    return reply.status(201).send({ data: patient })
+    return reply.status(201).send({ data: room })
   })
 
-  // Update patient
+  // Update room
   fastify.put('/:id', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string }
-    const body = updatePatientSchema.parse(request.body)
+    const body = updateRoomSchema.parse(request.body)
     const organizationId = request.ctx.organizationId
     const ctx = request.ctx.user!
 
@@ -104,17 +90,18 @@ export async function patientRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    const patient = await patientRepository.update(id, organizationId, body)
-    if (!patient) {
-      return reply.status(404).send({ error: 'Patient not found' })
+    const room = await roomRepository.update(id, organizationId, body)
+
+    if (!room) {
+      return reply.status(404).send({ error: 'Room not found' })
     }
 
-    await logAudit(ctx.userId, 'update', 'patient', id, organizationId, body)
+    await logAudit(ctx.userId, 'update', 'room', id, organizationId, body)
 
-    return { data: patient }
+    return { data: room }
   })
 
-  // Delete patient
+  // Delete room
   fastify.delete('/:id', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string }
     const organizationId = request.ctx.organizationId
@@ -124,12 +111,12 @@ export async function patientRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    const deleted = await patientRepository.delete(id, organizationId)
+    const deleted = await roomRepository.delete(id, organizationId)
     if (!deleted) {
-      return reply.status(404).send({ error: 'Patient not found' })
+      return reply.status(404).send({ error: 'Room not found' })
     }
 
-    await logAudit(ctx.userId, 'delete', 'patient', id, organizationId)
+    await logAudit(ctx.userId, 'delete', 'room', id, organizationId)
 
     return reply.status(204).send()
   })

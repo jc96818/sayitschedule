@@ -66,6 +66,8 @@ export interface Patient {
   sessionFrequency: number // sessions per week
   preferredTimes: string[] | null
   requiredCertifications: string[]
+  preferredRoomId: string | null
+  requiredRoomCapabilities: string[]
   notes: string | null
   status: 'active' | 'inactive'
   createdAt: string
@@ -124,6 +126,7 @@ export interface Session {
   scheduleId: string
   therapistId: string
   patientId: string
+  roomId: string | null
   date: string
   startTime: string
   endTime: string
@@ -132,8 +135,22 @@ export interface Session {
   // Joined fields from API
   therapistName?: string
   patientName?: string
+  roomName?: string
+  roomCapabilities?: string[]
   // Legacy field names (for backwards compatibility)
   staffId?: string
+}
+
+// Room
+export interface Room {
+  id: string
+  organizationId: string
+  name: string
+  capabilities: string[]
+  description: string | null
+  status: 'active' | 'inactive'
+  createdAt: string
+  updatedAt: string
 }
 
 // Staff Availability

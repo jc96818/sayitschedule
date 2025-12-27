@@ -64,6 +64,8 @@ export const patients = pgTable('patients', {
   sessionFrequency: integer('session_frequency').notNull().default(2),
   preferredTimes: jsonb('preferred_times').$type<string[]>(),
   requiredCertifications: jsonb('required_certifications').$type<string[]>().default([]),
+  preferredRoomId: uuid('preferred_room_id'),
+  requiredRoomCapabilities: jsonb('required_room_capabilities').$type<string[]>().default([]),
   notes: text('notes'),
   status: statusEnum('status').default('active').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull()
@@ -79,6 +81,18 @@ export const rules = pgTable('rules', {
   priority: integer('priority').default(0).notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   createdBy: uuid('created_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+})
+
+// Rooms
+export const rooms = pgTable('rooms', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  capabilities: jsonb('capabilities').$type<string[]>().default([]),
+  description: text('description'),
+  status: statusEnum('status').default('active').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
 })
@@ -101,6 +115,7 @@ export const sessions = pgTable('sessions', {
   scheduleId: uuid('schedule_id').references(() => schedules.id).notNull(),
   therapistId: uuid('therapist_id').references(() => staff.id).notNull(),
   patientId: uuid('patient_id').references(() => patients.id).notNull(),
+  roomId: uuid('room_id').references(() => rooms.id),
   date: timestamp('date').notNull(),
   startTime: varchar('start_time', { length: 5 }).notNull(), // HH:mm format
   endTime: varchar('end_time', { length: 5 }).notNull(),

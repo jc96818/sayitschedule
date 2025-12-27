@@ -199,6 +199,7 @@ onMounted(async () => {
               >
                 <div class="therapist-name">{{ session.therapistName || 'Unknown' }}</div>
                 <div class="patient-name">{{ session.patientName || 'Unknown' }}</div>
+                <div v-if="session.roomName" class="room-name">{{ session.roomName }}</div>
               </div>
             </td>
           </tr>
@@ -436,6 +437,15 @@ onMounted(async () => {
 .patient-name {
   font-size: 8px;
   color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.room-name {
+  font-size: 7px;
+  color: #94a3b8;
+  font-style: italic;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

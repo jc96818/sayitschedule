@@ -2,12 +2,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePatientsStore } from '@/stores/patients'
+import { useRoomsStore } from '@/stores/rooms'
 import { Modal, Alert, Badge, Button, Toggle } from '@/components/ui'
 import type { Patient } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const patientsStore = usePatientsStore()
+const roomsStore = useRoomsStore()
 
 const patientId = route.params.id as string
 const loading = ref(true)
@@ -15,8 +17,40 @@ const showEditModal = ref(false)
 
 // Edit form data
 const formData = ref<Partial<Patient>>({})
+const newCapability = ref('')
 
 const patient = computed(() => patientsStore.currentPatient)
+const availableRooms = computed(() => roomsStore.rooms.filter(r => r.status === 'active'))
+
+// Get room name for display
+const preferredRoomName = computed(() => {
+  if (!patient.value?.preferredRoomId) return null
+  const room = roomsStore.rooms.find(r => r.id === patient.value?.preferredRoomId)
+  return room?.name || 'Unknown Room'
+})
+
+// Common room capability suggestions
+const capabilitySuggestions = [
+  'wheelchair_accessible',
+  'sensory_equipment',
+  'computer_station',
+  'therapy_swing',
+  'quiet_room',
+  'large_space',
+  'outdoor_access',
+  'video_recording'
+]
+
+function addCapability() {
+  if (newCapability.value.trim() && !formData.value.requiredRoomCapabilities?.includes(newCapability.value.trim())) {
+    formData.value.requiredRoomCapabilities = [...(formData.value.requiredRoomCapabilities || []), newCapability.value.trim()]
+    newCapability.value = ''
+  }
+}
+
+function removeCapability(cap: string) {
+  formData.value.requiredRoomCapabilities = (formData.value.requiredRoomCapabilities || []).filter(c => c !== cap)
+}
 
 function formatGender(gender: string): string {
   return gender.charAt(0).toUpperCase() + gender.slice(1)
@@ -75,7 +109,10 @@ async function handleDelete() {
 onMounted(async () => {
   loading.value = true
   try {
-    await patientsStore.fetchPatientById(patientId)
+    await Promise.all([
+      patientsStore.fetchPatientById(patientId),
+      roomsStore.fetchRooms()
+    ])
   } catch (error) {
     console.error('Failed to load patient:', error)
   } finally {
@@ -94,15 +131,15 @@ onMounted(async () => {
           </svg>
           Back to Patients
         </RouterLink>
-        <h2>{{ patient?.name || 'Patient Profile' }}</h2>
-        <p v-if="patient">
-          <Badge :variant="patient.status === 'active' ? 'success' : 'secondary'">
+        <div class="title-row">
+          <h2>{{ patient?.name || 'Patient Profile' }}</h2>
+          <Badge v-if="patient" :variant="patient.status === 'active' ? 'success' : 'secondary'">
             {{ patient.status === 'active' ? 'Active' : 'Inactive' }}
           </Badge>
-          <Badge v-if="patient.identifier" variant="secondary" style="margin-left: 8px;">
+          <Badge v-if="patient?.identifier" variant="secondary">
             ID: {{ patient.identifier }}
           </Badge>
-        </p>
+        </div>
       </div>
       <div v-if="patient" class="header-actions">
         <Button variant="outline" @click="openEditModal">
@@ -212,6 +249,22 @@ onMounted(async () => {
               </div>
               <p v-else class="text-muted">No specific time preferences.</p>
             </div>
+
+            <div class="requirement-section">
+              <label>Preferred Room</label>
+              <p v-if="preferredRoomName">{{ preferredRoomName }}</p>
+              <p v-else class="text-muted">No specific room preference.</p>
+            </div>
+
+            <div class="requirement-section">
+              <label>Required Room Capabilities</label>
+              <div v-if="patient.requiredRoomCapabilities && patient.requiredRoomCapabilities.length > 0" class="badge-list">
+                <Badge v-for="cap in patient.requiredRoomCapabilities" :key="cap" variant="secondary">
+                  {{ cap.replace(/_/g, ' ') }}
+                </Badge>
+              </div>
+              <p v-else class="text-muted">No specific room capabilities required.</p>
+            </div>
           </div>
         </div>
 
@@ -288,6 +341,54 @@ onMounted(async () => {
           ></textarea>
         </div>
 
+        <div class="form-group">
+          <label for="preferredRoomId">Preferred Room</label>
+          <select id="preferredRoomId" v-model="formData.preferredRoomId" class="form-control">
+            <option :value="null">No preference</option>
+            <option v-for="room in availableRooms" :key="room.id" :value="room.id">
+              {{ room.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Required Room Capabilities</label>
+          <div class="capability-input">
+            <input
+              v-model="newCapability"
+              type="text"
+              class="form-control"
+              placeholder="Add capability..."
+              @keydown.enter.prevent="addCapability"
+            />
+            <Button type="button" variant="outline" size="sm" @click="addCapability">Add</Button>
+          </div>
+          <div class="capability-suggestions">
+            <span class="text-sm text-muted">Suggestions:</span>
+            <Button
+              v-for="cap in capabilitySuggestions.filter(c => !formData.requiredRoomCapabilities?.includes(c))"
+              :key="cap"
+              type="button"
+              variant="ghost"
+              size="sm"
+              @click="formData.requiredRoomCapabilities = [...(formData.requiredRoomCapabilities || []), cap]"
+            >
+              + {{ cap.replace(/_/g, ' ') }}
+            </Button>
+          </div>
+          <div v-if="formData.requiredRoomCapabilities?.length" class="capability-tags">
+            <Badge
+              v-for="cap in formData.requiredRoomCapabilities"
+              :key="cap"
+              variant="primary"
+              style="margin-right: 4px; margin-bottom: 4px; cursor: pointer;"
+              @click="removeCapability(cap)"
+            >
+              {{ cap.replace(/_/g, ' ') }} ×
+            </Badge>
+          </div>
+        </div>
+
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
           <Button type="button" variant="outline" @click="showEditModal = false">
             Cancel
@@ -302,6 +403,12 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.header {
+  height: auto;
+  min-height: var(--header-height);
+  padding: 16px 24px;
+}
+
 .back-link {
   display: inline-flex;
   align-items: center;
@@ -314,6 +421,16 @@ onMounted(async () => {
 
 .back-link:hover {
   color: var(--primary-color);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title-row h2 {
+  margin: 0;
 }
 
 .grid-2 {
@@ -398,6 +515,24 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
+}
+
+.capability-input {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.capability-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.capability-tags {
+  margin-top: 8px;
 }
 
 @media (max-width: 768px) {

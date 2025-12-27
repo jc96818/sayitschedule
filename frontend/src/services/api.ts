@@ -7,6 +7,7 @@ import type {
   Staff,
   Patient,
   Rule,
+  Room,
   Schedule,
   Session,
   ApiResponse,
@@ -175,6 +176,33 @@ export const rulesService = {
   }
 }
 
+// Room Service
+export const roomService = {
+  async list(params?: { search?: string; status?: string }): Promise<PaginatedResponse<Room>> {
+    const { data } = await api.get('/rooms', { params })
+    return data
+  },
+
+  async get(id: string): Promise<ApiResponse<Room>> {
+    const { data } = await api.get(`/rooms/${id}`)
+    return data
+  },
+
+  async create(room: Partial<Room>): Promise<ApiResponse<Room>> {
+    const { data } = await api.post('/rooms', room)
+    return data
+  },
+
+  async update(id: string, room: Partial<Room>): Promise<ApiResponse<Room>> {
+    const { data } = await api.put(`/rooms/${id}`, room)
+    return data
+  },
+
+  async delete(id: string): Promise<void> {
+    await api.delete(`/rooms/${id}`)
+  }
+}
+
 // Schedule Modification Types (used by scheduleService)
 export interface ScheduleModification {
   action: 'move' | 'cancel' | 'swap' | 'create'
@@ -246,10 +274,10 @@ export const scheduleService = {
 }
 
 // Voice Service Types
-export type VoiceContext = 'patient' | 'staff' | 'rule' | 'schedule' | 'schedule_modify' | 'general'
+export type VoiceContext = 'patient' | 'staff' | 'rule' | 'room' | 'schedule' | 'schedule_modify' | 'general'
 
 export interface ParsedVoiceCommand {
-  commandType: 'create_patient' | 'create_staff' | 'create_rule' | 'schedule_session' | 'modify_session' | 'cancel_session' | 'generate_schedule' | 'unknown'
+  commandType: 'create_patient' | 'create_staff' | 'create_rule' | 'create_room' | 'schedule_session' | 'modify_session' | 'cancel_session' | 'generate_schedule' | 'unknown'
   confidence: number
   data: Record<string, unknown>
   warnings: string[]
@@ -275,6 +303,11 @@ export const voiceService = {
 
   async parseRule(transcript: string): Promise<ApiResponse<ParsedVoiceCommand>> {
     const { data } = await api.post('/voice/parse/rule', { transcript })
+    return data
+  },
+
+  async parseRoom(transcript: string): Promise<ApiResponse<ParsedVoiceCommand>> {
+    const { data } = await api.post('/voice/parse/room', { transcript })
     return data
   },
 

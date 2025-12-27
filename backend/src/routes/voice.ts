@@ -6,6 +6,7 @@ import {
   parsePatientCommand,
   parseStaffCommand,
   parseRuleCommand,
+  parseRoomCommand,
   parseScheduleCommand,
   parseScheduleModifyCommand,
   parseScheduleGenerateCommand,
@@ -15,7 +16,7 @@ import {
 
 const parseVoiceSchema = z.object({
   transcript: z.string().min(1, 'Transcript is required'),
-  context: z.enum(['patient', 'staff', 'rule', 'schedule', 'general']).optional().default('general')
+  context: z.enum(['patient', 'staff', 'rule', 'room', 'schedule', 'general']).optional().default('general')
 })
 
 export async function voiceRoutes(fastify: FastifyInstance) {
@@ -52,6 +53,9 @@ export async function voiceRoutes(fastify: FastifyInstance) {
           break
         case 'rule':
           result = await parseRuleCommand(transcript)
+          break
+        case 'room':
+          result = await parseRoomCommand(transcript)
           break
         case 'schedule':
           result = await parseScheduleCommand(transcript)
@@ -158,6 +162,31 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     } catch (error) {
       console.error('Rule voice parsing failed:', error)
       return reply.status(500).send({ error: 'Failed to parse rule command.' })
+    }
+  })
+
+  // Parse room voice command (convenience endpoint)
+  fastify.post('/parse/room', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const organizationId = request.ctx.organizationId
+
+    if (!organizationId) {
+      return reply.status(400).send({ error: 'Organization context required' })
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return reply.status(503).send({
+        error: 'Voice parsing service not configured.'
+      })
+    }
+
+    const { transcript } = z.object({ transcript: z.string().min(1) }).parse(request.body)
+
+    try {
+      const result = await parseRoomCommand(transcript)
+      return { data: result }
+    } catch (error) {
+      console.error('Room voice parsing failed:', error)
+      return reply.status(500).send({ error: 'Failed to parse room command.' })
     }
   })
 

@@ -1,5 +1,5 @@
 import { eq, and, count, desc, gte, lte } from 'drizzle-orm'
-import { getDb, schedules, sessions, staff, patients } from '../db/index.js'
+import { getDb, schedules, sessions, staff, patients, rooms } from '../db/index.js'
 import { paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
 
 export type ScheduleStatus = 'draft' | 'published'
@@ -14,6 +14,7 @@ export interface SessionCreate {
   scheduleId: string
   therapistId: string
   patientId: string
+  roomId?: string | null
   date: Date
   startTime: string
   endTime: string
@@ -23,6 +24,7 @@ export interface SessionCreate {
 export interface SessionUpdate {
   therapistId?: string
   patientId?: string
+  roomId?: string | null
   date?: Date
   startTime?: string
   endTime?: string
@@ -36,6 +38,8 @@ export interface SessionWithDetails extends Session {
   therapistName?: string
   patientName?: string
   therapistGender?: 'male' | 'female' | 'other'
+  roomName?: string
+  roomCapabilities?: string[]
 }
 
 export interface ScheduleWithSessions extends Schedule {
@@ -102,11 +106,14 @@ export class ScheduleRepository {
         session: sessions,
         therapistName: staff.name,
         therapistGender: staff.gender,
-        patientName: patients.name
+        patientName: patients.name,
+        roomName: rooms.name,
+        roomCapabilities: rooms.capabilities
       })
       .from(sessions)
       .leftJoin(staff, eq(sessions.therapistId, staff.id))
       .leftJoin(patients, eq(sessions.patientId, patients.id))
+      .leftJoin(rooms, eq(sessions.roomId, rooms.id))
       .where(eq(sessions.scheduleId, id))
       .orderBy(sessions.date, sessions.startTime)
 
@@ -116,7 +123,9 @@ export class ScheduleRepository {
         ...s.session,
         therapistName: s.therapistName || undefined,
         patientName: s.patientName || undefined,
-        therapistGender: s.therapistGender || undefined
+        therapistGender: s.therapistGender || undefined,
+        roomName: s.roomName || undefined,
+        roomCapabilities: (s.roomCapabilities as string[]) || undefined
       }))
     }
   }
@@ -244,12 +253,15 @@ export class ScheduleRepository {
       .select({
         session: sessions,
         therapistName: staff.name,
-        patientName: patients.name
+        patientName: patients.name,
+        roomName: rooms.name,
+        roomCapabilities: rooms.capabilities
       })
       .from(sessions)
       .innerJoin(schedules, eq(sessions.scheduleId, schedules.id))
       .leftJoin(staff, eq(sessions.therapistId, staff.id))
       .leftJoin(patients, eq(sessions.patientId, patients.id))
+      .leftJoin(rooms, eq(sessions.roomId, rooms.id))
       .where(
         and(
           eq(schedules.organizationId, organizationId),
@@ -262,7 +274,9 @@ export class ScheduleRepository {
     return result.map(s => ({
       ...s.session,
       therapistName: s.therapistName || undefined,
-      patientName: s.patientName || undefined
+      patientName: s.patientName || undefined,
+      roomName: s.roomName || undefined,
+      roomCapabilities: (s.roomCapabilities as string[]) || undefined
     }))
   }
 
@@ -304,6 +318,7 @@ export class ScheduleRepository {
         scheduleId: createdSchedule.id,
         therapistId: session.therapistId,
         patientId: session.patientId,
+        roomId: session.roomId,
         date: session.date,
         startTime: session.startTime,
         endTime: session.endTime,
@@ -332,11 +347,14 @@ export class SessionRepository {
         session: sessions,
         therapistName: staff.name,
         therapistGender: staff.gender,
-        patientName: patients.name
+        patientName: patients.name,
+        roomName: rooms.name,
+        roomCapabilities: rooms.capabilities
       })
       .from(sessions)
       .leftJoin(staff, eq(sessions.therapistId, staff.id))
       .leftJoin(patients, eq(sessions.patientId, patients.id))
+      .leftJoin(rooms, eq(sessions.roomId, rooms.id))
       .where(eq(sessions.scheduleId, scheduleId))
       .orderBy(sessions.date, sessions.startTime)
 
@@ -344,7 +362,9 @@ export class SessionRepository {
       ...s.session,
       therapistName: s.therapistName || undefined,
       patientName: s.patientName || undefined,
-      therapistGender: s.therapistGender || undefined
+      therapistGender: s.therapistGender || undefined,
+      roomName: s.roomName || undefined,
+      roomCapabilities: (s.roomCapabilities as string[]) || undefined
     }))
   }
 
@@ -355,6 +375,7 @@ export class SessionRepository {
         scheduleId: data.scheduleId,
         therapistId: data.therapistId,
         patientId: data.patientId,
+        roomId: data.roomId,
         date: data.date,
         startTime: data.startTime,
         endTime: data.endTime,
