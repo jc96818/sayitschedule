@@ -102,6 +102,19 @@ async function runMigration() {
   `)
 
   await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS rooms (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID REFERENCES organizations(id) NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      capabilities JSONB DEFAULT '[]',
+      description TEXT,
+      status status DEFAULT 'active' NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+    );
+  `)
+
+  await client.unsafe(`
     CREATE TABLE IF NOT EXISTS patients (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organization_id UUID REFERENCES organizations(id) NOT NULL,
@@ -111,10 +124,29 @@ async function runMigration() {
       session_frequency INTEGER DEFAULT 2 NOT NULL,
       preferred_times JSONB,
       required_certifications JSONB DEFAULT '[]',
+      preferred_room_id UUID REFERENCES rooms(id),
+      required_room_capabilities JSONB DEFAULT '[]',
       notes TEXT,
       status status DEFAULT 'active' NOT NULL,
       created_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
+  `)
+
+  // Add room columns to patients if they don't exist (for existing databases)
+  await client.unsafe(`
+    DO $$ BEGIN
+      ALTER TABLE patients ADD COLUMN preferred_room_id UUID REFERENCES rooms(id);
+    EXCEPTION
+      WHEN duplicate_column THEN null;
+    END $$;
+  `)
+
+  await client.unsafe(`
+    DO $$ BEGIN
+      ALTER TABLE patients ADD COLUMN required_room_capabilities JSONB DEFAULT '[]';
+    EXCEPTION
+      WHEN duplicate_column THEN null;
+    END $$;
   `)
 
   await client.unsafe(`
@@ -151,12 +183,22 @@ async function runMigration() {
       schedule_id UUID REFERENCES schedules(id) NOT NULL,
       therapist_id UUID REFERENCES staff(id) NOT NULL,
       patient_id UUID REFERENCES patients(id) NOT NULL,
+      room_id UUID REFERENCES rooms(id),
       date TIMESTAMP NOT NULL,
       start_time VARCHAR(5) NOT NULL,
       end_time VARCHAR(5) NOT NULL,
       notes TEXT,
       created_at TIMESTAMP DEFAULT NOW() NOT NULL
     );
+  `)
+
+  // Add room_id column to sessions if it doesn't exist (for existing databases)
+  await client.unsafe(`
+    DO $$ BEGIN
+      ALTER TABLE sessions ADD COLUMN room_id UUID REFERENCES rooms(id);
+    EXCEPTION
+      WHEN duplicate_column THEN null;
+    END $$;
   `)
 
   await client.unsafe(`
