@@ -1,8 +1,7 @@
-import { eq, and, ilike, or, count } from 'drizzle-orm'
-import { getDb, rooms } from '../db/index.js'
-import { paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import { prisma, paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import type { Room, Status, Prisma } from '@prisma/client'
 
-export type Status = 'active' | 'inactive'
+export type { Status }
 
 export interface RoomCreate {
   organizationId: string
@@ -18,83 +17,63 @@ export interface RoomUpdate {
   status?: Status
 }
 
-export type Room = typeof rooms.$inferSelect
+export type { Room }
 
 export class RoomRepository {
-  private get db() {
-    return getDb()
-  }
-
   async findAll(
     organizationId: string,
     params: PaginationParams & { search?: string; status?: string }
   ): Promise<PaginatedResult<Room>> {
-    const { limit, offset } = getPaginationOffsets(params)
+    const { take, skip } = getPaginationOffsets(params)
 
-    const conditions = [eq(rooms.organizationId, organizationId)]
+    const where: Prisma.RoomWhereInput = { organizationId }
 
     if (params.search) {
-      conditions.push(
-        or(
-          ilike(rooms.name, `%${params.search}%`),
-          ilike(rooms.description, `%${params.search}%`)
-        )!
-      )
+      where.OR = [
+        { name: { contains: params.search, mode: 'insensitive' } },
+        { description: { contains: params.search, mode: 'insensitive' } }
+      ]
     }
 
     if (params.status) {
-      conditions.push(eq(rooms.status, params.status as Status))
+      where.status = params.status as Status
     }
 
-    const whereClause = and(...conditions)
-
-    const [data, totalResult] = await Promise.all([
-      this.db
-        .select()
-        .from(rooms)
-        .where(whereClause)
-        .limit(limit)
-        .offset(offset)
-        .orderBy(rooms.name),
-      this.db
-        .select({ count: count() })
-        .from(rooms)
-        .where(whereClause)
+    const [data, total] = await Promise.all([
+      prisma.room.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { name: 'asc' }
+      }),
+      prisma.room.count({ where })
     ])
 
-    return paginate(data, totalResult[0]?.count || 0, params)
+    return paginate(data, total, params)
   }
 
   async findById(id: string, organizationId?: string): Promise<Room | null> {
-    const conditions = [eq(rooms.id, id)]
+    const where: Prisma.RoomWhereInput = { id }
     if (organizationId) {
-      conditions.push(eq(rooms.organizationId, organizationId))
+      where.organizationId = organizationId
     }
 
-    const result = await this.db
-      .select()
-      .from(rooms)
-      .where(and(...conditions))
-      .limit(1)
-
-    return result[0] || null
+    return prisma.room.findFirst({ where })
   }
 
   async findByOrganization(organizationId: string, status?: Status): Promise<Room[]> {
-    const conditions = [eq(rooms.organizationId, organizationId)]
+    const where: Prisma.RoomWhereInput = { organizationId }
     if (status) {
-      conditions.push(eq(rooms.status, status))
+      where.status = status
     }
 
-    return this.db
-      .select()
-      .from(rooms)
-      .where(and(...conditions))
-      .orderBy(rooms.name)
+    return prisma.room.findMany({
+      where,
+      orderBy: { name: 'asc' }
+    })
   }
 
   async findByCapabilities(organizationId: string, requiredCapabilities: string[]): Promise<Room[]> {
-    // Find rooms that have ALL required capabilities
     const activeRooms = await this.findByOrganization(organizationId, 'active')
 
     if (requiredCapabilities.length === 0) {
@@ -102,68 +81,63 @@ export class RoomRepository {
     }
 
     return activeRooms.filter(room => {
-      const roomCaps = room.capabilities || []
+      const roomCaps = (room.capabilities as string[]) || []
       return requiredCapabilities.every(cap => roomCaps.includes(cap))
     })
   }
 
   async create(data: RoomCreate): Promise<Room> {
-    const now = new Date()
-    const result = await this.db
-      .insert(rooms)
-      .values({
+    return prisma.room.create({
+      data: {
         organizationId: data.organizationId,
         name: data.name,
         capabilities: data.capabilities || [],
-        description: data.description,
-        createdAt: now,
-        updatedAt: now
-      })
-      .returning()
-
-    return result[0]
+        description: data.description
+      }
+    })
   }
 
   async update(id: string, organizationId: string, data: RoomUpdate): Promise<Room | null> {
-    const result = await this.db
-      .update(rooms)
-      .set({
-        ...data,
-        updatedAt: new Date()
+    try {
+      return await prisma.room.update({
+        where: { id, organizationId },
+        data
       })
-      .where(and(eq(rooms.id, id), eq(rooms.organizationId, organizationId)))
-      .returning()
-
-    return result[0] || null
+    } catch {
+      return null
+    }
   }
 
   async delete(id: string, organizationId: string): Promise<boolean> {
-    // Soft delete by setting status to inactive
-    const result = await this.db
-      .update(rooms)
-      .set({ status: 'inactive', updatedAt: new Date() })
-      .where(and(eq(rooms.id, id), eq(rooms.organizationId, organizationId)))
-      .returning({ id: rooms.id })
-
-    return result.length > 0
+    try {
+      await prisma.room.update({
+        where: { id, organizationId },
+        data: { status: 'inactive' }
+      })
+      return true
+    } catch {
+      return false
+    }
   }
 
   async hardDelete(id: string, organizationId: string): Promise<boolean> {
-    const result = await this.db
-      .delete(rooms)
-      .where(and(eq(rooms.id, id), eq(rooms.organizationId, organizationId)))
-      .returning({ id: rooms.id })
-
-    return result.length > 0
+    try {
+      await prisma.room.delete({
+        where: { id, organizationId }
+      })
+      return true
+    } catch {
+      return false
+    }
   }
 
   async countByOrganization(organizationId: string): Promise<number> {
-    const result = await this.db
-      .select({ count: count() })
-      .from(rooms)
-      .where(and(eq(rooms.organizationId, organizationId), eq(rooms.status, 'active')))
-
-    return result[0]?.count || 0
+    return prisma.room.count({
+      where: {
+        organizationId,
+        status: 'active'
+      }
+    })
   }
 }
 

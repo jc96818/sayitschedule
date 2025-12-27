@@ -246,7 +246,7 @@ jobs:
           SUBNETS=$(echo $NETWORK_CONFIG | jq -r '.awsvpcConfiguration.subnets | join(",")')
           SECURITY_GROUPS=$(echo $NETWORK_CONFIG | jq -r '.awsvpcConfiguration.securityGroups | join(",")')
 
-          # Run migration as a one-off ECS task
+          # Run Prisma migration as a one-off ECS task
           aws ecs run-task \
             --cluster ${{ env.ECS_CLUSTER }} \
             --task-definition $TASK_DEF \
@@ -255,9 +255,9 @@ jobs:
             --overrides '{
               "containerOverrides": [{
                 "name": "'"${{ env.CONTAINER_NAME }}"'",
-                "command": ["node", "dist/db/migrate.js"]
+                "command": ["npx", "prisma", "migrate", "deploy"]
               }]
             }' \
             --count 1
 
-          echo "Migration task started"
+          echo "Prisma migration task started"

@@ -1,8 +1,7 @@
-import { eq, and, count, desc, gte, lte } from 'drizzle-orm'
-import { getDb, schedules, sessions, staff, patients, rooms } from '../db/index.js'
-import { paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import { prisma, paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import type { Schedule, Session, ScheduleStatus, Gender } from '@prisma/client'
 
-export type ScheduleStatus = 'draft' | 'published'
+export type { Schedule, Session, ScheduleStatus }
 
 export interface ScheduleCreate {
   organizationId: string
@@ -31,13 +30,10 @@ export interface SessionUpdate {
   notes?: string | null
 }
 
-export type Schedule = typeof schedules.$inferSelect
-export type Session = typeof sessions.$inferSelect
-
 export interface SessionWithDetails extends Session {
   therapistName?: string
   patientName?: string
-  therapistGender?: 'male' | 'female' | 'other'
+  therapistGender?: Gender
   roomName?: string
   roomCapabilities?: string[]
 }
@@ -47,141 +43,120 @@ export interface ScheduleWithSessions extends Schedule {
 }
 
 export class ScheduleRepository {
-  private get db() {
-    return getDb()
-  }
-
   async findAll(
     organizationId: string,
     params: PaginationParams & { status?: string }
   ): Promise<PaginatedResult<Schedule>> {
-    const { limit, offset } = getPaginationOffsets(params)
+    const { take, skip } = getPaginationOffsets(params)
 
-    const conditions = [eq(schedules.organizationId, organizationId)]
+    const where: { organizationId: string; status?: ScheduleStatus } = { organizationId }
 
     if (params.status) {
-      conditions.push(eq(schedules.status, params.status as ScheduleStatus))
+      where.status = params.status as ScheduleStatus
     }
 
-    const whereClause = and(...conditions)
-
-    const [data, totalResult] = await Promise.all([
-      this.db
-        .select()
-        .from(schedules)
-        .where(whereClause)
-        .limit(limit)
-        .offset(offset)
-        .orderBy(desc(schedules.weekStartDate)),
-      this.db
-        .select({ count: count() })
-        .from(schedules)
-        .where(whereClause)
+    const [data, total] = await Promise.all([
+      prisma.schedule.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { weekStartDate: 'desc' }
+      }),
+      prisma.schedule.count({ where })
     ])
 
-    return paginate(data, totalResult[0]?.count || 0, params)
+    return paginate(data, total, params)
   }
 
   async findById(id: string, organizationId?: string): Promise<Schedule | null> {
-    const conditions = [eq(schedules.id, id)]
+    const where: { id: string; organizationId?: string } = { id }
     if (organizationId) {
-      conditions.push(eq(schedules.organizationId, organizationId))
+      where.organizationId = organizationId
     }
 
-    const result = await this.db
-      .select()
-      .from(schedules)
-      .where(and(...conditions))
-      .limit(1)
-
-    return result[0] || null
+    return prisma.schedule.findFirst({ where })
   }
 
   async findByIdWithSessions(id: string, organizationId?: string): Promise<ScheduleWithSessions | null> {
-    const schedule = await this.findById(id, organizationId)
-    if (!schedule) return null
+    const where: { id: string; organizationId?: string } = { id }
+    if (organizationId) {
+      where.organizationId = organizationId
+    }
 
-    const sessionData = await this.db
-      .select({
-        session: sessions,
-        therapistName: staff.name,
-        therapistGender: staff.gender,
-        patientName: patients.name,
-        roomName: rooms.name,
-        roomCapabilities: rooms.capabilities
-      })
-      .from(sessions)
-      .leftJoin(staff, eq(sessions.therapistId, staff.id))
-      .leftJoin(patients, eq(sessions.patientId, patients.id))
-      .leftJoin(rooms, eq(sessions.roomId, rooms.id))
-      .where(eq(sessions.scheduleId, id))
-      .orderBy(sessions.date, sessions.startTime)
+    const schedule = await prisma.schedule.findFirst({
+      where,
+      include: {
+        sessions: {
+          include: {
+            therapist: { select: { name: true, gender: true } },
+            patient: { select: { name: true } },
+            room: { select: { name: true, capabilities: true } }
+          },
+          orderBy: [{ date: 'asc' }, { startTime: 'asc' }]
+        }
+      }
+    })
+
+    if (!schedule) return null
 
     return {
       ...schedule,
-      sessions: sessionData.map(s => ({
-        ...s.session,
-        therapistName: s.therapistName || undefined,
-        patientName: s.patientName || undefined,
-        therapistGender: s.therapistGender || undefined,
-        roomName: s.roomName || undefined,
-        roomCapabilities: (s.roomCapabilities as string[]) || undefined
-      }))
+      sessions: schedule.sessions.map(s => ({
+        ...s,
+        therapistName: s.therapist?.name || undefined,
+        patientName: s.patient?.name || undefined,
+        therapistGender: s.therapist?.gender || undefined,
+        roomName: s.room?.name || undefined,
+        roomCapabilities: (s.room?.capabilities as string[]) || undefined,
+        therapist: undefined,
+        patient: undefined,
+        room: undefined
+      })) as SessionWithDetails[]
     }
   }
 
   async findByWeek(organizationId: string, weekStartDate: Date): Promise<Schedule | null> {
-    const result = await this.db
-      .select()
-      .from(schedules)
-      .where(
-        and(
-          eq(schedules.organizationId, organizationId),
-          eq(schedules.weekStartDate, weekStartDate)
-        )
-      )
-      .limit(1)
-
-    return result[0] || null
+    return prisma.schedule.findFirst({
+      where: { organizationId, weekStartDate }
+    })
   }
 
   async create(data: ScheduleCreate): Promise<Schedule> {
-    const result = await this.db
-      .insert(schedules)
-      .values({
-        organizationId: data.organizationId,
+    return prisma.schedule.create({
+      data: {
+        organization: { connect: { id: data.organizationId } },
         weekStartDate: data.weekStartDate,
-        createdBy: data.createdBy
-      })
-      .returning()
-
-    return result[0]
+        createdBy: { connect: { id: data.createdBy } }
+      }
+    })
   }
 
   async publish(id: string, organizationId: string): Promise<Schedule | null> {
-    const result = await this.db
-      .update(schedules)
-      .set({
-        status: 'published',
-        publishedAt: new Date()
+    try {
+      return await prisma.schedule.update({
+        where: { id, organizationId },
+        data: {
+          status: 'published',
+          publishedAt: new Date()
+        }
       })
-      .where(and(eq(schedules.id, id), eq(schedules.organizationId, organizationId)))
-      .returning()
-
-    return result[0] || null
+    } catch {
+      return null
+    }
   }
 
   async unpublish(id: string, organizationId: string): Promise<Schedule | null> {
-    const result = await this.db
-      .update(schedules)
-      .set({
-        status: 'draft',
-        publishedAt: null
+    try {
+      return await prisma.schedule.update({
+        where: { id, organizationId },
+        data: {
+          status: 'draft',
+          publishedAt: null
+        }
       })
-      .where(and(eq(schedules.id, id), eq(schedules.organizationId, organizationId)))
-      .returning()
-
-    return result[0] || null
+    } catch {
+      return null
+    }
   }
 
   async archive(id: string, organizationId: string): Promise<Schedule | null> {
@@ -191,57 +166,52 @@ export class ScheduleRepository {
   }
 
   async delete(id: string, organizationId: string): Promise<boolean> {
-    // Delete sessions first
-    await this.db
-      .delete(sessions)
-      .where(eq(sessions.scheduleId, id))
-
-    const result = await this.db
-      .delete(schedules)
-      .where(and(eq(schedules.id, id), eq(schedules.organizationId, organizationId)))
-      .returning({ id: schedules.id })
-
-    return result.length > 0
+    try {
+      // Delete sessions first, then schedule
+      await prisma.$transaction([
+        prisma.session.deleteMany({ where: { scheduleId: id } }),
+        prisma.schedule.delete({ where: { id, organizationId } })
+      ])
+      return true
+    } catch {
+      return false
+    }
   }
 
   // Session methods
   async addSession(data: SessionCreate): Promise<Session> {
-    const result = await this.db
-      .insert(sessions)
-      .values(data)
-      .returning()
-
-    return result[0]
+    return prisma.session.create({ data })
   }
 
   async addSessions(data: SessionCreate[]): Promise<Session[]> {
     if (data.length === 0) return []
 
-    const result = await this.db
-      .insert(sessions)
-      .values(data)
-      .returning()
-
-    return result
+    // Prisma doesn't support createMany with returning, so we use a transaction
+    return prisma.$transaction(
+      data.map(session => prisma.session.create({ data: session }))
+    )
   }
 
   async updateSession(sessionId: string, scheduleId: string, data: SessionUpdate): Promise<Session | null> {
-    const result = await this.db
-      .update(sessions)
-      .set(data)
-      .where(and(eq(sessions.id, sessionId), eq(sessions.scheduleId, scheduleId)))
-      .returning()
-
-    return result[0] || null
+    try {
+      return await prisma.session.update({
+        where: { id: sessionId, scheduleId },
+        data
+      })
+    } catch {
+      return null
+    }
   }
 
   async deleteSession(sessionId: string, scheduleId: string): Promise<boolean> {
-    const result = await this.db
-      .delete(sessions)
-      .where(and(eq(sessions.id, sessionId), eq(sessions.scheduleId, scheduleId)))
-      .returning({ id: sessions.id })
-
-    return result.length > 0
+    try {
+      await prisma.session.delete({
+        where: { id: sessionId, scheduleId }
+      })
+      return true
+    } catch {
+      return false
+    }
   }
 
   async getSessionsByDateRange(
@@ -249,44 +219,37 @@ export class ScheduleRepository {
     startDate: Date,
     endDate: Date
   ): Promise<SessionWithDetails[]> {
-    const result = await this.db
-      .select({
-        session: sessions,
-        therapistName: staff.name,
-        patientName: patients.name,
-        roomName: rooms.name,
-        roomCapabilities: rooms.capabilities
-      })
-      .from(sessions)
-      .innerJoin(schedules, eq(sessions.scheduleId, schedules.id))
-      .leftJoin(staff, eq(sessions.therapistId, staff.id))
-      .leftJoin(patients, eq(sessions.patientId, patients.id))
-      .leftJoin(rooms, eq(sessions.roomId, rooms.id))
-      .where(
-        and(
-          eq(schedules.organizationId, organizationId),
-          gte(sessions.date, startDate),
-          lte(sessions.date, endDate)
-        )
-      )
-      .orderBy(sessions.date, sessions.startTime)
+    const sessions = await prisma.session.findMany({
+      where: {
+        schedule: { organizationId },
+        date: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      include: {
+        therapist: { select: { name: true, gender: true } },
+        patient: { select: { name: true } },
+        room: { select: { name: true, capabilities: true } }
+      },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }]
+    })
 
-    return result.map(s => ({
-      ...s.session,
-      therapistName: s.therapistName || undefined,
-      patientName: s.patientName || undefined,
-      roomName: s.roomName || undefined,
-      roomCapabilities: (s.roomCapabilities as string[]) || undefined
-    }))
+    return sessions.map(s => ({
+      ...s,
+      therapistName: s.therapist?.name || undefined,
+      patientName: s.patient?.name || undefined,
+      therapistGender: s.therapist?.gender || undefined,
+      roomName: s.room?.name || undefined,
+      roomCapabilities: (s.room?.capabilities as string[]) || undefined,
+      therapist: undefined,
+      patient: undefined,
+      room: undefined
+    })) as SessionWithDetails[]
   }
 
   async countSessionsBySchedule(scheduleId: string): Promise<number> {
-    const result = await this.db
-      .select({ count: count() })
-      .from(sessions)
-      .where(eq(sessions.scheduleId, scheduleId))
-
-    return result[0]?.count || 0
+    return prisma.session.count({ where: { scheduleId } })
   }
 
   async createDraftCopy(
@@ -299,33 +262,30 @@ export class ScheduleRepository {
     if (!sourceSchedule) return null
 
     // Create new draft schedule with incremented version
-    const newSchedule = await this.db
-      .insert(schedules)
-      .values({
-        organizationId: sourceSchedule.organizationId,
+    const createdSchedule = await prisma.schedule.create({
+      data: {
+        organization: { connect: { id: sourceSchedule.organizationId } },
         weekStartDate: sourceSchedule.weekStartDate,
-        createdBy: createdBy,
+        createdBy: { connect: { id: createdBy } },
         status: 'draft',
         version: sourceSchedule.version + 1
-      })
-      .returning()
-
-    const createdSchedule = newSchedule[0]
+      }
+    })
 
     // Copy all sessions from source to new schedule
     if (sourceSchedule.sessions.length > 0) {
-      const sessionCopies = sourceSchedule.sessions.map(session => ({
-        scheduleId: createdSchedule.id,
-        therapistId: session.therapistId,
-        patientId: session.patientId,
-        roomId: session.roomId,
-        date: session.date,
-        startTime: session.startTime,
-        endTime: session.endTime,
-        notes: session.notes
-      }))
-
-      await this.db.insert(sessions).values(sessionCopies)
+      await prisma.session.createMany({
+        data: sourceSchedule.sessions.map(session => ({
+          scheduleId: createdSchedule.id,
+          therapistId: session.therapistId,
+          patientId: session.patientId,
+          roomId: session.roomId,
+          date: session.date,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          notes: session.notes
+        }))
+      })
     }
 
     // Return the new schedule with its sessions
@@ -337,72 +297,54 @@ export const scheduleRepository = new ScheduleRepository()
 
 // SessionRepository as a separate class for route compatibility
 export class SessionRepository {
-  private get db() {
-    return getDb()
-  }
-
   async findBySchedule(scheduleId: string): Promise<SessionWithDetails[]> {
-    const result = await this.db
-      .select({
-        session: sessions,
-        therapistName: staff.name,
-        therapistGender: staff.gender,
-        patientName: patients.name,
-        roomName: rooms.name,
-        roomCapabilities: rooms.capabilities
-      })
-      .from(sessions)
-      .leftJoin(staff, eq(sessions.therapistId, staff.id))
-      .leftJoin(patients, eq(sessions.patientId, patients.id))
-      .leftJoin(rooms, eq(sessions.roomId, rooms.id))
-      .where(eq(sessions.scheduleId, scheduleId))
-      .orderBy(sessions.date, sessions.startTime)
+    const sessions = await prisma.session.findMany({
+      where: { scheduleId },
+      include: {
+        therapist: { select: { name: true, gender: true } },
+        patient: { select: { name: true } },
+        room: { select: { name: true, capabilities: true } }
+      },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }]
+    })
 
-    return result.map(s => ({
-      ...s.session,
-      therapistName: s.therapistName || undefined,
-      patientName: s.patientName || undefined,
-      therapistGender: s.therapistGender || undefined,
-      roomName: s.roomName || undefined,
-      roomCapabilities: (s.roomCapabilities as string[]) || undefined
-    }))
+    return sessions.map(s => ({
+      ...s,
+      therapistName: s.therapist?.name || undefined,
+      patientName: s.patient?.name || undefined,
+      therapistGender: s.therapist?.gender || undefined,
+      roomName: s.room?.name || undefined,
+      roomCapabilities: (s.room?.capabilities as string[]) || undefined,
+      therapist: undefined,
+      patient: undefined,
+      room: undefined
+    })) as SessionWithDetails[]
   }
 
   async create(data: SessionCreate): Promise<Session> {
-    const result = await this.db
-      .insert(sessions)
-      .values({
-        scheduleId: data.scheduleId,
-        therapistId: data.therapistId,
-        patientId: data.patientId,
-        roomId: data.roomId,
-        date: data.date,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        notes: data.notes
-      })
-      .returning()
-
-    return result[0]
+    return prisma.session.create({ data })
   }
 
   async update(sessionId: string, scheduleId: string, data: SessionUpdate): Promise<Session | null> {
-    const result = await this.db
-      .update(sessions)
-      .set(data)
-      .where(and(eq(sessions.id, sessionId), eq(sessions.scheduleId, scheduleId)))
-      .returning()
-
-    return result[0] || null
+    try {
+      return await prisma.session.update({
+        where: { id: sessionId, scheduleId },
+        data
+      })
+    } catch {
+      return null
+    }
   }
 
   async delete(sessionId: string, scheduleId: string): Promise<boolean> {
-    const result = await this.db
-      .delete(sessions)
-      .where(and(eq(sessions.id, sessionId), eq(sessions.scheduleId, scheduleId)))
-      .returning({ id: sessions.id })
-
-    return result.length > 0
+    try {
+      await prisma.session.delete({
+        where: { id: sessionId, scheduleId }
+      })
+      return true
+    } catch {
+      return false
+    }
   }
 }
 

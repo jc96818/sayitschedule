@@ -1,9 +1,7 @@
-import { eq, and, ilike, or, count } from 'drizzle-orm'
-import { getDb, patients } from '../db/index.js'
-import { paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import { prisma, paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import type { Patient, Gender, Status, Prisma } from '@prisma/client'
 
-export type Gender = 'male' | 'female' | 'other'
-export type Status = 'active' | 'inactive'
+export type { Gender, Status }
 
 export interface PatientCreate {
   organizationId: string
@@ -31,142 +29,138 @@ export interface PatientUpdate {
   status?: Status
 }
 
-export type Patient = typeof patients.$inferSelect
+export type { Patient }
 
 export class PatientRepository {
-  private get db() {
-    return getDb()
-  }
-
   async findAll(
     organizationId: string,
     params: PaginationParams & { search?: string; status?: string; gender?: string }
   ): Promise<PaginatedResult<Patient>> {
-    const { limit, offset } = getPaginationOffsets(params)
+    const { take, skip } = getPaginationOffsets(params)
 
-    const conditions = [eq(patients.organizationId, organizationId)]
+    const where: Prisma.PatientWhereInput = { organizationId }
 
     if (params.search) {
-      conditions.push(
-        or(
-          ilike(patients.name, `%${params.search}%`),
-          ilike(patients.identifier, `%${params.search}%`)
-        )!
-      )
+      where.OR = [
+        { name: { contains: params.search, mode: 'insensitive' } },
+        { identifier: { contains: params.search, mode: 'insensitive' } }
+      ]
     }
 
     if (params.status) {
-      conditions.push(eq(patients.status, params.status as Status))
+      where.status = params.status as Status
     }
 
     if (params.gender) {
-      conditions.push(eq(patients.gender, params.gender as Gender))
+      where.gender = params.gender as Gender
     }
 
-    const whereClause = and(...conditions)
-
-    const [data, totalResult] = await Promise.all([
-      this.db
-        .select()
-        .from(patients)
-        .where(whereClause)
-        .limit(limit)
-        .offset(offset)
-        .orderBy(patients.name),
-      this.db
-        .select({ count: count() })
-        .from(patients)
-        .where(whereClause)
+    const [data, total] = await Promise.all([
+      prisma.patient.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { name: 'asc' }
+      }),
+      prisma.patient.count({ where })
     ])
 
-    return paginate(data, totalResult[0]?.count || 0, params)
+    return paginate(data, total, params)
   }
 
   async findById(id: string, organizationId?: string): Promise<Patient | null> {
-    const conditions = [eq(patients.id, id)]
+    const where: Prisma.PatientWhereInput = { id }
     if (organizationId) {
-      conditions.push(eq(patients.organizationId, organizationId))
+      where.organizationId = organizationId
     }
 
-    const result = await this.db
-      .select()
-      .from(patients)
-      .where(and(...conditions))
-      .limit(1)
-
-    return result[0] || null
+    return prisma.patient.findFirst({ where })
   }
 
   async findByOrganization(organizationId: string, status?: Status): Promise<Patient[]> {
-    const conditions = [eq(patients.organizationId, organizationId)]
+    const where: Prisma.PatientWhereInput = { organizationId }
     if (status) {
-      conditions.push(eq(patients.status, status))
+      where.status = status
     }
 
-    return this.db
-      .select()
-      .from(patients)
-      .where(and(...conditions))
-      .orderBy(patients.name)
+    return prisma.patient.findMany({
+      where,
+      orderBy: { name: 'asc' }
+    })
   }
 
   async create(data: PatientCreate): Promise<Patient> {
-    const result = await this.db
-      .insert(patients)
-      .values({
-        organizationId: data.organizationId,
+    return prisma.patient.create({
+      data: {
+        organization: { connect: { id: data.organizationId } },
         name: data.name,
         identifier: data.identifier,
         gender: data.gender,
         sessionFrequency: data.sessionFrequency || 2,
-        preferredTimes: data.preferredTimes,
+        preferredTimes: data.preferredTimes || [],
         requiredCertifications: data.requiredCertifications || [],
-        preferredRoomId: data.preferredRoomId,
+        preferredRoom: data.preferredRoomId ? { connect: { id: data.preferredRoomId } } : undefined,
         requiredRoomCapabilities: data.requiredRoomCapabilities || [],
         notes: data.notes
-      })
-      .returning()
-
-    return result[0]
+      }
+    })
   }
 
   async update(id: string, organizationId: string, data: PatientUpdate): Promise<Patient | null> {
-    const result = await this.db
-      .update(patients)
-      .set(data)
-      .where(and(eq(patients.id, id), eq(patients.organizationId, organizationId)))
-      .returning()
+    try {
+      const updateData: Prisma.PatientUpdateInput = {}
+      if (data.name !== undefined) updateData.name = data.name
+      if (data.identifier !== undefined) updateData.identifier = data.identifier
+      if (data.gender !== undefined) updateData.gender = data.gender
+      if (data.sessionFrequency !== undefined) updateData.sessionFrequency = data.sessionFrequency
+      if (data.preferredTimes !== undefined) updateData.preferredTimes = data.preferredTimes || []
+      if (data.requiredCertifications !== undefined) updateData.requiredCertifications = data.requiredCertifications || []
+      if (data.preferredRoomId !== undefined) {
+        updateData.preferredRoom = data.preferredRoomId ? { connect: { id: data.preferredRoomId } } : { disconnect: true }
+      }
+      if (data.requiredRoomCapabilities !== undefined) updateData.requiredRoomCapabilities = data.requiredRoomCapabilities || []
+      if (data.notes !== undefined) updateData.notes = data.notes
+      if (data.status !== undefined) updateData.status = data.status
 
-    return result[0] || null
+      return await prisma.patient.update({
+        where: { id, organizationId },
+        data: updateData
+      })
+    } catch {
+      return null
+    }
   }
 
   async delete(id: string, organizationId: string): Promise<boolean> {
-    // Soft delete by setting status to inactive
-    const result = await this.db
-      .update(patients)
-      .set({ status: 'inactive' })
-      .where(and(eq(patients.id, id), eq(patients.organizationId, organizationId)))
-      .returning({ id: patients.id })
-
-    return result.length > 0
+    try {
+      await prisma.patient.update({
+        where: { id, organizationId },
+        data: { status: 'inactive' }
+      })
+      return true
+    } catch {
+      return false
+    }
   }
 
   async hardDelete(id: string, organizationId: string): Promise<boolean> {
-    const result = await this.db
-      .delete(patients)
-      .where(and(eq(patients.id, id), eq(patients.organizationId, organizationId)))
-      .returning({ id: patients.id })
-
-    return result.length > 0
+    try {
+      await prisma.patient.delete({
+        where: { id, organizationId }
+      })
+      return true
+    } catch {
+      return false
+    }
   }
 
   async countByOrganization(organizationId: string): Promise<number> {
-    const result = await this.db
-      .select({ count: count() })
-      .from(patients)
-      .where(and(eq(patients.organizationId, organizationId), eq(patients.status, 'active')))
-
-    return result[0]?.count || 0
+    return prisma.patient.count({
+      where: {
+        organizationId,
+        status: 'active'
+      }
+    })
   }
 }
 

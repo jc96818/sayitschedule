@@ -74,7 +74,7 @@ export async function ruleRoutes(fastify: FastifyInstance) {
       description: body.description,
       ruleLogic: body.ruleLogic,
       priority: body.priority,
-      createdBy: ctx.userId
+      createdById: ctx.userId
     })
 
     await logAudit(ctx.userId, 'create', 'rule', rule.id, organizationId, body)

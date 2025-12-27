@@ -1,9 +1,11 @@
-import { eq, and, ilike, or, count } from 'drizzle-orm'
-import { getDb, staff } from '../db/index.js'
-import { paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import { prisma, paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import type { Staff, Gender, Status, Prisma } from '@prisma/client'
 
-export type Gender = 'male' | 'female' | 'other'
-export type Status = 'active' | 'inactive'
+export type { Gender, Status }
+
+export interface DefaultHours {
+  [day: string]: { start: string; end: string } | null
+}
 
 export interface StaffCreate {
   organizationId: string
@@ -13,7 +15,7 @@ export interface StaffCreate {
   email?: string | null
   phone?: string | null
   certifications?: string[]
-  defaultHours?: Record<string, { start: string; end: string } | null>
+  defaultHours?: DefaultHours
   hireDate?: Date | null
 }
 
@@ -23,104 +25,80 @@ export interface StaffUpdate {
   email?: string | null
   phone?: string | null
   certifications?: string[]
-  defaultHours?: Record<string, { start: string; end: string } | null>
+  defaultHours?: DefaultHours
   status?: Status
   hireDate?: Date | null
 }
 
-export type Staff = typeof staff.$inferSelect
+export type { Staff }
 
 export class StaffRepository {
-  private get db() {
-    return getDb()
-  }
-
   async findAll(
     organizationId: string,
     params: PaginationParams & { search?: string; status?: string; gender?: string }
   ): Promise<PaginatedResult<Staff>> {
-    const { limit, offset } = getPaginationOffsets(params)
+    const { take, skip } = getPaginationOffsets(params)
 
-    const conditions = [eq(staff.organizationId, organizationId)]
+    const where: Prisma.StaffWhereInput = { organizationId }
 
     if (params.search) {
-      conditions.push(
-        or(
-          ilike(staff.name, `%${params.search}%`),
-          ilike(staff.email, `%${params.search}%`)
-        )!
-      )
+      where.OR = [
+        { name: { contains: params.search, mode: 'insensitive' } },
+        { email: { contains: params.search, mode: 'insensitive' } }
+      ]
     }
 
     if (params.status) {
-      conditions.push(eq(staff.status, params.status as Status))
+      where.status = params.status as Status
     }
 
     if (params.gender) {
-      conditions.push(eq(staff.gender, params.gender as Gender))
+      where.gender = params.gender as Gender
     }
 
-    const whereClause = and(...conditions)
-
-    const [data, totalResult] = await Promise.all([
-      this.db
-        .select()
-        .from(staff)
-        .where(whereClause)
-        .limit(limit)
-        .offset(offset)
-        .orderBy(staff.name),
-      this.db
-        .select({ count: count() })
-        .from(staff)
-        .where(whereClause)
+    const [data, total] = await Promise.all([
+      prisma.staff.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { name: 'asc' }
+      }),
+      prisma.staff.count({ where })
     ])
 
-    return paginate(data, totalResult[0]?.count || 0, params)
+    return paginate(data, total, params)
   }
 
   async findById(id: string, organizationId?: string): Promise<Staff | null> {
-    const conditions = [eq(staff.id, id)]
+    const where: Prisma.StaffWhereInput = { id }
     if (organizationId) {
-      conditions.push(eq(staff.organizationId, organizationId))
+      where.organizationId = organizationId
     }
 
-    const result = await this.db
-      .select()
-      .from(staff)
-      .where(and(...conditions))
-      .limit(1)
-
-    return result[0] || null
+    return prisma.staff.findFirst({ where })
   }
 
   async findByUserId(userId: string): Promise<Staff | null> {
-    const result = await this.db
-      .select()
-      .from(staff)
-      .where(eq(staff.userId, userId))
-      .limit(1)
-
-    return result[0] || null
+    return prisma.staff.findFirst({
+      where: { userId }
+    })
   }
 
   async findByOrganization(organizationId: string, status?: Status): Promise<Staff[]> {
-    const conditions = [eq(staff.organizationId, organizationId)]
+    const where: Prisma.StaffWhereInput = { organizationId }
     if (status) {
-      conditions.push(eq(staff.status, status))
+      where.status = status
     }
 
-    return this.db
-      .select()
-      .from(staff)
-      .where(and(...conditions))
-      .orderBy(staff.name)
+    return prisma.staff.findMany({
+      where,
+      orderBy: { name: 'asc' }
+    })
   }
 
   async create(data: StaffCreate): Promise<Staff> {
-    const result = await this.db
-      .insert(staff)
-      .values({
+    return prisma.staff.create({
+      data: {
         organizationId: data.organizationId,
         userId: data.userId,
         name: data.name,
@@ -128,51 +106,56 @@ export class StaffRepository {
         email: data.email,
         phone: data.phone,
         certifications: data.certifications || [],
-        defaultHours: data.defaultHours,
+        defaultHours: data.defaultHours as object,
         hireDate: data.hireDate
-      })
-      .returning()
-
-    return result[0]
+      }
+    })
   }
 
   async update(id: string, organizationId: string, data: StaffUpdate): Promise<Staff | null> {
-    const result = await this.db
-      .update(staff)
-      .set(data)
-      .where(and(eq(staff.id, id), eq(staff.organizationId, organizationId)))
-      .returning()
-
-    return result[0] || null
+    try {
+      return await prisma.staff.update({
+        where: { id, organizationId },
+        data: {
+          ...data,
+          defaultHours: data.defaultHours as object
+        }
+      })
+    } catch {
+      return null
+    }
   }
 
   async delete(id: string, organizationId: string): Promise<boolean> {
-    // Soft delete by setting status to inactive
-    const result = await this.db
-      .update(staff)
-      .set({ status: 'inactive' })
-      .where(and(eq(staff.id, id), eq(staff.organizationId, organizationId)))
-      .returning({ id: staff.id })
-
-    return result.length > 0
+    try {
+      await prisma.staff.update({
+        where: { id, organizationId },
+        data: { status: 'inactive' }
+      })
+      return true
+    } catch {
+      return false
+    }
   }
 
   async hardDelete(id: string, organizationId: string): Promise<boolean> {
-    const result = await this.db
-      .delete(staff)
-      .where(and(eq(staff.id, id), eq(staff.organizationId, organizationId)))
-      .returning({ id: staff.id })
-
-    return result.length > 0
+    try {
+      await prisma.staff.delete({
+        where: { id, organizationId }
+      })
+      return true
+    } catch {
+      return false
+    }
   }
 
   async countByOrganization(organizationId: string): Promise<number> {
-    const result = await this.db
-      .select({ count: count() })
-      .from(staff)
-      .where(and(eq(staff.organizationId, organizationId), eq(staff.status, 'active')))
-
-    return result[0]?.count || 0
+    return prisma.staff.count({
+      where: {
+        organizationId,
+        status: 'active'
+      }
+    })
   }
 }
 

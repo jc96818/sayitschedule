@@ -274,7 +274,7 @@ export async function generateSchedule(
   const rooms: RoomForScheduling[] = roomsResult.map(r => ({
     id: r.id,
     name: r.name,
-    capabilities: r.capabilities || []
+    capabilities: (r.capabilities as string[]) || []
   }))
 
   if (staff.length === 0) {

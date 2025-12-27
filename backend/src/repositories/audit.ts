@@ -1,6 +1,7 @@
-import { eq, and, desc, gte, lte, count } from 'drizzle-orm'
-import { getDb, auditLogs } from '../db/index.js'
-import { paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import { prisma, paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import type { AuditLog, Prisma } from '@prisma/client'
+
+export type { AuditLog }
 
 export interface AuditLogCreate {
   organizationId?: string | null
@@ -11,13 +12,7 @@ export interface AuditLogCreate {
   changes?: Record<string, unknown>
 }
 
-export type AuditLog = typeof auditLogs.$inferSelect
-
 export class AuditRepository {
-  private get db() {
-    return getDb()
-  }
-
   async findAll(
     organizationId: string | null,
     params: PaginationParams & {
@@ -28,75 +23,67 @@ export class AuditRepository {
       endDate?: Date
     }
   ): Promise<PaginatedResult<AuditLog>> {
-    const { limit, offset } = getPaginationOffsets(params)
+    const { take, skip } = getPaginationOffsets(params)
 
-    const conditions = []
+    const where: Prisma.AuditLogWhereInput = {}
 
     if (organizationId) {
-      conditions.push(eq(auditLogs.organizationId, organizationId))
+      where.organizationId = organizationId
     }
 
     if (params.userId) {
-      conditions.push(eq(auditLogs.userId, params.userId))
+      where.userId = params.userId
     }
 
     if (params.entityType) {
-      conditions.push(eq(auditLogs.entityType, params.entityType))
+      where.entityType = params.entityType
     }
 
     if (params.action) {
-      conditions.push(eq(auditLogs.action, params.action))
+      where.action = params.action
     }
 
-    if (params.startDate) {
-      conditions.push(gte(auditLogs.timestamp, params.startDate))
+    if (params.startDate || params.endDate) {
+      where.timestamp = {}
+      if (params.startDate) {
+        where.timestamp.gte = params.startDate
+      }
+      if (params.endDate) {
+        where.timestamp.lte = params.endDate
+      }
     }
 
-    if (params.endDate) {
-      conditions.push(lte(auditLogs.timestamp, params.endDate))
-    }
-
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined
-
-    const [data, totalResult] = await Promise.all([
-      this.db
-        .select()
-        .from(auditLogs)
-        .where(whereClause)
-        .limit(limit)
-        .offset(offset)
-        .orderBy(desc(auditLogs.timestamp)),
-      this.db
-        .select({ count: count() })
-        .from(auditLogs)
-        .where(whereClause)
+    const [data, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { timestamp: 'desc' }
+      }),
+      prisma.auditLog.count({ where })
     ])
 
-    return paginate(data, totalResult[0]?.count || 0, params)
+    return paginate(data, total, params)
   }
 
   async findByEntity(entityType: string, entityId: string): Promise<AuditLog[]> {
-    return this.db
-      .select()
-      .from(auditLogs)
-      .where(and(eq(auditLogs.entityType, entityType), eq(auditLogs.entityId, entityId)))
-      .orderBy(desc(auditLogs.timestamp))
+    return prisma.auditLog.findMany({
+      where: { entityType, entityId },
+      orderBy: { timestamp: 'desc' }
+    })
   }
 
   async create(data: AuditLogCreate): Promise<AuditLog> {
-    const result = await this.db
-      .insert(auditLogs)
-      .values({
+    return prisma.auditLog.create({
+      data: {
         organizationId: data.organizationId,
         userId: data.userId,
         action: data.action,
         entityType: data.entityType,
         entityId: data.entityId,
-        changes: data.changes
-      })
-      .returning()
-
-    return result[0]
+        changes: data.changes as Prisma.InputJsonValue
+      }
+    })
   }
 
   async log(

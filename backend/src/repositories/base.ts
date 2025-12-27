@@ -1,5 +1,4 @@
-import { PgTable } from 'drizzle-orm/pg-core'
-import { getDb } from '../db/index.js'
+import { prisma } from '../db/index.js'
 
 export interface PaginationParams {
   page?: number
@@ -33,19 +32,9 @@ export function paginate<T>(
 export function getPaginationOffsets(params: PaginationParams) {
   const page = params.page || 1
   const limit = params.limit || 20
-  const offset = (page - 1) * limit
-  return { limit, offset }
+  const skip = (page - 1) * limit
+  return { take: limit, skip }
 }
 
-// Base repository class with common operations
-export abstract class BaseRepository<T extends PgTable> {
-  protected table: T
-
-  constructor(table: T) {
-    this.table = table
-  }
-
-  protected get db() {
-    return getDb()
-  }
-}
+// Re-export prisma for use in repositories
+export { prisma }

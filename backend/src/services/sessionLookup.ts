@@ -1,5 +1,4 @@
-import { eq } from 'drizzle-orm'
-import { getDb, sessions, staff, patients } from '../db/index.js'
+import { prisma } from '../db/index.js'
 import type { SessionWithDetails } from '../repositories/schedules.js'
 
 export interface SessionLookupParams {
@@ -52,52 +51,47 @@ export function fuzzyNameMatch(searchName: string, actualName: string): boolean 
 }
 
 export async function findMatchingSessions(params: SessionLookupParams): Promise<SessionLookupResult[]> {
-  const db = getDb()
-
   // Get all sessions for this schedule with names
-  const sessionData = await db
-    .select({
-      session: sessions,
-      therapistName: staff.name,
-      patientName: patients.name
-    })
-    .from(sessions)
-    .leftJoin(staff, eq(sessions.therapistId, staff.id))
-    .leftJoin(patients, eq(sessions.patientId, patients.id))
-    .where(eq(sessions.scheduleId, params.scheduleId))
-    .orderBy(sessions.date, sessions.startTime)
+  const sessionData = await prisma.session.findMany({
+    where: { scheduleId: params.scheduleId },
+    include: {
+      therapist: { select: { name: true } },
+      patient: { select: { name: true } }
+    },
+    orderBy: [{ date: 'asc' }, { startTime: 'asc' }]
+  })
 
   const results: SessionLookupResult[] = []
 
   for (const row of sessionData) {
     const sessionWithDetails: SessionWithDetails = {
-      ...row.session,
-      therapistName: row.therapistName || undefined,
-      patientName: row.patientName || undefined
+      ...row,
+      therapistName: row.therapist?.name || undefined,
+      patientName: row.patient?.name || undefined
     }
 
     let matchScore = 0
     const matchDetails: string[] = []
 
     // Check therapist name match
-    if (params.therapistName && row.therapistName) {
-      if (fuzzyNameMatch(params.therapistName, row.therapistName)) {
+    if (params.therapistName && row.therapist?.name) {
+      if (fuzzyNameMatch(params.therapistName, row.therapist.name)) {
         matchScore += 40
-        matchDetails.push(`Therapist: ${row.therapistName}`)
+        matchDetails.push(`Therapist: ${row.therapist.name}`)
       }
     }
 
     // Check patient name match
-    if (params.patientName && row.patientName) {
-      if (fuzzyNameMatch(params.patientName, row.patientName)) {
+    if (params.patientName && row.patient?.name) {
+      if (fuzzyNameMatch(params.patientName, row.patient.name)) {
         matchScore += 40
-        matchDetails.push(`Patient: ${row.patientName}`)
+        matchDetails.push(`Patient: ${row.patient.name}`)
       }
     }
 
     // Check day of week match
     if (params.dayOfWeek) {
-      const sessionDay = getDayOfWeekFromDate(new Date(row.session.date))
+      const sessionDay = getDayOfWeekFromDate(new Date(row.date))
       if (sessionDay === params.dayOfWeek.toLowerCase()) {
         matchScore += 30
         matchDetails.push(`Day: ${sessionDay}`)
@@ -106,7 +100,7 @@ export async function findMatchingSessions(params: SessionLookupParams): Promise
 
     // Check time match
     if (params.startTime) {
-      const sessionTime = row.session.startTime
+      const sessionTime = row.startTime
       if (sessionTime === params.startTime) {
         matchScore += 30
         matchDetails.push(`Time: ${sessionTime}`)
@@ -158,27 +152,22 @@ export async function findSessionsByDayOfWeek(
   scheduleId: string,
   dayOfWeek: string
 ): Promise<SessionWithDetails[]> {
-  const db = getDb()
-
   // Get all sessions and filter by day
-  const sessionData = await db
-    .select({
-      session: sessions,
-      therapistName: staff.name,
-      patientName: patients.name
-    })
-    .from(sessions)
-    .leftJoin(staff, eq(sessions.therapistId, staff.id))
-    .leftJoin(patients, eq(sessions.patientId, patients.id))
-    .where(eq(sessions.scheduleId, scheduleId))
-    .orderBy(sessions.date, sessions.startTime)
+  const sessionData = await prisma.session.findMany({
+    where: { scheduleId },
+    include: {
+      therapist: { select: { name: true } },
+      patient: { select: { name: true } }
+    },
+    orderBy: [{ date: 'asc' }, { startTime: 'asc' }]
+  })
 
   return sessionData
-    .filter(row => getDayOfWeekFromDate(new Date(row.session.date)) === dayOfWeek.toLowerCase())
+    .filter(row => getDayOfWeekFromDate(new Date(row.date)) === dayOfWeek.toLowerCase())
     .map(row => ({
-      ...row.session,
-      therapistName: row.therapistName || undefined,
-      patientName: row.patientName || undefined
+      ...row,
+      therapistName: row.therapist?.name || undefined,
+      patientName: row.patient?.name || undefined
     }))
 }
 
@@ -193,29 +182,24 @@ export interface ConflictCheckParams {
 }
 
 export async function checkForConflicts(params: ConflictCheckParams): Promise<SessionWithDetails[]> {
-  const db = getDb()
-
-  const sessionData = await db
-    .select({
-      session: sessions,
-      therapistName: staff.name,
-      patientName: patients.name
-    })
-    .from(sessions)
-    .leftJoin(staff, eq(sessions.therapistId, staff.id))
-    .leftJoin(patients, eq(sessions.patientId, patients.id))
-    .where(eq(sessions.scheduleId, params.scheduleId))
+  const sessionData = await prisma.session.findMany({
+    where: { scheduleId: params.scheduleId },
+    include: {
+      therapist: { select: { name: true } },
+      patient: { select: { name: true } }
+    }
+  })
 
   const conflicts: SessionWithDetails[] = []
   const paramDate = params.date.toISOString().split('T')[0]
 
   for (const row of sessionData) {
     // Skip the session we're updating
-    if (params.excludeSessionId && row.session.id === params.excludeSessionId) {
+    if (params.excludeSessionId && row.id === params.excludeSessionId) {
       continue
     }
 
-    const sessionDate = new Date(row.session.date).toISOString().split('T')[0]
+    const sessionDate = new Date(row.date).toISOString().split('T')[0]
 
     // Check if same date
     if (sessionDate !== paramDate) {
@@ -223,8 +207,8 @@ export async function checkForConflicts(params: ConflictCheckParams): Promise<Se
     }
 
     // Check for time overlap
-    const sessionStart = row.session.startTime
-    const sessionEnd = row.session.endTime
+    const sessionStart = row.startTime
+    const sessionEnd = row.endTime
     const newStart = params.startTime
     const newEnd = params.endTime
 
@@ -236,14 +220,14 @@ export async function checkForConflicts(params: ConflictCheckParams): Promise<Se
     }
 
     // Check if it's a conflict for therapist or patient
-    const isTherapistConflict = params.therapistId && row.session.therapistId === params.therapistId
-    const isPatientConflict = params.patientId && row.session.patientId === params.patientId
+    const isTherapistConflict = params.therapistId && row.therapistId === params.therapistId
+    const isPatientConflict = params.patientId && row.patientId === params.patientId
 
     if (isTherapistConflict || isPatientConflict) {
       conflicts.push({
-        ...row.session,
-        therapistName: row.therapistName || undefined,
-        patientName: row.patientName || undefined
+        ...row,
+        therapistName: row.therapist?.name || undefined,
+        patientName: row.patient?.name || undefined
       })
     }
   }

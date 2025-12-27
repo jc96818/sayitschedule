@@ -1,0 +1,258 @@
+// Prisma Schema for Say It Schedule
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enums
+enum UserRole {
+  super_admin
+  admin
+  admin_assistant
+  staff
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum Status {
+  active
+  inactive
+}
+
+enum ScheduleStatus {
+  draft
+  published
+}
+
+enum RuleCategory {
+  gender_pairing
+  session
+  availability
+  specific_pairing
+  certification
+}
+
+// Organizations
+model Organization {
+  id             String   @id @default(cuid())
+  name           String   @db.VarChar(255)
+  subdomain      String   @unique @db.VarChar(63)
+  logoUrl        String?  @map("logo_url")
+  primaryColor   String   @default("#2563eb") @map("primary_color") @db.VarChar(7)
+  secondaryColor String   @default("#1e40af") @map("secondary_color") @db.VarChar(7)
+  status         Status   @default(active)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  users          User[]
+  staff          Staff[]
+  patients       Patient[]
+  rules          Rule[]
+  rooms          Room[]
+  schedules      Schedule[]
+  auditLogs      AuditLog[]
+  customHolidays CustomHoliday[]
+
+  @@map("organizations")
+}
+
+// Users
+model User {
+  id             String        @id @default(cuid())
+  organizationId String?       @map("organization_id")
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  email          String        @unique @db.VarChar(255)
+  passwordHash   String        @map("password_hash") @db.VarChar(255)
+  name           String        @db.VarChar(255)
+  role           UserRole
+  createdAt      DateTime      @default(now()) @map("created_at")
+  lastLogin      DateTime?     @map("last_login")
+
+  staff         Staff[]
+  rulesCreated  Rule[]
+  schedulesCreated Schedule[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+// Staff (Therapists)
+model Staff {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String?      @map("user_id")
+  user           User?        @relation(fields: [userId], references: [id])
+  name           String       @db.VarChar(255)
+  gender         Gender
+  email          String?      @db.VarChar(255)
+  phone          String?      @db.VarChar(20)
+  certifications Json         @default("[]")
+  defaultHours   Json?        @map("default_hours")
+  status         Status       @default(active)
+  hireDate       DateTime?    @map("hire_date")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  sessions           Session[]
+  staffAvailability  StaffAvailability[]
+
+  @@map("staff")
+}
+
+// Rooms
+model Room {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String       @db.VarChar(255)
+  capabilities   Json         @default("[]")
+  description    String?
+  status         Status       @default(active)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  sessions         Session[]
+  preferredByPatients Patient[] @relation("PreferredRoom")
+
+  @@map("rooms")
+}
+
+// Patients
+model Patient {
+  id                       String       @id @default(cuid())
+  organizationId           String       @map("organization_id")
+  organization             Organization @relation(fields: [organizationId], references: [id])
+  name                     String       @db.VarChar(255)
+  identifier               String?      @db.VarChar(50)
+  gender                   Gender
+  sessionFrequency         Int          @default(2) @map("session_frequency")
+  preferredTimes           Json?        @map("preferred_times")
+  requiredCertifications   Json         @default("[]") @map("required_certifications")
+  preferredRoomId          String?      @map("preferred_room_id")
+  preferredRoom            Room?        @relation("PreferredRoom", fields: [preferredRoomId], references: [id])
+  requiredRoomCapabilities Json         @default("[]") @map("required_room_capabilities")
+  notes                    String?
+  status                   Status       @default(active)
+  createdAt                DateTime     @default(now()) @map("created_at")
+
+  sessions Session[]
+
+  @@map("patients")
+}
+
+// Rules
+model Rule {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  category       RuleCategory
+  description    String
+  ruleLogic      Json         @map("rule_logic")
+  priority       Int          @default(0)
+  isActive       Boolean      @default(true) @map("is_active")
+  createdById    String       @map("created_by")
+  createdBy      User         @relation(fields: [createdById], references: [id])
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@map("rules")
+}
+
+// Schedules
+model Schedule {
+  id            String         @id @default(cuid())
+  organizationId String        @map("organization_id")
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  weekStartDate DateTime       @map("week_start_date")
+  status        ScheduleStatus @default(draft)
+  createdById   String         @map("created_by")
+  createdBy     User           @relation(fields: [createdById], references: [id])
+  createdAt     DateTime       @default(now()) @map("created_at")
+  publishedAt   DateTime?      @map("published_at")
+  version       Int            @default(1)
+
+  sessions Session[]
+
+  @@map("schedules")
+}
+
+// Sessions
+model Session {
+  id          String   @id @default(cuid())
+  scheduleId  String   @map("schedule_id")
+  schedule    Schedule @relation(fields: [scheduleId], references: [id])
+  therapistId String   @map("therapist_id")
+  therapist   Staff    @relation(fields: [therapistId], references: [id])
+  patientId   String   @map("patient_id")
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  roomId      String?  @map("room_id")
+  room        Room?    @relation(fields: [roomId], references: [id])
+  date        DateTime
+  startTime   String   @map("start_time") @db.VarChar(5)
+  endTime     String   @map("end_time") @db.VarChar(5)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("sessions")
+}
+
+// Staff Availability
+model StaffAvailability {
+  id        String   @id @default(cuid())
+  staffId   String   @map("staff_id")
+  staff     Staff    @relation(fields: [staffId], references: [id])
+  date      DateTime
+  available Boolean  @default(true)
+  startTime String?  @map("start_time") @db.VarChar(5)
+  endTime   String?  @map("end_time") @db.VarChar(5)
+  reason    String?
+
+  @@map("staff_availability")
+}
+
+// Audit Logs
+model AuditLog {
+  id             String        @id @default(cuid())
+  organizationId String?       @map("organization_id")
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  userId         String        @map("user_id")
+  user           User          @relation(fields: [userId], references: [id])
+  action         String        @db.VarChar(50)
+  entityType     String        @map("entity_type") @db.VarChar(50)
+  entityId       String        @map("entity_id")
+  changes        Json?
+  timestamp      DateTime      @default(now())
+
+  @@map("audit_logs")
+}
+
+// Federal Holidays
+model FederalHoliday {
+  id   String   @id @default(cuid())
+  year Int
+  name String   @db.VarChar(100)
+  date DateTime
+
+  @@map("federal_holidays")
+}
+
+// Custom Holidays (per organization)
+model CustomHoliday {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String       @db.VarChar(100)
+  date           DateTime
+  reason         String?
+
+  @@map("custom_holidays")
+}

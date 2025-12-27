@@ -82,7 +82,7 @@ describe('Schedule Routes', () => {
           organizationId: 'test-org-id',
           weekStartDate: new Date('2025-01-06'),
           status: 'draft' as const,
-          createdBy: 'test-user-id',
+          createdById: 'test-user-id',
           createdAt: new Date(),
           publishedAt: null,
           version: 1
@@ -92,7 +92,7 @@ describe('Schedule Routes', () => {
           organizationId: 'test-org-id',
           weekStartDate: new Date('2025-01-13'),
           status: 'published' as const,
-          createdBy: 'test-user-id',
+          createdById: 'test-user-id',
           createdAt: new Date(),
           publishedAt: new Date(),
           version: 1

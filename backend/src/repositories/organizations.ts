@@ -1,6 +1,5 @@
-import { eq, sql, ilike, or, and, count } from 'drizzle-orm'
-import { getDb, organizations } from '../db/index.js'
-import { paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import { prisma, paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import type { Organization, Status, Prisma } from '@prisma/client'
 
 export interface OrganizationCreate {
   name: string
@@ -16,124 +15,95 @@ export interface OrganizationUpdate {
   logoUrl?: string | null
   primaryColor?: string
   secondaryColor?: string
-  status?: 'active' | 'inactive'
+  status?: Status
 }
 
-export type Organization = typeof organizations.$inferSelect
-export type OrganizationInsert = typeof organizations.$inferInsert
+export type { Organization }
 
 export class OrganizationRepository {
-  private get db() {
-    return getDb()
-  }
-
   async findAll(params: PaginationParams & { search?: string; status?: string }): Promise<PaginatedResult<Organization>> {
-    const { limit, offset } = getPaginationOffsets(params)
+    const { take, skip } = getPaginationOffsets(params)
 
-    const conditions = []
+    const where: Prisma.OrganizationWhereInput = {}
+
     if (params.status) {
-      conditions.push(eq(organizations.status, params.status as 'active' | 'inactive'))
+      where.status = params.status as Status
     }
+
     if (params.search) {
-      conditions.push(
-        or(
-          ilike(organizations.name, `%${params.search}%`),
-          ilike(organizations.subdomain, `%${params.search}%`)
-        )
-      )
+      where.OR = [
+        { name: { contains: params.search, mode: 'insensitive' } },
+        { subdomain: { contains: params.search, mode: 'insensitive' } }
+      ]
     }
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined
-
-    const [data, totalResult] = await Promise.all([
-      this.db
-        .select()
-        .from(organizations)
-        .where(whereClause)
-        .limit(limit)
-        .offset(offset)
-        .orderBy(organizations.name),
-      this.db
-        .select({ count: count() })
-        .from(organizations)
-        .where(whereClause)
+    const [data, total] = await Promise.all([
+      prisma.organization.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { name: 'asc' }
+      }),
+      prisma.organization.count({ where })
     ])
 
-    return paginate(data, totalResult[0]?.count || 0, params)
+    return paginate(data, total, params)
   }
 
   async findById(id: string): Promise<Organization | null> {
-    const result = await this.db
-      .select()
-      .from(organizations)
-      .where(eq(organizations.id, id))
-      .limit(1)
-
-    return result[0] || null
+    return prisma.organization.findUnique({
+      where: { id }
+    })
   }
 
   async findBySubdomain(subdomain: string): Promise<Organization | null> {
-    const result = await this.db
-      .select()
-      .from(organizations)
-      .where(eq(organizations.subdomain, subdomain))
-      .limit(1)
-
-    return result[0] || null
+    return prisma.organization.findUnique({
+      where: { subdomain }
+    })
   }
 
   async create(data: OrganizationCreate): Promise<Organization> {
-    const result = await this.db
-      .insert(organizations)
-      .values({
+    return prisma.organization.create({
+      data: {
         name: data.name,
         subdomain: data.subdomain,
         logoUrl: data.logoUrl,
         primaryColor: data.primaryColor || '#2563eb',
         secondaryColor: data.secondaryColor || '#1e40af'
-      })
-      .returning()
-
-    return result[0]
+      }
+    })
   }
 
   async update(id: string, data: OrganizationUpdate): Promise<Organization | null> {
-    const result = await this.db
-      .update(organizations)
-      .set({
-        ...data,
-        updatedAt: new Date()
+    try {
+      return await prisma.organization.update({
+        where: { id },
+        data
       })
-      .where(eq(organizations.id, id))
-      .returning()
-
-    return result[0] || null
+    } catch {
+      return null
+    }
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await this.db
-      .delete(organizations)
-      .where(eq(organizations.id, id))
-      .returning({ id: organizations.id })
-
-    return result.length > 0
+    try {
+      await prisma.organization.delete({
+        where: { id }
+      })
+      return true
+    } catch {
+      return false
+    }
   }
 
   async getStats(id: string): Promise<{ users: number; staff: number; patients: number }> {
-    // This will be implemented with proper joins once other repositories are set up
-    const result = await this.db.execute(sql`
-      SELECT
-        (SELECT COUNT(*) FROM users WHERE organization_id = ${id}) as users,
-        (SELECT COUNT(*) FROM staff WHERE organization_id = ${id}) as staff,
-        (SELECT COUNT(*) FROM patients WHERE organization_id = ${id}) as patients
-    `)
+    const [users, staff, patients] = await Promise.all([
+      prisma.user.count({ where: { organizationId: id } }),
+      prisma.staff.count({ where: { organizationId: id } }),
+      prisma.patient.count({ where: { organizationId: id } })
+    ])
 
-    const row = result[0] as { users: string; staff: string; patients: string } | undefined
-    return {
-      users: parseInt(row?.users || '0', 10),
-      staff: parseInt(row?.staff || '0', 10),
-      patients: parseInt(row?.patients || '0', 10)
-    }
+    return { users, staff, patients }
   }
 }
 

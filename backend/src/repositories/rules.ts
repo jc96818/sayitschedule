@@ -1,8 +1,7 @@
-import { eq, and, count, desc } from 'drizzle-orm'
-import { getDb, rules } from '../db/index.js'
-import { paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import { prisma, paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
+import type { Rule, RuleCategory, Prisma } from '@prisma/client'
 
-export type RuleCategory = 'gender_pairing' | 'session' | 'availability' | 'specific_pairing' | 'certification'
+export type { RuleCategory }
 
 export interface RuleCreate {
   organizationId: string
@@ -10,7 +9,7 @@ export interface RuleCreate {
   description: string
   ruleLogic: Record<string, unknown>
   priority?: number
-  createdBy: string
+  createdById: string
 }
 
 export interface RuleUpdate {
@@ -21,112 +20,97 @@ export interface RuleUpdate {
   isActive?: boolean
 }
 
-export type Rule = typeof rules.$inferSelect
+export type { Rule }
 
 export class RuleRepository {
-  private get db() {
-    return getDb()
-  }
-
   async findAll(
     organizationId: string,
     params: PaginationParams & { category?: string; isActive?: boolean }
   ): Promise<PaginatedResult<Rule>> {
-    const { limit, offset } = getPaginationOffsets(params)
+    const { take, skip } = getPaginationOffsets(params)
 
-    const conditions = [eq(rules.organizationId, organizationId)]
+    const where: Prisma.RuleWhereInput = { organizationId }
 
     if (params.category) {
-      conditions.push(eq(rules.category, params.category as RuleCategory))
+      where.category = params.category as RuleCategory
     }
 
     if (params.isActive !== undefined) {
-      conditions.push(eq(rules.isActive, params.isActive))
+      where.isActive = params.isActive
     }
 
-    const whereClause = and(...conditions)
-
-    const [data, totalResult] = await Promise.all([
-      this.db
-        .select()
-        .from(rules)
-        .where(whereClause)
-        .limit(limit)
-        .offset(offset)
-        .orderBy(rules.priority, desc(rules.createdAt)),
-      this.db
-        .select({ count: count() })
-        .from(rules)
-        .where(whereClause)
+    const [data, total] = await Promise.all([
+      prisma.rule.findMany({
+        where,
+        take,
+        skip,
+        orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }]
+      }),
+      prisma.rule.count({ where })
     ])
 
-    return paginate(data, totalResult[0]?.count || 0, params)
+    return paginate(data, total, params)
   }
 
   async findById(id: string, organizationId?: string): Promise<Rule | null> {
-    const conditions = [eq(rules.id, id)]
+    const where: Prisma.RuleWhereInput = { id }
     if (organizationId) {
-      conditions.push(eq(rules.organizationId, organizationId))
+      where.organizationId = organizationId
     }
 
-    const result = await this.db
-      .select()
-      .from(rules)
-      .where(and(...conditions))
-      .limit(1)
-
-    return result[0] || null
+    return prisma.rule.findFirst({ where })
   }
 
   async findActiveByOrganization(organizationId: string): Promise<Rule[]> {
-    return this.db
-      .select()
-      .from(rules)
-      .where(and(eq(rules.organizationId, organizationId), eq(rules.isActive, true)))
-      .orderBy(rules.priority)
+    return prisma.rule.findMany({
+      where: {
+        organizationId,
+        isActive: true
+      },
+      orderBy: { priority: 'asc' }
+    })
   }
 
   async findByCategory(organizationId: string, category: RuleCategory): Promise<Rule[]> {
-    return this.db
-      .select()
-      .from(rules)
-      .where(
-        and(
-          eq(rules.organizationId, organizationId),
-          eq(rules.category, category),
-          eq(rules.isActive, true)
-        )
-      )
-      .orderBy(rules.priority)
+    return prisma.rule.findMany({
+      where: {
+        organizationId,
+        category,
+        isActive: true
+      },
+      orderBy: { priority: 'asc' }
+    })
   }
 
   async create(data: RuleCreate): Promise<Rule> {
-    const result = await this.db
-      .insert(rules)
-      .values({
-        organizationId: data.organizationId,
+    return prisma.rule.create({
+      data: {
+        organization: { connect: { id: data.organizationId } },
         category: data.category,
         description: data.description,
-        ruleLogic: data.ruleLogic,
+        ruleLogic: data.ruleLogic as Prisma.InputJsonValue,
         priority: data.priority || 0,
-        createdBy: data.createdBy
-      })
-      .returning()
-
-    return result[0]
+        createdBy: { connect: { id: data.createdById } }
+      }
+    })
   }
 
   async update(id: string, organizationId: string, data: RuleUpdate): Promise<Rule | null> {
-    const result = await this.db
-      .update(rules)
-      .set({
-        ...data,
-        updatedAt: new Date()
-      })
-      .where(and(eq(rules.id, id), eq(rules.organizationId, organizationId)))
-      .returning()
+    try {
+      const updateData: Prisma.RuleUpdateInput = {}
+      if (data.category !== undefined) updateData.category = data.category
+      if (data.description !== undefined) updateData.description = data.description
+      if (data.ruleLogic !== undefined) updateData.ruleLogic = data.ruleLogic as Prisma.InputJsonValue
+      if (data.priority !== undefined) updateData.priority = data.priority
+      if (data.isActive !== undefined) updateData.isActive = data.isActive
 
-    return result[0] || null
+      return await prisma.rule.update({
+        where: { id, organizationId },
+        data: updateData
+      })
+    } catch {
+      return null
+    }
   }
 
   async toggleActive(id: string, organizationId: string): Promise<Rule | null> {
@@ -137,12 +121,14 @@ export class RuleRepository {
   }
 
   async delete(id: string, organizationId: string): Promise<boolean> {
-    const result = await this.db
-      .delete(rules)
-      .where(and(eq(rules.id, id), eq(rules.organizationId, organizationId)))
-      .returning({ id: rules.id })
-
-    return result.length > 0
+    try {
+      await prisma.rule.delete({
+        where: { id, organizationId }
+      })
+      return true
+    } catch {
+      return false
+    }
   }
 }
 

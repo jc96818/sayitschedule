@@ -1,41 +1,35 @@
-import { drizzle } from 'drizzle-orm/postgres-js'
-import { sql } from 'drizzle-orm'
-import postgres from 'postgres'
-import * as schema from './schema.js'
+import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 
-let db: ReturnType<typeof drizzle<typeof schema>> | null = null
-let client: ReturnType<typeof postgres> | null = null
+// Global Prisma client instance
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
+// Prisma 7 requires a driver adapter for database connections
+function createPrismaClient(): PrismaClient {
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
+  return new PrismaClient({ adapter })
+}
+
+export const prisma = globalForPrisma.prisma || createPrismaClient()
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma
+}
+
+// For backwards compatibility with existing code
 export function getDb() {
-  if (!db) {
-    const connectionString = process.env.DATABASE_URL
-    if (!connectionString) {
-      throw new Error('DATABASE_URL environment variable is required')
-    }
-    client = postgres(connectionString)
-    db = drizzle(client, { schema })
-  }
-  return db
+  return prisma
 }
 
 export async function closeDb() {
-  if (client) {
-    await client.end()
-    client = null
-    db = null
-  }
+  await prisma.$disconnect()
 }
-
-// For backwards compatibility
-export { getDb as db }
 
 // Health check for database connectivity
 export async function checkDbHealth(): Promise<{ connected: boolean; latencyMs?: number; error?: string }> {
   const start = Date.now()
   try {
-    const database = getDb()
-    // Execute a simple query to check connectivity
-    await database.execute(sql`SELECT 1`)
+    await prisma.$queryRaw`SELECT 1`
     return {
       connected: true,
       latencyMs: Date.now() - start
@@ -49,4 +43,23 @@ export async function checkDbHealth(): Promise<{ connected: boolean; latencyMs?:
   }
 }
 
-export * from './schema.js'
+// Re-export Prisma types for convenience
+export type {
+  Organization,
+  User,
+  Staff,
+  Patient,
+  Room,
+  Rule,
+  Schedule,
+  Session,
+  StaffAvailability,
+  AuditLog,
+  FederalHoliday,
+  CustomHoliday,
+  Gender,
+  Status,
+  UserRole,
+  ScheduleStatus,
+  RuleCategory
+} from '@prisma/client'

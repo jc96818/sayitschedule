@@ -4,14 +4,17 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts --fix",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@fastify/cookie": "^9.3.1",
@@ -19,15 +22,17 @@
     "@fastify/jwt": "^8.0.0",
     "@fastify/multipart": "^8.1.0",
     "@fastify/static": "^7.0.4",
+    "@prisma/adapter-pg": "^7.2.0",
+    "@prisma/client": "^7.2.0",
     "@types/pdfkit": "^0.17.4",
     "bcrypt": "^5.1.1",
     "dotenv": "^17.2.3",
-    "drizzle-orm": "^0.30.4",
     "fastify": "^4.26.2",
     "nanoid": "^5.0.6",
     "openai": "^6.15.0",
     "pdfkit": "^0.17.2",
-    "postgres": "^3.4.4",
+    "pg": "^8.16.3",
+    "prisma": "^7.2.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
@@ -35,7 +40,6 @@
     "@types/node": "^20.11.30",
     "@typescript-eslint/eslint-plugin": "^7.3.1",
     "@typescript-eslint/parser": "^7.3.1",
-    "drizzle-kit": "^0.20.14",
     "eslint": "^8.57.0",
     "tsx": "^4.7.1",
     "typescript": "^5.4.3",
