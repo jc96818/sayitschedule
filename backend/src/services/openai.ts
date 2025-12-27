@@ -160,7 +160,8 @@ Ensure:
         { role: 'user', content: userPrompt }
       ],
       response_format: { type: 'json_object' },
-      max_completion_tokens: 8192
+      max_completion_tokens: 8192,
+      store: false
     })
 
     const content = response.choices[0]?.message?.content

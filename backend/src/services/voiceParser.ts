@@ -229,7 +229,8 @@ export async function parseVoiceCommand(
         { role: 'user', content: userPrompt }
       ],
       response_format: { type: 'json_object' },
-      max_completion_tokens: 1024
+      max_completion_tokens: 1024,
+      store: false
     })
 
     const content = response.choices[0]?.message?.content
