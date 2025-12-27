@@ -153,13 +153,13 @@ Ensure:
 
   try {
     const response = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-5.1',
+      reasoning_effort: 'low',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.3, // Lower temperature for more consistent scheduling
       max_tokens: 4096
     })
 
