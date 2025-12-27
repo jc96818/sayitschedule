@@ -3,7 +3,7 @@ import { ref, onMounted, watch } from 'vue'
 import Modal from './Modal.vue'
 import Button from './Button.vue'
 
-type PageType = 'rules' | 'staff' | 'patients'
+type PageType = 'rules' | 'staff' | 'patients' | 'schedule'
 
 interface VoiceHint {
   example: string
@@ -91,6 +91,28 @@ const hintsData: Record<PageType, { title: string; intro: string; hints: VoiceHi
       {
         example: 'Add patient Lisa Wong who requires an ABA certified therapist',
         description: 'Creates a patient with specific certification requirements for their therapist.'
+      }
+    ]
+  },
+  schedule: {
+    title: 'Voice Commands for Schedule Modifications',
+    intro: 'Modify your schedule using voice commands. Move, cancel, or reschedule sessions by speaking naturally.',
+    hints: [
+      {
+        example: "Move John's 9 AM session to 2 PM",
+        description: 'Reschedules a specific session to a new time on the same day.'
+      },
+      {
+        example: "Cancel Sarah's Friday 10 AM",
+        description: 'Removes a session from the schedule entirely.'
+      },
+      {
+        example: "Reschedule Monday's 11 AM to Wednesday",
+        description: 'Moves a session to a different day of the week.'
+      },
+      {
+        example: "Remove the 3 PM session with Emma",
+        description: 'Cancels a session identified by the patient name and time.'
       }
     ]
   }

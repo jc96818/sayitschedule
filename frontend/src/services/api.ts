@@ -237,6 +237,11 @@ export const scheduleService = {
 
   async deleteSession(scheduleId: string, sessionId: string): Promise<void> {
     await api.delete(`/schedules/${scheduleId}/sessions/${sessionId}`)
+  },
+
+  async createDraftCopy(id: string): Promise<ApiResponse<Schedule & { sessions: Session[] }, { message: string; sourceScheduleId: string }>> {
+    const { data } = await api.post(`/schedules/${id}/create-draft`)
+    return data
   }
 }
 

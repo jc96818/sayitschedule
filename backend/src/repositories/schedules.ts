@@ -271,6 +271,48 @@ export class ScheduleRepository {
 
     return result[0]?.count || 0
   }
+
+  async createDraftCopy(
+    sourceScheduleId: string,
+    organizationId: string,
+    createdBy: string
+  ): Promise<ScheduleWithSessions | null> {
+    // Get the source schedule with its sessions
+    const sourceSchedule = await this.findByIdWithSessions(sourceScheduleId, organizationId)
+    if (!sourceSchedule) return null
+
+    // Create new draft schedule with incremented version
+    const newSchedule = await this.db
+      .insert(schedules)
+      .values({
+        organizationId: sourceSchedule.organizationId,
+        weekStartDate: sourceSchedule.weekStartDate,
+        createdBy: createdBy,
+        status: 'draft',
+        version: sourceSchedule.version + 1
+      })
+      .returning()
+
+    const createdSchedule = newSchedule[0]
+
+    // Copy all sessions from source to new schedule
+    if (sourceSchedule.sessions.length > 0) {
+      const sessionCopies = sourceSchedule.sessions.map(session => ({
+        scheduleId: createdSchedule.id,
+        therapistId: session.therapistId,
+        patientId: session.patientId,
+        date: session.date,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        notes: session.notes
+      }))
+
+      await this.db.insert(sessions).values(sessionCopies)
+    }
+
+    // Return the new schedule with its sessions
+    return this.findByIdWithSessions(createdSchedule.id, organizationId)
+  }
 }
 
 export const scheduleRepository = new ScheduleRepository()

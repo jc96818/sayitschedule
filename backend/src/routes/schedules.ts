@@ -209,6 +209,50 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
     return { data: schedule }
   })
 
+  // Create draft copy of a published schedule
+  fastify.post('/:id/create-draft', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string }
+    const organizationId = request.ctx.organizationId
+    const ctx = request.ctx.user!
+
+    if (!organizationId) {
+      return reply.status(400).send({ error: 'Organization context required' })
+    }
+
+    // Get the source schedule first to validate it exists and is published
+    const sourceSchedule = await scheduleRepository.findById(id, organizationId)
+    if (!sourceSchedule) {
+      return reply.status(404).send({ error: 'Schedule not found' })
+    }
+
+    if (sourceSchedule.status !== 'published') {
+      return reply.status(400).send({
+        error: 'Only published schedules can be copied to a new draft. This schedule is already a draft.'
+      })
+    }
+
+    // Create the draft copy
+    const newSchedule = await scheduleRepository.createDraftCopy(id, organizationId, ctx.userId)
+    if (!newSchedule) {
+      return reply.status(500).send({ error: 'Failed to create draft copy' })
+    }
+
+    await logAudit(ctx.userId, 'create', 'schedule', newSchedule.id, organizationId, {
+      action: 'create_draft_copy',
+      sourceScheduleId: id,
+      sourceVersion: sourceSchedule.version,
+      newVersion: newSchedule.version
+    })
+
+    return reply.status(201).send({
+      data: newSchedule,
+      meta: {
+        message: `Created draft copy (version ${newSchedule.version}) from published schedule`,
+        sourceScheduleId: id
+      }
+    })
+  })
+
   // Add session to schedule
   fastify.post('/:id/sessions', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string }

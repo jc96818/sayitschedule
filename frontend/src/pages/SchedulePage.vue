@@ -2,12 +2,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useSchedulesStore } from '@/stores/schedules'
 import { useStaffStore } from '@/stores/staff'
-import { Button, Badge, Alert, StatCard, VoiceInput } from '@/components/ui'
+import { Button, Badge, Alert, StatCard, VoiceInput, VoiceHintsModal } from '@/components/ui'
 import { getFederalHoliday } from '@/utils/holidays'
 import type { Session } from '@/types'
 
 const schedulesStore = useSchedulesStore()
 const staffStore = useStaffStore()
+
+// Voice hints modal ref
+const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
 
 // Voice modification state
 const showVoiceConfirmation = ref(false)
@@ -288,6 +291,17 @@ function capitalizeFirst(str?: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
+async function handleCreateDraftCopy() {
+  if (!currentSchedule.value) return
+  try {
+    const response = await schedulesStore.createDraftCopy(currentSchedule.value.id)
+    // The store sets currentSchedule to the new draft, so the UI will update automatically
+    console.log('Created draft copy:', response.meta?.message)
+  } catch (error) {
+    console.error('Failed to create draft copy:', error)
+  }
+}
+
 onMounted(() => {
   loadSchedule()
   staffStore.fetchStaff() // Load staff for therapist filter and gender lookup
@@ -327,6 +341,17 @@ onMounted(() => {
           </svg>
           Download PDF
         </Button>
+        <Button
+          v-if="currentSchedule?.status === 'published'"
+          variant="outline"
+          :loading="schedulesStore.creatingDraft"
+          @click="handleCreateDraftCopy"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Edit Draft Copy
+        </Button>
         <RouterLink to="/schedule/generate" class="btn btn-primary">
           Generate New
         </RouterLink>
@@ -362,12 +387,17 @@ onMounted(() => {
 
       <!-- Schedule View -->
       <template v-else>
+        <!-- Voice Hints Modal -->
+        <VoiceHintsModal ref="voiceHintsModal" page-type="schedule" />
+
         <!-- Voice Interface (only show for draft schedules) -->
         <VoiceInput
           v-if="currentSchedule.status === 'draft'"
           title="Voice Schedule Modification"
-          description="Say commands like 'Move John's 9 AM to 2 PM' or 'Cancel Sarah's Friday session'"
+          description="Click the microphone to move, cancel, or reschedule sessions by voice."
+          :show-hints-link="true"
           @result="handleVoiceResult"
+          @show-hints="voiceHintsModal?.openModal()"
         />
 
         <!-- Voice Loading State -->
@@ -443,21 +473,6 @@ onMounted(() => {
               Apply Change
             </Button>
             <Button variant="ghost" class="text-danger" @click="cancelModification">Cancel</Button>
-          </div>
-        </div>
-
-        <!-- Example Voice Commands -->
-        <div v-if="currentSchedule.status === 'draft'" class="card mb-3">
-          <div class="card-header">
-            <h4>Example Voice Commands</h4>
-          </div>
-          <div class="card-body">
-            <div class="example-commands">
-              <div class="example-chip">"Move John's 9 AM session to 2 PM"</div>
-              <div class="example-chip">"Cancel Sarah's Friday 10 AM"</div>
-              <div class="example-chip">"Reschedule Monday's 11 AM to Wednesday"</div>
-              <div class="example-chip">"Remove the 3 PM session with Emma"</div>
-            </div>
           </div>
         </div>
 
@@ -891,20 +906,6 @@ onMounted(() => {
 .confirmation-actions {
   display: flex;
   gap: 12px;
-}
-
-.example-commands {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.example-chip {
-  background-color: var(--background-color);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 13px;
-  color: var(--text-secondary);
 }
 
 @media (max-width: 1024px) {

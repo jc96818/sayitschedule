@@ -10,6 +10,7 @@ export const useSchedulesStore = defineStore('schedules', () => {
   const loading = ref(false)
   const generating = ref(false)
   const publishing = ref(false)
+  const creatingDraft = ref(false)
   const error = ref<string | null>(null)
   const totalCount = ref(0)
 
@@ -260,12 +261,32 @@ export const useSchedulesStore = defineStore('schedules', () => {
     modificationResult.value = null
   }
 
+  async function createDraftCopy(id: string) {
+    creatingDraft.value = true
+    error.value = null
+    try {
+      const response = await scheduleService.createDraftCopy(id)
+      // Add the new draft to schedules list
+      schedules.value.unshift(response.data)
+      totalCount.value++
+      // Set as current schedule so UI navigates to it
+      currentSchedule.value = response.data
+      return response
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to create draft copy'
+      throw e
+    } finally {
+      creatingDraft.value = false
+    }
+  }
+
   return {
     schedules,
     currentSchedule,
     loading,
     generating,
     publishing,
+    creatingDraft,
     error,
     totalCount,
     publishedSchedules,
@@ -282,6 +303,7 @@ export const useSchedulesStore = defineStore('schedules', () => {
     fetchScheduleById,
     generateSchedule,
     publishSchedule,
+    createDraftCopy,
     updateSession,
     deleteSession,
     exportToPdf,
