@@ -1,35 +1,18 @@
-import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+import Fastify, { FastifyInstance } from 'fastify'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
+import type { JWTPayload } from '../../types/index.js'
 
-// Mock user context for testing
-export interface MockUserContext {
-  userId: string
-  email: string
-  role: 'super_admin' | 'admin' | 'admin_assistant' | 'viewer'
-  organizationId: string
-}
-
-export const defaultMockUser: MockUserContext = {
+// Default mock user for testing
+const defaultMockUser: JWTPayload = {
   userId: 'test-user-id',
   email: 'test@example.com',
   role: 'admin',
   organizationId: 'test-org-id'
 }
 
-// Create mock auth middleware that bypasses token verification
-function createMockAuthMiddleware(mockUser: MockUserContext | null) {
-  return async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!mockUser) {
-      // Simulate unauthorized if no user
-      return reply.status(401).send({ error: 'Unauthorized' })
-    }
-    // User is already set by onRequest hook
-  }
-}
-
 export async function buildTestApp(options?: {
-  mockUser?: MockUserContext | null
+  mockUser?: JWTPayload | null
 }): Promise<FastifyInstance> {
   const app = Fastify({
     logger: false
@@ -51,7 +34,6 @@ export async function buildTestApp(options?: {
   })
 
   // We need to import routes dynamically after setting up mocks
-  // But first, let's mock the auth middleware
   const { scheduleRoutes } = await import('../schedules.js')
   const { voiceRoutes } = await import('../voice.js')
 
@@ -63,7 +45,7 @@ export async function buildTestApp(options?: {
 }
 
 // Helper to generate auth token for testing
-export function generateTestToken(app: FastifyInstance, user: MockUserContext): string {
+export function generateTestToken(app: FastifyInstance, user: JWTPayload): string {
   return app.jwt.sign({
     userId: user.userId,
     email: user.email,

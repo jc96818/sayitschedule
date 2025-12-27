@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { buildTestApp, defaultMockUser } from './testApp.js'
+import { buildTestApp } from './testApp.js'
 import type { FastifyInstance } from 'fastify'
+
+// Default mock user for test assertions
+const defaultMockUser = {
+  userId: 'test-user-id',
+  email: 'test@example.com',
+  role: 'admin' as const,
+  organizationId: 'test-org-id'
+}
 
 // Mock the auth middleware - must be before other imports
 vi.mock('../../middleware/auth.js', () => ({
@@ -69,13 +77,32 @@ describe('Schedule Routes', () => {
   describe('GET /api/schedules', () => {
     it('returns list of schedules for organization', async () => {
       const mockSchedules = [
-        { id: 'schedule-1', weekStartDate: new Date('2025-01-06'), status: 'draft' },
-        { id: 'schedule-2', weekStartDate: new Date('2025-01-13'), status: 'published' }
+        {
+          id: 'schedule-1',
+          organizationId: 'test-org-id',
+          weekStartDate: new Date('2025-01-06'),
+          status: 'draft' as const,
+          createdBy: 'test-user-id',
+          createdAt: new Date(),
+          publishedAt: null,
+          version: 1
+        },
+        {
+          id: 'schedule-2',
+          organizationId: 'test-org-id',
+          weekStartDate: new Date('2025-01-13'),
+          status: 'published' as const,
+          createdBy: 'test-user-id',
+          createdAt: new Date(),
+          publishedAt: new Date(),
+          version: 1
+        }
       ]
 
       vi.mocked(scheduleRepository.findAll).mockResolvedValue({
         data: mockSchedules,
         total: 2,
+        totalPages: 1,
         page: 1,
         limit: 20
       })
@@ -170,7 +197,7 @@ describe('Schedule Routes', () => {
 
       vi.mocked(generateSchedule).mockResolvedValue(mockGenerationResult)
       vi.mocked(scheduleRepository.create).mockResolvedValue(mockSchedule as any)
-      vi.mocked(scheduleRepository.addSessions).mockResolvedValue(undefined)
+      vi.mocked(scheduleRepository.addSessions).mockResolvedValue([])
       vi.mocked(sessionRepository.findBySchedule).mockResolvedValue(mockSessions as any)
 
       const response = await app.inject({

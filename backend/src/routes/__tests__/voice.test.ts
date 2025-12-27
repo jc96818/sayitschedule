@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { buildTestApp, defaultMockUser } from './testApp.js'
+import { buildTestApp } from './testApp.js'
 import type { FastifyInstance } from 'fastify'
 
 // Mock the auth middleware
@@ -53,7 +53,9 @@ describe('Voice Routes', () => {
         data: {
           name: 'Emily Carter',
           gender: 'female'
-        }
+        },
+        warnings: [],
+        originalTranscript: 'Add a new patient named Emily Carter, female'
       })
 
       const response = await app.inject({
@@ -85,7 +87,9 @@ describe('Voice Routes', () => {
           name: 'Michael Brown',
           gender: 'male',
           sessionFrequency: 3
-        }
+        },
+        warnings: [],
+        originalTranscript: 'New patient Michael Brown, male, needs 3 sessions per week'
       })
 
       const response = await app.inject({
@@ -118,7 +122,9 @@ describe('Voice Routes', () => {
           name: 'Sarah Johnson',
           gender: 'female',
           certifications: ['ABA', 'Speech']
-        }
+        },
+        warnings: [],
+        originalTranscript: 'Add therapist Sarah Johnson, female, certified in ABA and Speech'
       })
 
       const response = await app.inject({
@@ -146,9 +152,11 @@ describe('Voice Routes', () => {
         commandType: 'create_rule',
         confidence: 0.88,
         data: {
-          category: 'gender_matching',
+          category: 'gender_pairing',
           description: 'Male therapists can only work with male patients'
-        }
+        },
+        warnings: [],
+        originalTranscript: 'Male therapists can only work with male patients'
       })
 
       const response = await app.inject({
@@ -286,7 +294,9 @@ describe('Voice Routes', () => {
         data: {
           name: 'Lisa Wong',
           requiredCertifications: ['ABA']
-        }
+        },
+        warnings: [],
+        originalTranscript: 'Add patient Lisa Wong who requires an ABA certified therapist'
       })
 
       const response = await app.inject({
@@ -317,7 +327,9 @@ describe('Voice Routes', () => {
           name: 'Adam Smith',
           gender: 'male',
           certifications: ['ABA']
-        }
+        },
+        warnings: [],
+        originalTranscript: 'New staff member Adam Smith, male, certified in ABA therapy'
       })
 
       const response = await app.inject({
@@ -345,10 +357,12 @@ describe('Voice Routes', () => {
         commandType: 'create_rule',
         confidence: 0.90,
         data: {
-          category: 'session_limit',
+          category: 'session',
           description: 'Maximum 2 sessions per therapist per day',
           ruleLogic: { maxSessions: 2, per: 'day' }
-        }
+        },
+        warnings: [],
+        originalTranscript: 'Maximum 2 sessions per therapist per day'
       })
 
       const response = await app.inject({
@@ -373,7 +387,7 @@ describe('Voice Routes', () => {
       process.env.OPENAI_API_KEY = 'test-key'
 
       vi.mocked(parseScheduleModifyCommand).mockResolvedValue({
-        commandType: 'modify_schedule',
+        commandType: 'modify_session',
         confidence: 0.87,
         data: {
           action: 'move',
@@ -381,7 +395,9 @@ describe('Voice Routes', () => {
           currentDayOfWeek: 'monday',
           newDayOfWeek: 'tuesday',
           newStartTime: '14:00'
-        }
+        },
+        warnings: [],
+        originalTranscript: "Move Sarah's Monday session to Tuesday at 2pm"
       })
 
       const response = await app.inject({
@@ -404,14 +420,16 @@ describe('Voice Routes', () => {
       process.env.OPENAI_API_KEY = 'test-key'
 
       vi.mocked(parseScheduleModifyCommand).mockResolvedValue({
-        commandType: 'modify_schedule',
+        commandType: 'cancel_session',
         confidence: 0.92,
         data: {
           action: 'cancel',
           therapistName: 'John',
           patientName: 'Emily',
           currentDayOfWeek: 'friday'
-        }
+        },
+        warnings: [],
+        originalTranscript: "Cancel John's session with Emily on Friday"
       })
 
       const response = await app.inject({
