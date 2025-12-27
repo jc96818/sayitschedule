@@ -18,7 +18,8 @@ vi.mock('../../services/voiceParser.js', () => ({
   parseStaffCommand: vi.fn(),
   parseRuleCommand: vi.fn(),
   parseScheduleCommand: vi.fn(),
-  parseScheduleModifyCommand: vi.fn()
+  parseScheduleModifyCommand: vi.fn(),
+  parseScheduleGenerateCommand: vi.fn()
 }))
 
 // Import mocked modules
@@ -27,7 +28,8 @@ import {
   parsePatientCommand,
   parseStaffCommand,
   parseRuleCommand,
-  parseScheduleModifyCommand
+  parseScheduleModifyCommand,
+  parseScheduleGenerateCommand
 } from '../../services/voiceParser.js'
 
 describe('Voice Routes', () => {
@@ -445,6 +447,165 @@ describe('Voice Routes', () => {
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.payload)
       expect(body.data.data.action).toBe('cancel')
+    })
+  })
+
+  describe('POST /api/voice/parse/schedule-generate', () => {
+    it('parses schedule generation command for next week', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      vi.mocked(parseScheduleGenerateCommand).mockResolvedValue({
+        commandType: 'generate_schedule',
+        confidence: 0.95,
+        data: {
+          weekReference: 'next week',
+          weekStartDate: '2025-01-06'
+        },
+        warnings: [],
+        originalTranscript: 'Generate a schedule for next week'
+      })
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/schedule-generate',
+        payload: {
+          transcript: 'Generate a schedule for next week'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.payload)
+      expect(body.data.commandType).toBe('generate_schedule')
+      expect(body.data.data.weekStartDate).toBe('2025-01-06')
+      expect(body.data.data.weekReference).toBe('next week')
+    })
+
+    it('parses schedule generation command for this week', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      vi.mocked(parseScheduleGenerateCommand).mockResolvedValue({
+        commandType: 'generate_schedule',
+        confidence: 0.92,
+        data: {
+          weekReference: 'this week',
+          weekStartDate: '2024-12-30'
+        },
+        warnings: [],
+        originalTranscript: 'Create a schedule for this week'
+      })
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/schedule-generate',
+        payload: {
+          transcript: 'Create a schedule for this week'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.payload)
+      expect(body.data.commandType).toBe('generate_schedule')
+      expect(body.data.data.weekReference).toBe('this week')
+    })
+
+    it('parses schedule generation command with specific date', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      vi.mocked(parseScheduleGenerateCommand).mockResolvedValue({
+        commandType: 'generate_schedule',
+        confidence: 0.88,
+        data: {
+          weekReference: 'week of January 13th',
+          weekStartDate: '2025-01-13'
+        },
+        warnings: ['Inferred Monday of the week containing January 13th'],
+        originalTranscript: 'Generate the schedule for the week of January 13th'
+      })
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/schedule-generate',
+        payload: {
+          transcript: 'Generate the schedule for the week of January 13th'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.payload)
+      expect(body.data.commandType).toBe('generate_schedule')
+      expect(body.data.data.weekStartDate).toBe('2025-01-13')
+      expect(body.data.warnings).toContain('Inferred Monday of the week containing January 13th')
+    })
+
+    it('returns 503 when OpenAI API key is not configured', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      delete process.env.OPENAI_API_KEY
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/schedule-generate',
+        payload: {
+          transcript: 'Generate a schedule for next week'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(503)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toContain('not configured')
+    })
+
+    it('returns 500 when voice parsing fails', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      vi.mocked(parseScheduleGenerateCommand).mockRejectedValue(new Error('Unexpected error'))
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/schedule-generate',
+        payload: {
+          transcript: 'Generate a schedule for next week'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(500)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toContain('Failed to parse schedule generation command')
+    })
+
+    it('returns 400 when organization context is missing', async () => {
+      await app.close()
+      app = await buildTestApp({ mockUser: null })
+
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/schedule-generate',
+        payload: {
+          transcript: 'Generate a schedule for next week'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(400)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('Organization context required')
     })
   })
 })
