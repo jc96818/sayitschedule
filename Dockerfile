@@ -49,11 +49,14 @@ WORKDIR /app
 COPY backend/package*.json ./
 RUN npm ci --only=production
 
-# Copy built backend
-COPY --from=backend-builder /app/backend/dist ./dist
-
 # Copy Prisma schema and migrations (needed for prisma migrate deploy)
 COPY --from=backend-builder /app/backend/prisma ./prisma
+
+# Generate Prisma client for production (must be done after npm ci and copying prisma folder)
+RUN npx prisma generate
+
+# Copy built backend
+COPY --from=backend-builder /app/backend/dist ./dist
 
 # Copy built frontend to serve as static files
 COPY --from=frontend-builder /app/frontend/dist ./public
