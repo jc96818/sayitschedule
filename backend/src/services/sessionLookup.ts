@@ -16,17 +16,17 @@ export interface SessionLookupResult {
   matchDetails: string[]
 }
 
-const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+export const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
-function getDayOfWeekFromDate(date: Date): string {
+export function getDayOfWeekFromDate(date: Date): string {
   return DAYS_OF_WEEK[date.getDay()]
 }
 
-function normalizeName(name: string): string {
+export function normalizeName(name: string): string {
   return name.toLowerCase().trim()
 }
 
-function fuzzyNameMatch(searchName: string, actualName: string): boolean {
+export function fuzzyNameMatch(searchName: string, actualName: string): boolean {
   const search = normalizeName(searchName)
   const actual = normalizeName(actualName)
 

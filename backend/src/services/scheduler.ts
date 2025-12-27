@@ -34,12 +34,12 @@ export interface ValidationError {
   errors: string[]
 }
 
-function timeToMinutes(time: string): number {
+export function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number)
   return hours * 60 + minutes
 }
 
-function sessionsOverlap(
+export function sessionsOverlap(
   start1: string,
   end1: string,
   start2: string,
@@ -53,13 +53,13 @@ function sessionsOverlap(
   return s1 < e2 && s2 < e1
 }
 
-function getDayOfWeek(dateStr: string): string {
+export function getDayOfWeek(dateStr: string): string {
   const date = new Date(dateStr)
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
   return days[date.getDay()]
 }
 
-function validateSessions(
+export function validateSessions(
   sessions: GeneratedSession[],
   staff: StaffForScheduling[],
   patients: PatientForScheduling[]
