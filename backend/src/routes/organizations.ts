@@ -120,6 +120,43 @@ export async function organizationRoutes(fastify: FastifyInstance) {
     return { data: organization }
   })
 
+  // Update own organization branding (admin only)
+  fastify.put(
+    '/current/branding',
+    { preHandler: authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const ctx = request.ctx.user!
+
+      // Only admins can update branding
+      if (ctx.role !== 'admin' && ctx.role !== 'super_admin') {
+        return reply.status(403).send({ error: 'Admin role required' })
+      }
+
+      // Must have an organization context
+      if (!ctx.organizationId) {
+        return reply.status(400).send({ error: 'Organization context required' })
+      }
+
+      const brandingSchema = z.object({
+        name: z.string().min(1).optional(),
+        primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+        secondaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+        logoUrl: z.string().url().nullable().optional()
+      })
+
+      const body = brandingSchema.parse(request.body)
+
+      const organization = await organizationRepository.update(ctx.organizationId, body)
+      if (!organization) {
+        return reply.status(404).send({ error: 'Organization not found' })
+      }
+
+      await logAudit(ctx.userId, 'update_branding', 'organization', ctx.organizationId, null, body)
+
+      return { data: organization }
+    }
+  )
+
   // Switch organization context (super admin only)
   fastify.post('/:id/switch', { preHandler: requireSuperAdmin() }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string }

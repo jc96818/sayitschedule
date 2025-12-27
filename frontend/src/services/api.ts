@@ -80,6 +80,16 @@ export const organizationService = {
 
   async switchContext(id: string): Promise<void> {
     await api.post(`/organizations/${id}/switch`)
+  },
+
+  async updateBranding(branding: {
+    name?: string
+    primaryColor?: string
+    secondaryColor?: string
+    logoUrl?: string | null
+  }): Promise<ApiResponse<Organization>> {
+    const { data } = await api.put('/organizations/current/branding', branding)
+    return data
   }
 }
 
