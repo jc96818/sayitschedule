@@ -52,6 +52,9 @@ RUN npm ci --only=production
 # Copy built backend
 COPY --from=backend-builder /app/backend/dist ./dist
 
+# Copy Prisma schema and migrations (needed for prisma migrate deploy)
+COPY --from=backend-builder /app/backend/prisma ./prisma
+
 # Copy built frontend to serve as static files
 COPY --from=frontend-builder /app/frontend/dist ./public
 
