@@ -10,6 +10,11 @@ const authStore = useAuthStore()
 const user = computed(() => authStore.user)
 const organization = computed(() => authStore.organization)
 
+// SuperAdmin viewing an organization context
+const isSuperAdminInOrgContext = computed(() =>
+  authStore.isSuperAdmin && organization.value !== null
+)
+
 const userInitials = computed(() => {
   if (!user.value?.name) return '?'
   return user.value.name
@@ -92,6 +97,14 @@ async function handleLogout() {
 
 <template>
   <aside class="sidebar">
+    <!-- SuperAdmin context banner -->
+    <RouterLink v-if="isSuperAdminInOrgContext" to="/super-admin" class="super-admin-banner">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+      <span>Back to Super Admin</span>
+    </RouterLink>
+
     <div class="sidebar-header">
       <h1>Say It Schedule</h1>
       <span>{{ organization?.subdomain || 'sayitschedule' }}.com</span>
@@ -169,6 +182,28 @@ async function handleLogout() {
   left: 0;
   bottom: 0;
   z-index: 100;
+}
+
+.super-admin-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.super-admin-banner:hover {
+  background-color: var(--primary-dark, #1e40af);
+  text-decoration: none;
+}
+
+.super-admin-banner svg {
+  flex-shrink: 0;
 }
 
 .sidebar-header {

@@ -18,7 +18,12 @@ async function handleSubmit() {
 
   try {
     await authStore.login({ email: email.value, password: password.value })
-    router.push('/')
+    // Redirect superadmins to their dashboard, others to regular dashboard
+    if (authStore.isSuperAdmin) {
+      router.push('/super-admin')
+    } else {
+      router.push('/')
+    }
   } catch (e) {
     error.value = 'Invalid email or password'
   } finally {
