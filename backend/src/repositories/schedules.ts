@@ -35,6 +35,7 @@ export type Session = typeof sessions.$inferSelect
 export interface SessionWithDetails extends Session {
   therapistName?: string
   patientName?: string
+  therapistGender?: 'male' | 'female' | 'other'
 }
 
 export interface ScheduleWithSessions extends Schedule {
@@ -100,6 +101,7 @@ export class ScheduleRepository {
       .select({
         session: sessions,
         therapistName: staff.name,
+        therapistGender: staff.gender,
         patientName: patients.name
       })
       .from(sessions)
@@ -113,7 +115,8 @@ export class ScheduleRepository {
       sessions: sessionData.map(s => ({
         ...s.session,
         therapistName: s.therapistName || undefined,
-        patientName: s.patientName || undefined
+        patientName: s.patientName || undefined,
+        therapistGender: s.therapistGender || undefined
       }))
     }
   }
@@ -328,6 +331,7 @@ export class SessionRepository {
       .select({
         session: sessions,
         therapistName: staff.name,
+        therapistGender: staff.gender,
         patientName: patients.name
       })
       .from(sessions)
@@ -339,7 +343,8 @@ export class SessionRepository {
     return result.map(s => ({
       ...s.session,
       therapistName: s.therapistName || undefined,
-      patientName: s.patientName || undefined
+      patientName: s.patientName || undefined,
+      therapistGender: s.therapistGender || undefined
     }))
   }
 

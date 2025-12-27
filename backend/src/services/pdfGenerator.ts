@@ -7,30 +7,32 @@ interface PdfGeneratorOptions {
   organization: Organization
 }
 
-interface SessionsByDay {
-  [date: string]: {
-    dayName: string
-    dateStr: string
-    sessions: Array<{
-      time: string
-      therapistName: string
-      patientName: string
-      notes?: string
-    }>
-  }
+interface SessionData {
+  time: string
+  therapistName: string
+  patientName: string
+  therapistGender?: 'male' | 'female' | 'other'
 }
 
-// Convert hex color to RGB for PDFKit
-function hexToRgb(hex: string): [number, number, number] {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-  if (result) {
-    return [
-      parseInt(result[1], 16),
-      parseInt(result[2], 16),
-      parseInt(result[3], 16)
-    ]
-  }
-  return [37, 99, 235] // Default to blue if parsing fails
+interface DayColumn {
+  shortName: string
+  dateStr: string
+  sessions: Map<string, SessionData[]> // keyed by time slot
+}
+
+// Standard time slots for the schedule grid
+const TIME_SLOTS = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00']
+const TIME_LABELS = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM']
+
+// Colors
+const COLORS = {
+  primary: [37, 99, 235] as [number, number, number],      // #2563eb - blue
+  success: [16, 185, 129] as [number, number, number],     // #10b981 - green
+  text: [30, 41, 59] as [number, number, number],          // #1e293b
+  textSecondary: [100, 116, 139] as [number, number, number], // #64748b
+  border: [226, 232, 240] as [number, number, number],     // #e2e8f0
+  headerBg: [248, 250, 252] as [number, number, number],   // #f8fafc
+  sessionBg: [250, 250, 250] as [number, number, number],  // #fafafa
 }
 
 // Format time from 24h to 12h format
@@ -47,96 +49,76 @@ function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// Get day name from date
-function getDayName(date: Date): string {
-  return date.toLocaleDateString('en-US', { weekday: 'long' })
-}
-
 // Format short date (e.g., "Dec 30")
 function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// Group sessions by day
-function groupSessionsByDay(sessions: ScheduleWithSessions['sessions']): SessionsByDay {
-  const grouped: SessionsByDay = {}
+// Build day columns with sessions organized by time slot
+function buildDayColumns(schedule: ScheduleWithSessions): DayColumn[] {
+  const weekStart = new Date(schedule.weekStartDate)
+  const columns: DayColumn[] = []
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
-  for (const session of sessions) {
-    const date = new Date(session.date)
+  for (let i = 0; i < 5; i++) {
+    const date = new Date(weekStart)
+    date.setDate(date.getDate() + i)
     const dateKey = date.toISOString().split('T')[0]
 
-    if (!grouped[dateKey]) {
-      grouped[dateKey] = {
-        dayName: getDayName(date),
-        dateStr: formatShortDate(date),
-        sessions: []
+    const sessionsMap = new Map<string, SessionData[]>()
+    TIME_SLOTS.forEach(slot => sessionsMap.set(slot, []))
+
+    // Find sessions for this day
+    for (const session of schedule.sessions) {
+      const sessionDateObj = session.date instanceof Date ? session.date : new Date(session.date)
+      const sessionDate = sessionDateObj.toISOString().split('T')[0]
+      if (sessionDate === dateKey) {
+        const timeSlot = session.startTime?.slice(0, 5) || '09:00'
+        const sessions = sessionsMap.get(timeSlot) || []
+        sessions.push({
+          time: formatTime(timeSlot),
+          therapistName: session.therapistName || 'Unknown',
+          patientName: session.patientName || 'Unknown',
+          therapistGender: session.therapistGender as 'male' | 'female' | 'other' | undefined
+        })
+        sessionsMap.set(timeSlot, sessions)
       }
     }
 
-    grouped[dateKey].sessions.push({
-      time: formatTime(session.startTime || '09:00'),
-      therapistName: session.therapistName || 'Unknown Therapist',
-      patientName: session.patientName || 'Unknown Patient',
-      notes: session.notes || undefined
+    columns.push({
+      shortName: dayNames[i],
+      dateStr: formatShortDate(date),
+      sessions: sessionsMap
     })
   }
 
-  // Sort sessions within each day by time
-  for (const dateKey of Object.keys(grouped)) {
-    grouped[dateKey].sessions.sort((a, b) => a.time.localeCompare(b.time))
-  }
-
-  return grouped
-}
-
-// Fetch and convert logo to buffer (if URL provided)
-async function fetchLogo(logoUrl: string): Promise<Buffer | null> {
-  try {
-    const response = await fetch(logoUrl)
-    if (!response.ok) return null
-
-    const contentType = response.headers.get('content-type')
-    if (!contentType?.startsWith('image/')) return null
-
-    const arrayBuffer = await response.arrayBuffer()
-    return Buffer.from(arrayBuffer)
-  } catch {
-    return null
-  }
+  return columns
 }
 
 export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise<Buffer> {
   const { schedule, organization } = options
-
-  const primaryColor = hexToRgb(organization.primaryColor || '#2563eb')
-  const secondaryColor = hexToRgb(organization.secondaryColor || '#1e40af')
 
   // Calculate week date range
   const weekStart = new Date(schedule.weekStartDate)
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekEnd.getDate() + 4) // Friday
 
-  // Group sessions by day
-  const sessionsByDay = groupSessionsByDay(schedule.sessions)
-  const sortedDates = Object.keys(sessionsByDay).sort()
+  // Build day columns
+  const dayColumns = buildDayColumns(schedule)
 
   // Calculate stats
   const totalSessions = schedule.sessions.length
   const uniqueTherapists = new Set(schedule.sessions.map(s => s.therapistId)).size
   const uniquePatients = new Set(schedule.sessions.map(s => s.patientId)).size
 
-  // Fetch logo if available
-  let logoBuffer: Buffer | null = null
-  if (organization.logoUrl) {
-    logoBuffer = await fetchLogo(organization.logoUrl)
-  }
-
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
 
+    // Landscape orientation for better table fit
     const doc = new PDFDocument({
       size: 'LETTER',
-      margin: 50,
+      layout: 'landscape',
+      margins: { top: 30, bottom: 30, left: 40, right: 40 },
       info: {
         Title: `Schedule - ${formatDate(weekStart)} to ${formatDate(weekEnd)}`,
         Author: organization.name,
@@ -149,157 +131,223 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
     doc.on('end', () => resolve(Buffer.concat(chunks)))
     doc.on('error', reject)
 
-    const pageWidth = doc.page.width - 100 // Account for margins
-    let yPosition = 50
+    const pageWidth = doc.page.width - 80 // Account for margins
+    const pageHeight = doc.page.height - 60
 
-    // === HEADER SECTION ===
+    // Layout calculations
+    const timeColWidth = 55
+    const dayColWidth = (pageWidth - timeColWidth) / 5
+    const headerHeight = 50
+    const tableHeaderHeight = 35
+    const rowHeight = (pageHeight - headerHeight - tableHeaderHeight - 50) / TIME_SLOTS.length // 50 for footer
 
-    // Draw header background
-    doc.rect(50, yPosition, pageWidth, 80)
-      .fill(primaryColor)
+    let y = 30
 
-    // Add logo or organization name
-    const headerTextX = 70
-    const headerTextY = yPosition + 15
-
-    if (logoBuffer) {
-      try {
-        doc.image(logoBuffer, 60, yPosition + 10, { height: 60 })
-        // Organization name next to logo
-        doc.fillColor('white')
-          .fontSize(20)
-          .font('Helvetica-Bold')
-          .text(organization.name, 130, headerTextY)
-      } catch {
-        // If logo fails, fall back to text only
-        doc.fillColor('white')
-          .fontSize(24)
-          .font('Helvetica-Bold')
-          .text(organization.name, headerTextX, headerTextY)
-      }
-    } else {
-      doc.fillColor('white')
-        .fontSize(24)
-        .font('Helvetica-Bold')
-        .text(organization.name, headerTextX, headerTextY)
-    }
-
-    // Subtitle with date range
-    doc.fillColor('white')
-      .fontSize(12)
-      .font('Helvetica')
-      .text(`Weekly Schedule: ${formatDate(weekStart)} - ${formatDate(weekEnd)}`, headerTextX, headerTextY + 30)
-
-    // Status badge
-    const statusText = schedule.status === 'published' ? 'Published' : 'Draft'
-    const statusBadgeX = pageWidth - 30
-    doc.fillColor('white')
-      .fontSize(10)
+    // === HEADER ===
+    // Organization name (left)
+    doc.fillColor(COLORS.text)
+      .fontSize(16)
       .font('Helvetica-Bold')
-      .text(statusText, statusBadgeX, headerTextY + 32, { align: 'right', width: 80 })
+      .text(organization.name, 40, y)
 
-    yPosition += 100
+    // Schedule subtitle
+    doc.fillColor(COLORS.textSecondary)
+      .fontSize(10)
+      .font('Helvetica')
+      .text(`Weekly Schedule: ${formatDate(weekStart)} - ${formatDate(weekEnd)}`, 40, y + 20)
 
-    // === SESSIONS BY DAY ===
+    // Status badge (right side)
+    const statusText = schedule.status === 'published' ? 'Published' : 'Draft'
+    const statusColor = schedule.status === 'published' ? COLORS.success : [245, 158, 11] as [number, number, number]
+    const statusX = pageWidth + 40 - 60
 
-    if (sortedDates.length === 0) {
-      doc.fillColor('#666666')
-        .fontSize(14)
-        .font('Helvetica')
-        .text('No sessions scheduled for this week.', 50, yPosition, { align: 'center', width: pageWidth })
-    } else {
-      for (const dateKey of sortedDates) {
-        const dayData = sessionsByDay[dateKey]
-
-        // Check if we need a new page
-        const estimatedHeight = 30 + (dayData.sessions.length * 25)
-        if (yPosition + estimatedHeight > doc.page.height - 100) {
-          doc.addPage()
-          yPosition = 50
-        }
-
-        // Day header
-        doc.rect(50, yPosition, pageWidth, 25)
-          .fill(secondaryColor)
-
-        doc.fillColor('white')
-          .fontSize(12)
-          .font('Helvetica-Bold')
-          .text(`${dayData.dayName.toUpperCase()} - ${dayData.dateStr}`, 60, yPosition + 7)
-
-        yPosition += 35
-
-        // Sessions for this day
-        for (const session of dayData.sessions) {
-          // Time column
-          doc.fillColor('#333333')
-            .fontSize(11)
-            .font('Helvetica-Bold')
-            .text(session.time, 60, yPosition, { width: 80 })
-
-          // Therapist → Patient
-          doc.fillColor('#333333')
-            .fontSize(11)
-            .font('Helvetica')
-            .text(`${session.therapistName}  →  ${session.patientName}`, 150, yPosition, { width: pageWidth - 150 })
-
-          yPosition += 20
-
-          // Notes (if present)
-          if (session.notes) {
-            doc.fillColor('#666666')
-              .fontSize(9)
-              .font('Helvetica-Oblique')
-              .text(`Note: ${session.notes}`, 150, yPosition, { width: pageWidth - 150 })
-            yPosition += 15
-          }
-        }
-
-        yPosition += 15 // Space between days
-      }
-    }
-
-    // === FOOTER SECTION ===
-
-    // Ensure footer is at the bottom
-    const footerY = doc.page.height - 80
-
-    // Draw footer line
-    doc.strokeColor(primaryColor)
+    // Draw status badge border
+    doc.roundedRect(statusX, y + 5, 55, 18, 9)
+      .strokeColor(statusColor)
       .lineWidth(1)
-      .moveTo(50, footerY)
-      .lineTo(50 + pageWidth, footerY)
       .stroke()
 
-    // Stats
-    doc.fillColor('#666666')
-      .fontSize(10)
-      .font('Helvetica')
-      .text(
-        `Total Sessions: ${totalSessions}  |  Therapists: ${uniqueTherapists}  |  Patients: ${uniquePatients}`,
-        50,
-        footerY + 15,
-        { align: 'center', width: pageWidth }
-      )
+    doc.fillColor(statusColor)
+      .fontSize(8)
+      .font('Helvetica-Bold')
+      .text(statusText.toUpperCase(), statusX, y + 10, { width: 55, align: 'center' })
 
-    // Generation timestamp
+    // Version if > 1
+    if (schedule.version > 1) {
+      doc.fillColor(COLORS.textSecondary)
+        .fontSize(8)
+        .font('Helvetica')
+        .text(`v${schedule.version}`, statusX, y + 26, { width: 55, align: 'center' })
+    }
+
+    // Header underline (brand color accent)
+    y += headerHeight
+    doc.strokeColor(COLORS.primary)
+      .lineWidth(2)
+      .moveTo(40, y)
+      .lineTo(40 + pageWidth, y)
+      .stroke()
+
+    y += 8
+
+    // === TABLE HEADER ===
+    const tableStartX = 40
+    const tableStartY = y
+
+    // Draw header background
+    doc.rect(tableStartX, tableStartY, pageWidth, tableHeaderHeight)
+      .fillColor(COLORS.headerBg)
+      .fill()
+
+    // Time column header
+    doc.fillColor(COLORS.textSecondary)
+      .fontSize(9)
+      .font('Helvetica-Bold')
+      .text('Time', tableStartX + 5, tableStartY + 12)
+
+    // Day column headers
+    for (let i = 0; i < 5; i++) {
+      const x = tableStartX + timeColWidth + (i * dayColWidth)
+      const col = dayColumns[i]
+
+      doc.fillColor(COLORS.text)
+        .fontSize(10)
+        .font('Helvetica-Bold')
+        .text(col.shortName, x + 5, tableStartY + 8)
+
+      doc.fillColor(COLORS.textSecondary)
+        .fontSize(8)
+        .font('Helvetica')
+        .text(col.dateStr, x + 5, tableStartY + 20)
+    }
+
+    // Draw header borders
+    doc.strokeColor(COLORS.border).lineWidth(1)
+    doc.moveTo(tableStartX, tableStartY + tableHeaderHeight)
+      .lineTo(tableStartX + pageWidth, tableStartY + tableHeaderHeight)
+      .stroke()
+
+    y = tableStartY + tableHeaderHeight
+
+    // === TABLE ROWS ===
+    for (let rowIdx = 0; rowIdx < TIME_SLOTS.length; rowIdx++) {
+      const timeSlot = TIME_SLOTS[rowIdx]
+      const timeLabel = TIME_LABELS[rowIdx]
+      const rowY = y + (rowIdx * rowHeight)
+
+      // Time cell background
+      doc.rect(tableStartX, rowY, timeColWidth, rowHeight)
+        .fillColor(COLORS.headerBg)
+        .fill()
+
+      // Time label
+      doc.fillColor(COLORS.textSecondary)
+        .fontSize(8)
+        .font('Helvetica-Bold')
+        .text(timeLabel, tableStartX + 5, rowY + (rowHeight / 2) - 5)
+
+      // Day cells
+      for (let dayIdx = 0; dayIdx < 5; dayIdx++) {
+        const cellX = tableStartX + timeColWidth + (dayIdx * dayColWidth)
+        const col = dayColumns[dayIdx]
+        const sessions = col.sessions.get(timeSlot) || []
+
+        // Cell border
+        doc.strokeColor(COLORS.border)
+          .lineWidth(0.5)
+          .rect(cellX, rowY, dayColWidth, rowHeight)
+          .stroke()
+
+        // Draw sessions
+        let sessionY = rowY + 3
+        for (const session of sessions) {
+          if (sessionY + 25 > rowY + rowHeight - 2) break // Prevent overflow
+
+          // Session card with left accent border
+          const cardX = cellX + 3
+          const cardWidth = dayColWidth - 6
+          const cardHeight = 22
+
+          // Background
+          doc.rect(cardX, sessionY, cardWidth, cardHeight)
+            .fillColor(COLORS.sessionBg)
+            .fill()
+
+          // Left accent border based on gender
+          const accentColor = session.therapistGender === 'female' ? COLORS.success : COLORS.primary
+          doc.rect(cardX, sessionY, 3, cardHeight)
+            .fillColor(accentColor)
+            .fill()
+
+          // Therapist name
+          doc.fillColor(COLORS.text)
+            .fontSize(7)
+            .font('Helvetica-Bold')
+            .text(session.therapistName, cardX + 6, sessionY + 3, {
+              width: cardWidth - 8,
+              lineBreak: false,
+              ellipsis: true
+            })
+
+          // Patient name
+          doc.fillColor(COLORS.textSecondary)
+            .fontSize(6)
+            .font('Helvetica')
+            .text(session.patientName, cardX + 6, sessionY + 12, {
+              width: cardWidth - 8,
+              lineBreak: false,
+              ellipsis: true
+            })
+
+          sessionY += cardHeight + 2
+        }
+      }
+
+      // Row bottom border
+      doc.strokeColor(COLORS.border)
+        .lineWidth(0.5)
+        .moveTo(tableStartX, rowY + rowHeight)
+        .lineTo(tableStartX + pageWidth, rowY + rowHeight)
+        .stroke()
+    }
+
+    // === FOOTER ===
+    const footerY = pageHeight + 15
+
+    // Stats (left)
+    doc.fillColor(COLORS.textSecondary)
+      .fontSize(8)
+      .font('Helvetica')
+      .text(`Sessions: ${totalSessions}  |  Therapists: ${uniqueTherapists}  |  Patients: ${uniquePatients}`, 40, footerY)
+
+    // Legend (center)
+    const legendX = pageWidth / 2
+    doc.rect(legendX, footerY, 10, 8)
+      .fillColor(COLORS.sessionBg)
+      .fill()
+    doc.rect(legendX, footerY, 2, 8)
+      .fillColor(COLORS.primary)
+      .fill()
+    doc.fillColor(COLORS.textSecondary)
+      .text('Male', legendX + 14, footerY)
+
+    doc.rect(legendX + 60, footerY, 10, 8)
+      .fillColor(COLORS.sessionBg)
+      .fill()
+    doc.rect(legendX + 60, footerY, 2, 8)
+      .fillColor(COLORS.success)
+      .fill()
+    doc.fillColor(COLORS.textSecondary)
+      .text('Female', legendX + 74, footerY)
+
+    // Generated date (right)
     const now = new Date()
     doc.text(
-      `Generated on ${formatDate(now)} at ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`,
-      50,
-      footerY + 30,
-      { align: 'center', width: pageWidth }
+      `Generated ${formatDate(now)}`,
+      40,
+      footerY,
+      { width: pageWidth, align: 'right' }
     )
-
-    // Version info if published
-    if (schedule.version > 1) {
-      doc.text(
-        `Version ${schedule.version}`,
-        50,
-        footerY + 45,
-        { align: 'center', width: pageWidth }
-      )
-    }
 
     doc.end()
   })
