@@ -21,6 +21,51 @@ const generationWarnings = ref<string[]>([])
 const generationStats = ref<{ totalSessions: number; patientsScheduled: number; therapistsUsed: number } | null>(null)
 const generationError = ref('')
 
+// Calendar preview
+const timeSlots = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM']
+
+const previewWeekDays = computed(() => {
+  if (!selectedWeek.value) return []
+  const days = []
+  const startDate = new Date(selectedWeek.value)
+  for (let i = 0; i < 5; i++) {
+    const date = new Date(startDate)
+    date.setDate(startDate.getDate() + i)
+    days.push({
+      name: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][i],
+      date: date,
+      dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      isoDate: date.toISOString().split('T')[0]
+    })
+  }
+  return days
+})
+
+function getSessionsForSlot(dayIsoDate: string, timeSlot: string) {
+  const sessions = schedulesStore.currentSchedule?.sessions || []
+  // Convert time slot to 24h format for matching
+  const timeMap: Record<string, string> = {
+    '9:00 AM': '09:00',
+    '10:00 AM': '10:00',
+    '11:00 AM': '11:00',
+    '1:00 PM': '13:00',
+    '2:00 PM': '14:00',
+    '3:00 PM': '15:00'
+  }
+  const targetTime = timeMap[timeSlot]
+
+  return sessions.filter(session => {
+    const sessionDate = session.date?.split('T')[0]
+    const sessionTime = session.startTime?.substring(0, 5)
+    return sessionDate === dayIsoDate && sessionTime === targetTime
+  })
+}
+
+function getTherapistColor(session: { therapistId?: string; staffId?: string }): 'blue' | 'green' {
+  const therapistId = session.therapistId || session.staffId
+  return (therapistId?.charCodeAt(0) ?? 0) % 2 === 0 ? 'blue' : 'green'
+}
+
 // Get next Monday as default
 const defaultWeekStart = computed(() => {
   const today = new Date()
@@ -285,9 +330,52 @@ onMounted(() => {
               />
             </div>
 
-            <p class="text-muted">
-              Full schedule preview will be available on the Schedule page after publishing.
-            </p>
+            <!-- Calendar Grid Preview -->
+            <div class="calendar-preview">
+              <div class="calendar-grid">
+                <!-- Header Row -->
+                <div class="calendar-header-cell">Time</div>
+                <div
+                  v-for="day in previewWeekDays"
+                  :key="day.name"
+                  class="calendar-header-cell"
+                >
+                  <div>{{ day.name }}</div>
+                  <div class="text-sm text-muted">{{ day.dateStr }}</div>
+                </div>
+
+                <!-- Time Slot Rows -->
+                <template v-for="timeSlot in timeSlots" :key="timeSlot">
+                  <div class="calendar-time">{{ timeSlot }}</div>
+                  <div
+                    v-for="day in previewWeekDays"
+                    :key="`${timeSlot}-${day.name}`"
+                    class="calendar-cell"
+                  >
+                    <div
+                      v-for="session in getSessionsForSlot(day.isoDate, timeSlot)"
+                      :key="session.id"
+                      :class="['calendar-event', getTherapistColor(session)]"
+                    >
+                      <div class="therapist">{{ session.therapistName || 'Therapist' }}</div>
+                      <div class="patient">{{ session.patientName || 'Patient' }}</div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Legend -->
+              <div class="calendar-legend">
+                <div class="legend-item">
+                  <div class="legend-box blue"></div>
+                  <span class="text-sm">Male Therapist</span>
+                </div>
+                <div class="legend-item">
+                  <div class="legend-box green"></div>
+                  <span class="text-sm">Female Therapist</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="card-footer">
             <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -436,9 +524,140 @@ onMounted(() => {
   gap: 16px;
 }
 
+/* Calendar Preview Styles */
+.calendar-preview {
+  margin-top: 24px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: 80px repeat(5, 1fr);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.calendar-header-cell {
+  padding: 12px 8px;
+  text-align: center;
+  background-color: var(--background-color);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.calendar-time {
+  padding: 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background-color: var(--background-color);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.calendar-cell {
+  min-height: 60px;
+  padding: 4px;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--card-background);
+}
+
+.calendar-cell:last-child {
+  border-right: none;
+}
+
+.calendar-event {
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.calendar-event.blue {
+  background-color: var(--primary-light);
+  border-left: 3px solid var(--primary-color);
+}
+
+.calendar-event.green {
+  background-color: var(--success-light);
+  border-left: 3px solid var(--success-color);
+}
+
+.calendar-event .therapist {
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-event .patient {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-legend {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+}
+
+.legend-box.blue {
+  background: var(--primary-light);
+  border-left: 3px solid var(--primary-color);
+}
+
+.legend-box.green {
+  background: var(--success-light);
+  border-left: 3px solid var(--success-color);
+}
+
 @media (max-width: 768px) {
   .summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .calendar-grid {
+    grid-template-columns: 60px repeat(5, 1fr);
+    font-size: 10px;
+  }
+
+  .calendar-header-cell {
+    padding: 8px 4px;
+    font-size: 11px;
+  }
+
+  .calendar-time {
+    font-size: 10px;
+    padding: 6px;
+  }
+
+  .calendar-cell {
+    min-height: 50px;
+    padding: 2px;
+  }
+
+  .calendar-event {
+    padding: 4px;
+    font-size: 10px;
   }
 }
 </style>
