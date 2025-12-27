@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useStaffStore } from '@/stores/staff'
-import { VoiceInput, Modal, Alert, Badge, Button, SearchBox } from '@/components/ui'
+import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, SearchBox } from '@/components/ui'
 import { voiceService } from '@/services/api'
 import type { Staff } from '@/types'
 
 const staffStore = useStaffStore()
+
+// Voice hints modal ref
+const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
 
 const searchQuery = ref('')
 const statusFilter = ref('')
@@ -171,11 +174,16 @@ watch([statusFilter, genderFilter], () => {
     </header>
 
     <div class="page-content">
+      <!-- Voice Hints Modal -->
+      <VoiceHintsModal ref="voiceHintsModal" page-type="staff" />
+
       <!-- Voice Interface -->
       <VoiceInput
         title="Voice Staff Management"
-        description="Click the microphone and speak to add or update staff members. Example: 'Add a therapist named Sarah Jones with speech therapy certification'"
+        description="Click the microphone and speak to add or update staff members."
+        :show-hints-link="true"
         @result="handleVoiceResult"
+        @show-hints="voiceHintsModal?.openModal()"
       />
 
       <!-- Voice Loading State -->

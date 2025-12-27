@@ -27,16 +27,19 @@ interface SpeechRecognitionInstance {
 interface Props {
   title?: string
   description?: string
+  showHintsLink?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: 'Voice Input',
-  description: 'Click the microphone and speak'
+  description: 'Click the microphone and speak',
+  showHintsLink: false
 })
 
 const emit = defineEmits<{
   result: [transcript: string]
   error: [error: string]
+  showHints: []
 }>()
 
 const isRecording = ref(false)
@@ -123,7 +126,7 @@ function toggleRecording() {
 <template>
   <div class="voice-interface">
     <h3>{{ props.title }}</h3>
-    <p>{{ props.description }}</p>
+    <p class="voice-description">{{ props.description }}</p>
 
     <button class="mic-button" :class="{ recording: isRecording }" @click="toggleRecording">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="32" height="32">
@@ -132,6 +135,13 @@ function toggleRecording() {
     </button>
 
     <p class="voice-status">{{ status }}</p>
+
+    <button v-if="showHintsLink" class="hints-link" @click="emit('showHints')">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      View voice command examples
+    </button>
 
     <div v-if="transcript" class="transcription-box">
       <div class="label">Heard:</div>

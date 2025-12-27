@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { usePatientsStore } from '@/stores/patients'
-import { VoiceInput, Modal, Alert, Badge, Button, SearchBox } from '@/components/ui'
+import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, SearchBox } from '@/components/ui'
 import { voiceService } from '@/services/api'
 import type { Patient } from '@/types'
 
 const patientsStore = usePatientsStore()
+
+// Voice hints modal ref
+const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
 
 const searchQuery = ref('')
 const statusFilter = ref('')
@@ -178,11 +181,16 @@ watch([statusFilter, genderFilter], () => {
     </header>
 
     <div class="page-content">
+      <!-- Voice Hints Modal -->
+      <VoiceHintsModal ref="voiceHintsModal" page-type="patients" />
+
       <!-- Voice Interface -->
       <VoiceInput
         title="Voice Patient Management"
-        description="Click the microphone and speak to add or update patients. Example: 'Add a new patient named John Smith who needs 3 sessions per week'"
+        description="Click the microphone and speak to add or update patients."
+        :show-hints-link="true"
         @result="handleVoiceResult"
+        @show-hints="voiceHintsModal?.openModal()"
       />
 
       <!-- Voice Loading State -->

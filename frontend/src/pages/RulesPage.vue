@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRulesStore } from '@/stores/rules'
-import { VoiceInput, Modal, Alert, Badge, Button, Toggle } from '@/components/ui'
+import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, Toggle } from '@/components/ui'
 import type { Rule } from '@/types'
 
 const rulesStore = useRulesStore()
+
+// Voice hints modal ref
+const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
 
 // Add rule modal
 const showAddModal = ref(false)
@@ -135,11 +138,16 @@ onMounted(() => {
     </header>
 
     <div class="page-content">
+      <!-- Voice Hints Modal -->
+      <VoiceHintsModal ref="voiceHintsModal" page-type="rules" />
+
       <!-- Voice Interface -->
       <VoiceInput
         title="Add Rule by Voice"
-        description="Click the microphone and speak your scheduling rule. Example: 'Female patients should be paired with female therapists'"
+        description="Click the microphone and speak your scheduling rule naturally."
+        :show-hints-link="true"
         @result="handleVoiceResult"
+        @show-hints="voiceHintsModal?.openModal()"
       />
 
       <!-- Voice Loading State -->
@@ -225,21 +233,6 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Example Voice Commands -->
-      <div class="card mt-3">
-        <div class="card-header">
-          <h3>Example Voice Commands</h3>
-        </div>
-        <div class="card-body">
-          <div class="example-commands">
-            <div class="example-chip">"Male therapists can only work with male patients"</div>
-            <div class="example-chip">"Sarah should always be scheduled with Emily"</div>
-            <div class="example-chip">"No scheduling on federal holidays"</div>
-            <div class="example-chip">"Maximum 2 sessions per therapist per day"</div>
-            <div class="example-chip">"John only works Monday through Thursday"</div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Add Rule Modal -->
@@ -380,19 +373,5 @@ onMounted(() => {
   font-size: 12px;
   opacity: 0.7;
   margin-bottom: 8px;
-}
-
-.example-commands {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.example-chip {
-  background-color: var(--background-color);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 13px;
-  color: var(--text-secondary);
 }
 </style>
