@@ -6,15 +6,18 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
 // Prisma 7 requires a driver adapter for database connections
 function createPrismaClient(): PrismaClient {
-  let connectionString = process.env.DATABASE_URL || ''
+  const connectionString = process.env.DATABASE_URL || ''
 
-  // In production, add SSL mode to connection string for AWS RDS
-  if (process.env.NODE_ENV === 'production' && connectionString && !connectionString.includes('sslmode=')) {
-    const separator = connectionString.includes('?') ? '&' : '?'
-    connectionString = `${connectionString}${separator}sslmode=no-verify`
+  // Configure pool with SSL for AWS RDS (self-signed certificate)
+  const poolConfig = {
+    connectionString,
+    // In production, accept self-signed certificates from AWS RDS
+    ssl: process.env.NODE_ENV === 'production'
+      ? { rejectUnauthorized: false }
+      : undefined
   }
 
-  const adapter = new PrismaPg({ connectionString })
+  const adapter = new PrismaPg(poolConfig)
   return new PrismaClient({ adapter })
 }
 
