@@ -189,8 +189,9 @@ export function validateSessions(
   for (const patient of patients) {
     const scheduledCount = patientSessions.get(patient.id)?.length || 0
     if (scheduledCount < patient.sessionFrequency) {
+      const displayId = patient.identifier || patient.id
       warnings.push(
-        `${patient.name} scheduled for ${scheduledCount}/${patient.sessionFrequency} sessions`
+        `Patient ${patient.name} (ID: ${displayId}) is scheduled for ${scheduledCount} sessions instead of the requested ${patient.sessionFrequency}.`
       )
     }
   }

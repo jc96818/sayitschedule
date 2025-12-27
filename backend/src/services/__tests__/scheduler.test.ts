@@ -96,6 +96,7 @@ describe('validateSessions', () => {
   const basePatients: PatientForScheduling[] = [
     {
       id: 'patient-1',
+      identifier: 'EC-001',
       name: 'Emily Carter',
       gender: 'female',
       sessionFrequency: 2,
@@ -104,6 +105,7 @@ describe('validateSessions', () => {
     },
     {
       id: 'patient-2',
+      identifier: 'MB-002',
       name: 'Michael Brown',
       gender: 'male',
       sessionFrequency: 3,
@@ -340,7 +342,7 @@ describe('validateSessions', () => {
       const result = validateSessions(sessions, baseStaff, basePatients)
 
       expect(result.valid).toHaveLength(1)
-      expect(result.warnings).toContain('Michael Brown scheduled for 1/3 sessions')
+      expect(result.warnings).toContain('Patient Michael Brown (ID: MB-002) is scheduled for 1 sessions instead of the requested 3.')
     })
 
     it('warns for patient with zero sessions scheduled', () => {
@@ -357,7 +359,7 @@ describe('validateSessions', () => {
 
       const result = validateSessions(sessions, baseStaff, basePatients)
 
-      expect(result.warnings).toContain('Emily Carter scheduled for 0/2 sessions')
+      expect(result.warnings).toContain('Patient Emily Carter (ID: EC-001) is scheduled for 0 sessions instead of the requested 2.')
     })
 
     it('no warning when patient gets required sessions', () => {

@@ -24,6 +24,7 @@ export interface StaffForScheduling {
 
 export interface PatientForScheduling {
   id: string
+  identifier: string | null
   name: string
   gender: 'male' | 'female' | 'other'
   sessionFrequency: number
@@ -70,7 +71,9 @@ function formatStaffForPrompt(staff: StaffForScheduling[]): string {
 
 function formatPatientsForPrompt(patients: PatientForScheduling[]): string {
   return patients.map(p => {
+    const displayId = p.identifier || p.id
     return `- ID: ${p.id}
+  Patient ID: ${displayId}
   Name: ${p.name}
   Gender: ${p.gender}
   Sessions Per Week: ${p.sessionFrequency}
