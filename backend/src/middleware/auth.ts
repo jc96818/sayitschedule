@@ -1,5 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { JWTPayload, UserRole } from '../types/index.js'
+import { validateTenantAccess } from './tenantValidation.js'
 
 export async function authenticate(
   request: FastifyRequest,
@@ -15,10 +16,10 @@ export async function authenticate(
     const decoded = await request.jwtVerify<JWTPayload>()
     request.ctx.user = decoded
 
-    // Set organization context from user if not already set
-    if (!request.ctx.organizationId && decoded.organizationId) {
-      request.ctx.organizationId = decoded.organizationId
-    }
+    // Apply tenant validation to enforce JWT org as source of truth
+    // This prevents host-org confusion attacks where attacker uses
+    // their valid JWT but sends request to another org's subdomain
+    await validateTenantAccess(request, reply)
   } catch {
     return reply.status(401).send({ error: 'Invalid token' })
   }
@@ -27,6 +28,11 @@ export async function authenticate(
 export function requireRole(...roles: UserRole[]) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     await authenticate(request, reply)
+
+    // Return early if authenticate/validateTenantAccess already sent a response
+    if (reply.sent) {
+      return
+    }
 
     if (!request.ctx.user) {
       return reply.status(401).send({ error: 'Unauthorized' })
