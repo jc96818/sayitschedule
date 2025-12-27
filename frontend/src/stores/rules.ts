@@ -107,11 +107,18 @@ export const useRulesStore = defineStore('rules', () => {
       const parsed = response.data
 
       if (parsed.commandType === 'create_rule' && parsed.confidence >= 0.5) {
+        // Ensure category is valid, default to 'session' if not recognized
+        const validCategories: RuleCategory[] = ['gender_pairing', 'session', 'availability', 'specific_pairing', 'certification']
+        const category = validCategories.includes(parsed.data.category as RuleCategory)
+          ? (parsed.data.category as RuleCategory)
+          : 'session'
+
         pendingRule.value = {
-          category: (parsed.data.category as RuleCategory) || 'custom',
+          category,
           description: (parsed.data.description as string) || transcript,
+          ruleLogic: (parsed.data.ruleLogic as Record<string, unknown>) || {},
           isActive: true,
-          priority: (parsed.data.priority as number) || 50
+          priority: (parsed.data.priority as number) || 5
         }
         parseConfidence.value = parsed.confidence
       } else {
