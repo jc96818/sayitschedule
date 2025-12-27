@@ -434,3 +434,158 @@ Ensure the ACM certificate:
 ```bash
 aws acm describe-certificate --certificate-arn YOUR_CERT_ARN
 ```
+
+---
+
+## Database Migrations with Prisma
+
+Say It Schedule uses Prisma 7 with the PostgreSQL driver adapter (`@prisma/adapter-pg`) for database management.
+
+### How Migrations Work
+
+| Environment | Command | When |
+|-------------|---------|------|
+| Development | `npx prisma migrate dev` | Creating new migrations |
+| Production | `npx prisma migrate deploy` | Applying migrations (via CI/CD) |
+
+### Initial Deployment (Clean Database)
+
+For the first deployment to a new environment:
+
+1. **Deploy the application** - Push to the deployment branch (`env-demo` or `main`)
+2. **Migrations run automatically** - GitHub Actions runs `npx prisma migrate deploy` after deployment
+3. **Seed the database manually** - Run the seed script as a one-off ECS task:
+
+```bash
+# Set your cluster/service names
+CLUSTER=sayitschedule-cluster-demo
+SERVICE=sayitschedule-service-demo
+
+# Get network configuration from the running service
+SERVICE_INFO=$(aws ecs describe-services --cluster $CLUSTER --services $SERVICE)
+SUBNETS=$(echo $SERVICE_INFO | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.subnets | join(",")')
+SG=$(echo $SERVICE_INFO | jq -r '.services[0].networkConfiguration.awsvpcConfiguration.securityGroups[0]')
+TASK_DEF=$(echo $SERVICE_INFO | jq -r '.services[0].taskDefinition')
+
+# Run seed script
+aws ecs run-task \
+  --cluster $CLUSTER \
+  --task-definition $TASK_DEF \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SG],assignPublicIp=ENABLED}" \
+  --overrides '{"containerOverrides": [{"name": "sayitschedule", "command": ["node", "dist/db/seed.js"]}]}'
+```
+
+The seed creates:
+- Demo organization with subdomain `demo`
+- Super admin: `superadmin@sayitschedule.com` / `admin123`
+- Admin: `admin@demo.sayitschedule.com` / `admin123`
+- Assistant: `assistant@demo.sayitschedule.com` / `admin123`
+- Sample rooms, staff, patients, and rules
+
+### Creating New Migrations (Development)
+
+When you need to modify the database schema:
+
+```bash
+cd backend
+
+# 1. Edit the schema
+#    Modify prisma/schema.prisma with your changes
+
+# 2. Generate and apply the migration locally
+DATABASE_URL="postgresql://postgres:postgres@localhost:5433/sayitschedule" \
+  npx prisma migrate dev --name describe_your_change
+
+# 3. Regenerate the Prisma client (usually automatic)
+npx prisma generate
+
+# 4. Commit the new migration file
+git add prisma/migrations/
+git commit -m "feat: add description of schema change"
+
+# 5. Push to deploy
+git push origin env-demo  # or main for production
+```
+
+### Deploying Migrations to Production
+
+Migrations are deployed automatically via GitHub Actions:
+
+1. **On push** - The workflow builds and deploys the application
+2. **After deployment** - A separate job runs `npx prisma migrate deploy`
+3. **Migration tracking** - Prisma tracks applied migrations in `_prisma_migrations` table
+
+The relevant workflow step:
+
+```yaml
+# From .github/workflows/deploy-demo.yml
+- name: Run migration task
+  run: |
+    aws ecs run-task \
+      --overrides '{"containerOverrides": [{"name": "sayitschedule", "command": ["npx", "prisma", "migrate", "deploy"]}]}'
+```
+
+### Important Considerations
+
+#### Migration History
+
+- Never delete migration files after they've been deployed
+- Each migration is tracked by filename in `_prisma_migrations`
+- Re-running migrations is safe (already-applied migrations are skipped)
+
+#### Breaking Changes
+
+For destructive changes (dropping columns/tables):
+
+1. **Deploy code that stops using the column/table**
+2. **Wait for deployment to complete**
+3. **Create migration to remove the schema element**
+4. **Deploy the migration**
+
+This two-phase approach prevents errors during deployment when old code might still reference removed schema.
+
+#### Rollbacks
+
+Prisma doesn't support automatic rollbacks. If a migration needs to be reversed:
+
+1. **Create a new migration** that undoes the changes
+2. **Test locally** before deploying
+3. **Deploy the reversal migration**
+
+For emergency situations, you can manually run SQL in the database, but this creates drift from the migration history.
+
+### Useful Prisma Commands
+
+```bash
+# View migration status
+npx prisma migrate status
+
+# Reset database (development only - destroys all data)
+npx prisma migrate reset
+
+# Generate Prisma client without running migrations
+npx prisma generate
+
+# Open Prisma Studio (database browser)
+npx prisma studio
+
+# Format schema file
+npx prisma format
+```
+
+### Migration Files
+
+Migration files are stored in `backend/prisma/migrations/`:
+
+```
+prisma/
+├── schema.prisma           # Schema definition
+├── migrations/
+│   └── 20251227185957_init/
+│       └── migration.sql   # SQL for initial schema
+```
+
+Each migration folder contains:
+- `migration.sql` - The SQL statements to apply
+- Migration metadata tracked in `_prisma_migrations` table
