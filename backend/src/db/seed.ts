@@ -2,15 +2,14 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcrypt'
 
-// Configure SSL for AWS RDS (self-signed certificate)
-const ssl = process.env.NODE_ENV === 'production'
-  ? { rejectUnauthorized: false }
-  : undefined
+// Build connection string with SSL for AWS RDS
+let connectionString = process.env.DATABASE_URL || ''
+if (process.env.NODE_ENV === 'production' && connectionString && !connectionString.includes('sslmode=')) {
+  const separator = connectionString.includes('?') ? '&' : '?'
+  connectionString = `${connectionString}${separator}sslmode=no-verify`
+}
 
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
-  ssl
-})
+const adapter = new PrismaPg({ connectionString })
 const prisma = new PrismaClient({ adapter })
 
 async function seed() {
