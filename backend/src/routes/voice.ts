@@ -8,6 +8,7 @@ import {
   parseRuleCommand,
   parseScheduleCommand,
   parseScheduleModifyCommand,
+  parseScheduleGenerateCommand,
   type VoiceContext,
   type ParsedVoiceCommand
 } from '../services/voiceParser.js'
@@ -182,6 +183,31 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     } catch (error) {
       console.error('Schedule voice parsing failed:', error)
       return reply.status(500).send({ error: 'Failed to parse schedule command.' })
+    }
+  })
+
+  // Parse schedule generation voice command (generate a new weekly schedule)
+  fastify.post('/parse/schedule-generate', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const organizationId = request.ctx.organizationId
+
+    if (!organizationId) {
+      return reply.status(400).send({ error: 'Organization context required' })
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return reply.status(503).send({
+        error: 'Voice parsing service not configured.'
+      })
+    }
+
+    const { transcript } = z.object({ transcript: z.string().min(1) }).parse(request.body)
+
+    try {
+      const result = await parseScheduleGenerateCommand(transcript)
+      return { data: result }
+    } catch (error) {
+      console.error('Schedule generation voice parsing failed:', error)
+      return reply.status(500).send({ error: 'Failed to parse schedule generation command.' })
     }
   })
 }

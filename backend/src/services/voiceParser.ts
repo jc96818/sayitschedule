@@ -21,9 +21,10 @@ export type VoiceCommandType =
   | 'schedule_session'
   | 'modify_session'
   | 'cancel_session'
+  | 'generate_schedule'
   | 'unknown'
 
-export type VoiceContext = 'patient' | 'staff' | 'rule' | 'schedule' | 'schedule_modify' | 'general'
+export type VoiceContext = 'patient' | 'staff' | 'rule' | 'schedule' | 'schedule_modify' | 'schedule_generate' | 'general'
 
 export interface ParsedPatientData {
   name: string
@@ -169,6 +170,33 @@ EXAMPLES:
 - "Cancel Sarah's Friday 10 AM" → action: cancel, therapistName: Sarah, currentDayOfWeek: friday, currentStartTime: 10:00
 - "Reschedule Monday 2 PM with Emma to Wednesday" → action: move, patientName: Emma, currentDayOfWeek: monday, currentStartTime: 14:00, newDayOfWeek: wednesday`,
 
+    schedule_generate: `${basePrompt}
+
+The user wants to GENERATE a new weekly schedule. They need to specify which week to generate.
+Extract the week information:
+
+EXTRACT:
+- weekReference: How the user referred to the week (e.g., "this week", "next week", "the week of January 6th")
+- weekStartDate: The Monday of that week in YYYY-MM-DD format (calculate based on today's date and the reference)
+
+TODAY'S DATE CONTEXT:
+- Use today's date to calculate relative references like "this week" or "next week"
+- "This week" means the current week (Monday of current week)
+- "Next week" means the following week
+- "Week of [date]" means find the Monday of that week
+
+EXAMPLES:
+- "Generate a schedule for this week" → weekReference: "this week", weekStartDate: <Monday of current week>
+- "Create next week's schedule" → weekReference: "next week", weekStartDate: <Monday of next week>
+- "Generate schedule for the week of January 6th" → weekReference: "week of January 6th", weekStartDate: "2025-01-06" (if Jan 6 is a Monday, otherwise find that week's Monday)
+- "Make a schedule starting Monday the 13th" → weekReference: "Monday the 13th", weekStartDate: <that Monday's date>
+
+IMPORTANT:
+- Always return weekStartDate as a Monday in YYYY-MM-DD format
+- If the user mentions a specific date that's not a Monday, find the Monday of that week
+- Include confidence 0.9+ if the week is clearly specified
+- Include a warning if you had to infer or calculate the date`,
+
     general: `${basePrompt}
 
 Determine what type of command the user is trying to execute:
@@ -183,12 +211,14 @@ Determine what type of command the user is trying to execute:
 }
 
 function getUserPrompt(transcript: string, context: VoiceContext): string {
-  // For schedule_modify, use a different command type pattern
+  // For schedule_modify and schedule_generate, use different command type patterns
   let commandTypeHint: string
   if (context === 'general') {
     commandTypeHint = '<detected_type>'
   } else if (context === 'schedule_modify') {
     commandTypeHint = '<modify_session or cancel_session based on action>'
+  } else if (context === 'schedule_generate') {
+    commandTypeHint = 'generate_schedule'
   } else {
     commandTypeHint = `create_${context}`
   }
@@ -290,4 +320,9 @@ export async function parseScheduleCommand(transcript: string): Promise<ParsedVo
 // Helper function to parse schedule modification commands (move, cancel, swap)
 export async function parseScheduleModifyCommand(transcript: string): Promise<ParsedVoiceCommand> {
   return parseVoiceCommand(transcript, 'schedule_modify')
+}
+
+// Helper function to parse schedule generation commands (generate a week's schedule)
+export async function parseScheduleGenerateCommand(transcript: string): Promise<ParsedVoiceCommand> {
+  return parseVoiceCommand(transcript, 'schedule_generate')
 }

@@ -249,7 +249,7 @@ export const scheduleService = {
 export type VoiceContext = 'patient' | 'staff' | 'rule' | 'schedule' | 'schedule_modify' | 'general'
 
 export interface ParsedVoiceCommand {
-  commandType: 'create_patient' | 'create_staff' | 'create_rule' | 'schedule_session' | 'modify_session' | 'cancel_session' | 'unknown'
+  commandType: 'create_patient' | 'create_staff' | 'create_rule' | 'schedule_session' | 'modify_session' | 'cancel_session' | 'generate_schedule' | 'unknown'
   confidence: number
   data: Record<string, unknown>
   warnings: string[]
@@ -280,6 +280,11 @@ export const voiceService = {
 
   async parseSchedule(transcript: string): Promise<ApiResponse<ParsedVoiceCommand>> {
     const { data } = await api.post('/voice/parse/schedule', { transcript })
+    return data
+  },
+
+  async parseScheduleGenerate(transcript: string): Promise<ApiResponse<ParsedVoiceCommand>> {
+    const { data } = await api.post('/voice/parse/schedule-generate', { transcript })
     return data
   }
 }

@@ -3,7 +3,7 @@ import { ref, onMounted, watch } from 'vue'
 import Modal from './Modal.vue'
 import Button from './Button.vue'
 
-type PageType = 'rules' | 'staff' | 'patients' | 'schedule'
+type PageType = 'rules' | 'staff' | 'patients' | 'schedule' | 'schedule_generate'
 
 interface VoiceHint {
   example: string
@@ -113,6 +113,28 @@ const hintsData: Record<PageType, { title: string; intro: string; hints: VoiceHi
       {
         example: "Remove the 3 PM session with Emma",
         description: 'Cancels a session identified by the patient name and time.'
+      }
+    ]
+  },
+  schedule_generate: {
+    title: 'Voice Commands for Schedule Generation',
+    intro: 'Generate a new weekly schedule using voice commands. Be sure to specify which week you want to generate.',
+    hints: [
+      {
+        example: 'Generate a schedule for next week',
+        description: 'Creates a new schedule starting from the Monday of the following week.'
+      },
+      {
+        example: 'Create a schedule for this week',
+        description: 'Generates a schedule for the current week, starting from this Monday.'
+      },
+      {
+        example: 'Generate the schedule for the week of January 13th',
+        description: 'Creates a schedule for the specific week containing that date.'
+      },
+      {
+        example: 'Make a schedule starting Monday the 20th',
+        description: 'Generates a schedule beginning on the specified Monday date.'
       }
     ]
   }

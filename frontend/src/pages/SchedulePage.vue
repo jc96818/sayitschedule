@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useSchedulesStore } from '@/stores/schedules'
 import { useStaffStore } from '@/stores/staff'
 import { Button, Badge, Alert, StatCard, VoiceInput, VoiceHintsModal } from '@/components/ui'
+import { voiceService } from '@/services/api'
 import { getFederalHoliday } from '@/utils/holidays'
 import type { Session } from '@/types'
 
@@ -11,11 +12,21 @@ const staffStore = useStaffStore()
 
 // Voice hints modal ref
 const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
+const voiceGenerateHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
 
 // Voice modification state
 const showVoiceConfirmation = ref(false)
 const voiceTranscript = ref('')
 const voiceError = ref('')
+
+// Voice generation state
+const showGenerateConfirmation = ref(false)
+const generateTranscript = ref('')
+const generateError = ref('')
+const parseGenerating = ref(false)
+const parsedWeekDate = ref('')
+const parsedWeekReference = ref('')
+const parseGenerateConfidence = ref(0)
 
 const viewMode = ref<'calendar' | 'therapist' | 'patient'>('calendar')
 const selectedTherapist = ref('')
@@ -277,6 +288,65 @@ function cancelModification() {
   voiceTranscript.value = ''
 }
 
+// Voice generation handlers
+async function handleGenerateVoiceResult(transcript: string) {
+  generateTranscript.value = transcript
+  generateError.value = ''
+  parseGenerating.value = true
+  try {
+    const response = await voiceService.parseScheduleGenerate(transcript)
+    const parsed = response.data
+
+    if (parsed.commandType === 'generate_schedule' && parsed.confidence >= 0.5) {
+      const data = parsed.data as Record<string, unknown>
+      parsedWeekDate.value = data.weekStartDate as string || ''
+      parsedWeekReference.value = data.weekReference as string || ''
+      parseGenerateConfidence.value = parsed.confidence
+      showGenerateConfirmation.value = true
+    } else {
+      generateError.value = 'Could not understand the command. Try something like "Generate a schedule for next week"'
+    }
+  } catch (error) {
+    generateError.value = error instanceof Error ? error.message : 'Failed to parse voice command'
+  } finally {
+    parseGenerating.value = false
+  }
+}
+
+async function confirmGenerate() {
+  if (!parsedWeekDate.value) {
+    generateError.value = 'No week date parsed from command'
+    return
+  }
+
+  try {
+    await schedulesStore.generateSchedule(parsedWeekDate.value)
+    showGenerateConfirmation.value = false
+    generateTranscript.value = ''
+    parsedWeekDate.value = ''
+    parsedWeekReference.value = ''
+    parseGenerateConfidence.value = 0
+    // Navigate to the generated week
+    const generatedDate = new Date(parsedWeekDate.value)
+    const today = new Date()
+    const currentMonday = new Date(today)
+    currentMonday.setDate(today.getDate() - today.getDay() + 1)
+    currentMonday.setHours(0, 0, 0, 0)
+    const diffWeeks = Math.round((generatedDate.getTime() - currentMonday.getTime()) / (7 * 24 * 60 * 60 * 1000))
+    weekOffset.value = diffWeeks
+  } catch (error) {
+    generateError.value = error instanceof Error ? error.message : 'Failed to generate schedule'
+  }
+}
+
+function cancelGenerate() {
+  showGenerateConfirmation.value = false
+  generateTranscript.value = ''
+  parsedWeekDate.value = ''
+  parsedWeekReference.value = ''
+  parseGenerateConfidence.value = 0
+}
+
 function formatTime(time?: string): string {
   if (!time) return ''
   const [hours, minutes] = time.split(':')
@@ -394,18 +464,78 @@ onMounted(() => {
       </Alert>
 
       <!-- No Schedule State -->
-      <div v-else-if="!currentSchedule" class="card">
-        <div class="card-body text-center" style="padding: 48px;">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="48" height="48" style="margin: 0 auto 16px; color: var(--text-muted);">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <h3 style="margin-bottom: 8px;">No Schedule for This Week</h3>
-          <p class="text-muted" style="margin-bottom: 24px;">Generate a new schedule to get started.</p>
-          <RouterLink to="/schedule/generate" class="btn btn-primary">
-            Generate Schedule
-          </RouterLink>
+      <template v-else-if="!currentSchedule">
+        <!-- Voice Generation Hints Modal -->
+        <VoiceHintsModal ref="voiceGenerateHintsModal" page-type="schedule_generate" />
+
+        <!-- Voice Generation Interface -->
+        <VoiceInput
+          title="Generate Schedule by Voice"
+          description="Click the microphone and say which week to generate. Be sure to specify the date or week."
+          :show-hints-link="true"
+          @result="handleGenerateVoiceResult"
+          @show-hints="voiceGenerateHintsModal?.openModal()"
+        />
+
+        <!-- Voice Parsing Loading State -->
+        <div v-if="parseGenerating" class="card mb-3">
+          <div class="card-body text-center">
+            <p class="text-muted">Processing voice command...</p>
+          </div>
         </div>
-      </div>
+
+        <!-- Voice Generate Error -->
+        <Alert v-if="generateError" variant="warning" class="mb-3" dismissible @dismiss="generateError = ''">
+          {{ generateError }}
+        </Alert>
+
+        <!-- Voice Generation Confirmation -->
+        <div v-if="showGenerateConfirmation && parsedWeekDate" class="confirmation-card">
+          <h4>Confirm Schedule Generation</h4>
+          <div class="transcription-box mb-2">
+            <div class="label">You said:</div>
+            <div>"{{ generateTranscript }}"</div>
+          </div>
+          <div class="modification-preview">
+            <strong>Generate Schedule:</strong>
+            <div class="modification-details">
+              <div class="detail-row">
+                <span class="detail-label">Week:</span>
+                <span>{{ parsedWeekReference || parsedWeekDate }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Start Date:</span>
+                <span>{{ formatDate(new Date(parsedWeekDate)) }}</span>
+              </div>
+            </div>
+            <div v-if="parseGenerateConfidence" class="confidence-indicator">
+              Confidence: {{ Math.round(parseGenerateConfidence * 100) }}%
+            </div>
+          </div>
+          <div class="confirmation-actions">
+            <Button variant="success" @click="confirmGenerate" :loading="schedulesStore.generating">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Generate Schedule
+            </Button>
+            <Button variant="ghost" class="text-danger" @click="cancelGenerate">Cancel</Button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body text-center" style="padding: 48px;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="48" height="48" style="margin: 0 auto 16px; color: var(--text-muted);">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <h3 style="margin-bottom: 8px;">No Schedule for This Week</h3>
+            <p class="text-muted" style="margin-bottom: 24px;">Generate a new schedule using voice or the button below.</p>
+            <RouterLink to="/schedule/generate" class="btn btn-primary">
+              Generate Schedule
+            </RouterLink>
+          </div>
+        </div>
+      </template>
 
       <!-- Schedule View -->
       <template v-else>
