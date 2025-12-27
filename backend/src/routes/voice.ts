@@ -39,7 +39,7 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     const { transcript, context } = body
 
     try {
-      console.log(`Parsing voice command: "${transcript}" (context: ${context})`)
+      // NOTE: Do not log transcript - it contains PII (patient/staff names)
 
       let result: ParsedVoiceCommand
 
