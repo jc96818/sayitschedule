@@ -105,13 +105,6 @@ function getSessionsForTimeSlot(dayIndex: number, timeSlot: string): Session[] {
   })
 }
 
-function getTherapistGender(session: Session): 'male' | 'female' | 'unknown' {
-  const therapistId = session.therapistId || session.staffId
-  const therapist = staffStore.staff.find((s) => s.id === therapistId)
-  const gender = therapist?.gender
-  if (gender === 'male' || gender === 'female') return gender
-  return 'unknown'
-}
 
 function handlePrint() {
   window.print()
@@ -203,7 +196,6 @@ onMounted(async () => {
                 v-for="session in getSessionsForTimeSlot(dayIndex, timeSlot)"
                 :key="session.id"
                 class="session"
-                :class="getTherapistGender(session)"
               >
                 <div class="therapist-name">{{ session.therapistName || 'Unknown' }}</div>
                 <div class="patient-name">{{ session.patientName || 'Unknown' }}</div>
@@ -221,14 +213,6 @@ onMounted(async () => {
           <span>Therapists: {{ stats.therapistsScheduled }}</span>
           <span class="divider">|</span>
           <span>Patients: {{ stats.patientsCovered }}</span>
-        </div>
-        <div class="legend">
-          <span class="legend-item">
-            <span class="legend-marker male"></span> Male Therapist
-          </span>
-          <span class="legend-item">
-            <span class="legend-marker female"></span> Female Therapist
-          </span>
         </div>
         <div class="generated">
           Generated {{ new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}
@@ -436,20 +420,8 @@ onMounted(async () => {
   padding: 3px 5px;
   margin-bottom: 2px;
   border-radius: 3px;
-  border-left: 3px solid;
+  border: 1px solid #e2e8f0;
   background: #fafafa;
-}
-
-.session.male {
-  border-left-color: #2563eb;
-}
-
-.session.female {
-  border-left-color: #10b981;
-}
-
-.session.unknown {
-  border-left-color: #94a3b8;
 }
 
 .therapist-name {
@@ -488,33 +460,6 @@ onMounted(async () => {
 
 .divider {
   color: #cbd5e1;
-}
-
-.legend {
-  display: flex;
-  gap: 12px;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.legend-marker {
-  width: 12px;
-  height: 8px;
-  border-radius: 2px;
-  border-left: 3px solid;
-  background: #fafafa;
-}
-
-.legend-marker.male {
-  border-left-color: #2563eb;
-}
-
-.legend-marker.female {
-  border-left-color: #10b981;
 }
 
 .generated {

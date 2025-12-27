@@ -11,7 +11,6 @@ interface SessionData {
   time: string
   therapistName: string
   patientName: string
-  therapistGender?: 'male' | 'female' | 'other'
 }
 
 interface DayColumn {
@@ -78,8 +77,7 @@ function buildDayColumns(schedule: ScheduleWithSessions): DayColumn[] {
         sessions.push({
           time: formatTime(timeSlot),
           therapistName: session.therapistName || 'Unknown',
-          patientName: session.patientName || 'Unknown',
-          therapistGender: session.therapistGender as 'male' | 'female' | 'other' | undefined
+          patientName: session.patientName || 'Unknown'
         })
         sessionsMap.set(timeSlot, sessions)
       }
@@ -263,28 +261,26 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
         for (const session of sessions) {
           if (sessionY + 25 > rowY + rowHeight - 2) break // Prevent overflow
 
-          // Session card with left accent border
+          // Session card with light border
           const cardX = cellX + 3
           const cardWidth = dayColWidth - 6
           const cardHeight = 22
 
-          // Background
+          // Background with border
           doc.rect(cardX, sessionY, cardWidth, cardHeight)
             .fillColor(COLORS.sessionBg)
             .fill()
-
-          // Left accent border based on gender
-          const accentColor = session.therapistGender === 'female' ? COLORS.success : COLORS.primary
-          doc.rect(cardX, sessionY, 3, cardHeight)
-            .fillColor(accentColor)
-            .fill()
+          doc.rect(cardX, sessionY, cardWidth, cardHeight)
+            .strokeColor(COLORS.border)
+            .lineWidth(0.5)
+            .stroke()
 
           // Therapist name
           doc.fillColor(COLORS.text)
             .fontSize(7)
             .font('Helvetica-Bold')
-            .text(session.therapistName, cardX + 6, sessionY + 3, {
-              width: cardWidth - 8,
+            .text(session.therapistName, cardX + 4, sessionY + 3, {
+              width: cardWidth - 6,
               lineBreak: false,
               ellipsis: true
             })
@@ -293,8 +289,8 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
           doc.fillColor(COLORS.textSecondary)
             .fontSize(6)
             .font('Helvetica')
-            .text(session.patientName, cardX + 6, sessionY + 12, {
-              width: cardWidth - 8,
+            .text(session.patientName, cardX + 4, sessionY + 12, {
+              width: cardWidth - 6,
               lineBreak: false,
               ellipsis: true
             })
@@ -319,26 +315,6 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
       .fontSize(8)
       .font('Helvetica')
       .text(`Sessions: ${totalSessions}  |  Therapists: ${uniqueTherapists}  |  Patients: ${uniquePatients}`, 40, footerY)
-
-    // Legend (center)
-    const legendX = pageWidth / 2
-    doc.rect(legendX, footerY, 10, 8)
-      .fillColor(COLORS.sessionBg)
-      .fill()
-    doc.rect(legendX, footerY, 2, 8)
-      .fillColor(COLORS.primary)
-      .fill()
-    doc.fillColor(COLORS.textSecondary)
-      .text('Male', legendX + 14, footerY)
-
-    doc.rect(legendX + 60, footerY, 10, 8)
-      .fillColor(COLORS.sessionBg)
-      .fill()
-    doc.rect(legendX + 60, footerY, 2, 8)
-      .fillColor(COLORS.success)
-      .fill()
-    doc.fillColor(COLORS.textSecondary)
-      .text('Female', legendX + 74, footerY)
 
     // Generated date (right)
     const now = new Date()
