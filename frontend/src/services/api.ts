@@ -87,6 +87,7 @@ export const organizationService = {
     primaryColor?: string
     secondaryColor?: string
     logoUrl?: string | null
+    organizationId?: string
   }): Promise<ApiResponse<Organization>> {
     const { data } = await api.put('/organizations/current/branding', branding)
     return data

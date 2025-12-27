@@ -132,26 +132,37 @@ export async function organizationRoutes(fastify: FastifyInstance) {
         return reply.status(403).send({ error: 'Admin role required' })
       }
 
-      // Must have an organization context
-      if (!ctx.organizationId) {
-        return reply.status(400).send({ error: 'Organization context required' })
-      }
-
       const brandingSchema = z.object({
         name: z.string().min(1).optional(),
         primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
         secondaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-        logoUrl: z.string().url().nullable().optional()
+        logoUrl: z.string().url().nullable().optional(),
+        organizationId: z.string().uuid().optional()
       })
 
       const body = brandingSchema.parse(request.body)
 
-      const organization = await organizationRepository.update(ctx.organizationId, body)
+      // Super admins can specify an organization ID, regular admins use their own
+      let targetOrgId: string | undefined
+      if (ctx.role === 'super_admin' && body.organizationId) {
+        targetOrgId = body.organizationId
+      } else if (ctx.organizationId) {
+        targetOrgId = ctx.organizationId
+      }
+
+      if (!targetOrgId) {
+        return reply.status(400).send({ error: 'Organization context required' })
+      }
+
+      // Remove organizationId from the update payload
+      const { organizationId: _, ...updateData } = body
+
+      const organization = await organizationRepository.update(targetOrgId, updateData)
       if (!organization) {
         return reply.status(404).send({ error: 'Organization not found' })
       }
 
-      await logAudit(ctx.userId, 'update_branding', 'organization', ctx.organizationId, null, body)
+      await logAudit(ctx.userId, 'update_branding', 'organization', targetOrgId, null, updateData)
 
       return { data: organization }
     }

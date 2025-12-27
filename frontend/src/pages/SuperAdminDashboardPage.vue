@@ -2,11 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOrganizationsStore } from '@/stores/organizations'
+import { useAuthStore } from '@/stores/auth'
 import { Modal, Alert, Badge, Button, StatCard } from '@/components/ui'
 import type { Organization } from '@/types'
 
 const router = useRouter()
 const organizationsStore = useOrganizationsStore()
+const authStore = useAuthStore()
 
 const showCreateModal = ref(false)
 const searchQuery = ref('')
@@ -76,6 +78,8 @@ function resetForm() {
 async function handleEnterOrg(org: Organization) {
   try {
     await organizationsStore.switchContext(org.id)
+    // Also update the auth store so sidebar and other components see the org context
+    authStore.setOrganizationContext(org)
     router.push('/')
   } catch (error) {
     console.error('Failed to switch organization context:', error)

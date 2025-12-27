@@ -109,23 +109,13 @@ async function handleLogout() {
     </RouterLink>
 
     <div class="sidebar-header">
-      <div class="sidebar-brand">
-        <img
-          v-if="organization?.logoUrl"
-          :src="organization.logoUrl"
-          :alt="organization.name"
-          class="org-logo"
-        />
-        <div v-else class="org-logo-placeholder">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-          </svg>
-        </div>
-        <div class="brand-text">
-          <h1>{{ organization?.name || 'Say It Schedule' }}</h1>
-          <span>{{ organization?.subdomain || 'sayitschedule' }}.com</span>
-        </div>
-      </div>
+      <img
+        v-if="organization?.logoUrl"
+        :src="organization.logoUrl"
+        :alt="organization.name"
+        class="org-logo"
+      />
+      <h1 class="org-name">{{ organization?.name || 'Say It Schedule' }}</h1>
     </div>
 
     <nav class="sidebar-nav">
@@ -225,59 +215,29 @@ async function handleLogout() {
 }
 
 .sidebar-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  padding: 20px;
+  border-bottom: 4px solid var(--primary-color);
+  text-align: center;
 }
 
 .org-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
+  max-width: 120px;
+  max-height: 48px;
+  margin-bottom: 12px;
   object-fit: contain;
-  flex-shrink: 0;
 }
 
-.org-logo-placeholder {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  background-color: var(--primary-light);
-  color: var(--primary-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.org-logo-placeholder svg {
-  width: 24px;
-  height: 24px;
-}
-
-.brand-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.brand-text h1 {
-  font-size: 16px;
+.org-name {
+  font-size: 15px;
   font-weight: 600;
   color: var(--primary-color);
   margin: 0;
-  white-space: nowrap;
+  line-height: 1.3;
+  /* Allow wrapping for long names, but limit to 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.brand-text span {
-  font-size: 11px;
-  color: var(--text-muted);
 }
 
 .sidebar-nav {

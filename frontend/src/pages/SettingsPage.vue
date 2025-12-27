@@ -51,7 +51,8 @@ async function handleSave() {
       name: name.value,
       primaryColor: primaryColor.value,
       secondaryColor: secondaryColor.value,
-      logoUrl: logoUrl.value
+      logoUrl: logoUrl.value,
+      organizationId: organization.value.id
     })
 
     // Update the auth store with new org data
