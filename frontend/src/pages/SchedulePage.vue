@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useSchedulesStore } from '@/stores/schedules'
+import { useStaffStore } from '@/stores/staff'
 import { Button, Badge, Alert, StatCard, VoiceInput } from '@/components/ui'
+import { getFederalHoliday } from '@/utils/holidays'
 import type { Session } from '@/types'
 
 const schedulesStore = useSchedulesStore()
+const staffStore = useStaffStore()
 
 // Voice modification state
 const showVoiceConfirmation = ref(false)
@@ -36,11 +39,13 @@ const weekDays = computed(() => {
   for (let i = 0; i < 5; i++) {
     const date = new Date(currentWeekDate.value)
     date.setDate(date.getDate() + i)
+    const holidayName = getFederalHoliday(date)
     days.push({
       name: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][i],
       date: date,
       dateStr: formatShortDate(date),
-      isHoliday: false // TODO: Check against holidays
+      isHoliday: holidayName !== null,
+      holidayName: holidayName
     })
   }
   return days
@@ -83,20 +88,140 @@ function nextWeek() {
   loadSchedule()
 }
 
+// Parse time slot string to comparable format (e.g., "9:00 AM" -> "09:00")
+function parseTimeSlot(timeSlot: string): string {
+  const match = timeSlot.match(/(\d+):(\d+)\s*(AM|PM)/i)
+  if (!match) return ''
+  let hours = parseInt(match[1], 10)
+  const minutes = match[2]
+  const ampm = match[3].toUpperCase()
+  if (ampm === 'PM' && hours !== 12) hours += 12
+  if (ampm === 'AM' && hours === 12) hours = 0
+  return `${hours.toString().padStart(2, '0')}:${minutes}`
+}
+
+// Format session date for comparison (YYYY-MM-DD)
+function formatSessionDate(dateStr: string): string {
+  return dateStr.split('T')[0]
+}
+
+// Format weekday date for comparison (YYYY-MM-DD)
+function formatWeekDayDate(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
+
 function getSessionsForTimeSlot(dayIndex: number, timeSlot: string): Session[] {
   if (!currentSchedule.value?.sessions) return []
-  // Filter sessions by day and time
-  // This is a simplified version - in production, match against actual start times
-  return currentSchedule.value.sessions.filter((_session, idx) => {
-    // Mock filtering - in real implementation, check session.startTime
-    return idx % 5 === dayIndex && idx % 6 === timeSlots.indexOf(timeSlot)
-  }).slice(0, 3)
+
+  const targetDate = formatWeekDayDate(weekDays.value[dayIndex].date)
+  const targetTime = parseTimeSlot(timeSlot)
+
+  // Filter sessions to apply therapist filter if set
+  let sessions = currentSchedule.value.sessions
+
+  if (selectedTherapist.value) {
+    sessions = sessions.filter(
+      (s) => (s.therapistId || s.staffId) === selectedTherapist.value
+    )
+  }
+
+  return sessions.filter((session) => {
+    const sessionDate = formatSessionDate(session.date)
+    const sessionTime = session.startTime?.slice(0, 5) // Get HH:MM from start time
+    return sessionDate === targetDate && sessionTime === targetTime
+  })
 }
 
 function getTherapistColor(session: Session): 'blue' | 'green' {
-  // In real implementation, check therapist gender
+  // Check therapist gender from staff store
   const therapistId = session.therapistId || session.staffId
-  return (therapistId?.charCodeAt(0) ?? 0) % 2 === 0 ? 'blue' : 'green'
+  const therapist = staffStore.staff.find((s) => s.id === therapistId)
+  if (therapist?.gender === 'female') return 'green'
+  return 'blue' // Default to blue for male or unknown
+}
+
+// Group sessions by therapist for "By Therapist" view
+const sessionsByTherapist = computed(() => {
+  if (!currentSchedule.value?.sessions) return []
+
+  const grouped = new Map<string, { therapistId: string; therapistName: string; sessions: Session[] }>()
+
+  for (const session of currentSchedule.value.sessions) {
+    const therapistId = session.therapistId || session.staffId || 'unknown'
+    const therapistName = session.therapistName || therapistId.slice(0, 8)
+
+    if (!grouped.has(therapistId)) {
+      grouped.set(therapistId, { therapistId, therapistName, sessions: [] })
+    }
+    grouped.get(therapistId)!.sessions.push(session)
+  }
+
+  // Sort sessions by date and time within each therapist
+  for (const group of grouped.values()) {
+    group.sessions.sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date)
+      if (dateCompare !== 0) return dateCompare
+      return (a.startTime || '').localeCompare(b.startTime || '')
+    })
+  }
+
+  return Array.from(grouped.values()).sort((a, b) =>
+    a.therapistName.localeCompare(b.therapistName)
+  )
+})
+
+// Group sessions by patient for "By Patient" view
+const sessionsByPatient = computed(() => {
+  if (!currentSchedule.value?.sessions) return []
+
+  const grouped = new Map<string, { patientId: string; patientName: string; sessions: Session[] }>()
+
+  for (const session of currentSchedule.value.sessions) {
+    const patientId = session.patientId || 'unknown'
+    const patientName = session.patientName || patientId.slice(0, 8)
+
+    if (!grouped.has(patientId)) {
+      grouped.set(patientId, { patientId, patientName, sessions: [] })
+    }
+    grouped.get(patientId)!.sessions.push(session)
+  }
+
+  // Sort sessions by date and time within each patient
+  for (const group of grouped.values()) {
+    group.sessions.sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date)
+      if (dateCompare !== 0) return dateCompare
+      return (a.startTime || '').localeCompare(b.startTime || '')
+    })
+  }
+
+  return Array.from(grouped.values()).sort((a, b) =>
+    a.patientName.localeCompare(b.patientName)
+  )
+})
+
+// Get unique therapists from current schedule for filter dropdown
+const scheduleTherapists = computed(() => {
+  if (!currentSchedule.value?.sessions) return []
+
+  const therapists = new Map<string, string>()
+  for (const session of currentSchedule.value.sessions) {
+    const id = session.therapistId || session.staffId
+    const name = session.therapistName
+    if (id && !therapists.has(id)) {
+      therapists.set(id, name || id.slice(0, 8))
+    }
+  }
+
+  return Array.from(therapists.entries())
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+})
+
+// Format day of week from date string
+function formatDayOfWeek(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('en-US', { weekday: 'short' })
 }
 
 async function handleExportPdf() {
@@ -165,6 +290,7 @@ function capitalizeFirst(str?: string): string {
 
 onMounted(() => {
   loadSchedule()
+  staffStore.fetchStaff() // Load staff for therapist filter and gender lookup
 })
 </script>
 
@@ -358,9 +484,11 @@ onMounted(() => {
                 By Patient
               </button>
             </div>
-            <select v-model="selectedTherapist" class="form-control" style="width: auto;">
+            <select v-if="viewMode === 'calendar'" v-model="selectedTherapist" class="form-control" style="width: auto;">
               <option value="">All Therapists</option>
-              <!-- TODO: Populate from staff list -->
+              <option v-for="therapist in scheduleTherapists" :key="therapist.id" :value="therapist.id">
+                {{ therapist.name }}
+              </option>
             </select>
           </div>
         </div>
@@ -393,8 +521,8 @@ onMounted(() => {
           />
         </div>
 
-        <!-- Calendar Grid -->
-        <div class="card">
+        <!-- Calendar Grid View -->
+        <div v-if="viewMode === 'calendar'" class="card">
           <div class="card-body" style="padding: 0;">
             <div class="calendar-grid">
               <!-- Header Row -->
@@ -449,6 +577,109 @@ onMounted(() => {
               </div>
               <div v-if="currentSchedule.publishedAt" class="text-sm text-muted">
                 Published on {{ new Date(currentSchedule.publishedAt).toLocaleString() }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- By Therapist View -->
+        <div v-else-if="viewMode === 'therapist'" class="therapist-view">
+          <div v-if="sessionsByTherapist.length === 0" class="card">
+            <div class="card-body text-center">
+              <p class="text-muted">No sessions scheduled for this week.</p>
+            </div>
+          </div>
+          <div v-else class="therapist-list">
+            <div v-for="group in sessionsByTherapist" :key="group.therapistId" class="card therapist-card">
+              <div class="card-header therapist-header">
+                <div class="therapist-info">
+                  <div class="therapist-avatar" :class="getTherapistColor({ therapistId: group.therapistId } as Session)">
+                    {{ group.therapistName.charAt(0).toUpperCase() }}
+                  </div>
+                  <div>
+                    <h4>{{ group.therapistName }}</h4>
+                    <span class="text-muted text-sm">{{ group.sessions.length }} session{{ group.sessions.length !== 1 ? 's' : '' }} this week</span>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body" style="padding: 0;">
+                <table class="session-table">
+                  <thead>
+                    <tr>
+                      <th>Day</th>
+                      <th>Time</th>
+                      <th>Patient</th>
+                      <th>Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="session in group.sessions" :key="session.id">
+                      <td>
+                        <span class="day-badge">{{ formatDayOfWeek(session.date) }}</span>
+                        <span class="text-muted text-sm">{{ formatShortDate(new Date(session.date)) }}</span>
+                      </td>
+                      <td>{{ formatTime(session.startTime) }}</td>
+                      <td>{{ session.patientName || session.patientId?.slice(0, 8) }}</td>
+                      <td>
+                        <Badge variant="secondary">Standard</Badge>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- By Patient View -->
+        <div v-else-if="viewMode === 'patient'" class="patient-view">
+          <div v-if="sessionsByPatient.length === 0" class="card">
+            <div class="card-body text-center">
+              <p class="text-muted">No sessions scheduled for this week.</p>
+            </div>
+          </div>
+          <div v-else class="patient-list">
+            <div v-for="group in sessionsByPatient" :key="group.patientId" class="card patient-card">
+              <div class="card-header patient-header">
+                <div class="patient-info">
+                  <div class="patient-avatar">
+                    {{ group.patientName.charAt(0).toUpperCase() }}
+                  </div>
+                  <div>
+                    <h4>{{ group.patientName }}</h4>
+                    <span class="text-muted text-sm">{{ group.sessions.length }} session{{ group.sessions.length !== 1 ? 's' : '' }} this week</span>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body" style="padding: 0;">
+                <table class="session-table">
+                  <thead>
+                    <tr>
+                      <th>Day</th>
+                      <th>Time</th>
+                      <th>Therapist</th>
+                      <th>Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="session in group.sessions" :key="session.id">
+                      <td>
+                        <span class="day-badge">{{ formatDayOfWeek(session.date) }}</span>
+                        <span class="text-muted text-sm">{{ formatShortDate(new Date(session.date)) }}</span>
+                      </td>
+                      <td>{{ formatTime(session.startTime) }}</td>
+                      <td>
+                        <div class="therapist-cell">
+                          <span :class="['therapist-dot', getTherapistColor(session)]"></span>
+                          {{ session.therapistName || (session.therapistId || session.staffId)?.slice(0, 8) }}
+                        </div>
+                      </td>
+                      <td>
+                        <Badge variant="secondary">Standard</Badge>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -516,7 +747,7 @@ onMounted(() => {
 }
 
 .calendar-header-cell.holiday {
-  background-color: var(--danger-light);
+  background-color: #fef2f2;
 }
 
 .calendar-time {
@@ -680,5 +911,116 @@ onMounted(() => {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* By Therapist View Styles */
+.therapist-list,
+.patient-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.therapist-card,
+.patient-card {
+  overflow: hidden;
+}
+
+.therapist-header,
+.patient-header {
+  background-color: var(--background-color);
+}
+
+.therapist-info,
+.patient-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.therapist-info h4,
+.patient-info h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.therapist-avatar,
+.patient-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.therapist-avatar.blue {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+}
+
+.therapist-avatar.green {
+  background-color: var(--success-light);
+  color: var(--success-color);
+}
+
+.patient-avatar {
+  background-color: var(--warning-light, #fef3c7);
+  color: var(--warning-color, #d97706);
+}
+
+.session-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.session-table th,
+.session-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.session-table th {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background-color: var(--background-color);
+}
+
+.session-table tr:last-child td {
+  border-bottom: none;
+}
+
+.day-badge {
+  display: inline-block;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.therapist-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.therapist-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.therapist-dot.blue {
+  background-color: var(--primary-color);
+}
+
+.therapist-dot.green {
+  background-color: var(--success-color);
 }
 </style>
