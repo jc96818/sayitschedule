@@ -2,8 +2,10 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { authenticate, requireAdminOrAssistant } from '../middleware/auth.js'
 import { scheduleRepository, sessionRepository } from '../repositories/schedules.js'
+import { organizationRepository } from '../repositories/organizations.js'
 import { logAudit } from '../repositories/audit.js'
 import { generateSchedule } from '../services/scheduler.js'
+import { generateSchedulePdf } from '../services/pdfGenerator.js'
 import {
   findMatchingSessions,
   checkForConflicts,
@@ -519,16 +521,38 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    const schedule = await scheduleRepository.findById(id, organizationId)
+    // Fetch schedule with sessions
+    const schedule = await scheduleRepository.findByIdWithSessions(id, organizationId)
     if (!schedule) {
       return reply.status(404).send({ error: 'Schedule not found' })
     }
 
-    // TODO: Generate PDF using a library like pdfkit or puppeteer
-    // For now, return a placeholder
-    reply.header('Content-Type', 'application/pdf')
-    reply.header('Content-Disposition', `attachment; filename="schedule-${id}.pdf"`)
+    // Fetch organization for branding
+    const organization = await organizationRepository.findById(organizationId)
+    if (!organization) {
+      return reply.status(404).send({ error: 'Organization not found' })
+    }
 
-    return reply.send(Buffer.from('PDF content placeholder'))
+    try {
+      // Generate PDF with branding
+      const pdfBuffer = await generateSchedulePdf({
+        schedule,
+        organization
+      })
+
+      // Format filename with week date
+      const weekStart = new Date(schedule.weekStartDate)
+      const dateStr = weekStart.toISOString().split('T')[0]
+      const filename = `schedule-${dateStr}.pdf`
+
+      reply.header('Content-Type', 'application/pdf')
+      reply.header('Content-Disposition', `attachment; filename="${filename}"`)
+      reply.header('Content-Length', pdfBuffer.length)
+
+      return reply.send(pdfBuffer)
+    } catch (error) {
+      console.error('PDF generation failed:', error)
+      return reply.status(500).send({ error: 'Failed to generate PDF' })
+    }
   })
 }
