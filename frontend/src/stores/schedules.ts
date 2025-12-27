@@ -138,7 +138,12 @@ export const useSchedulesStore = defineStore('schedules', () => {
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `schedule-${id}.pdf`
+      // Use week start date for filename instead of GUID
+      const schedule = currentSchedule.value?.id === id
+        ? currentSchedule.value
+        : schedules.value.find(s => s.id === id)
+      const weekDate = schedule?.weekStartDate?.split('T')[0] || id
+      link.download = `schedule-${weekDate}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)

@@ -9,6 +9,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/schedule/:id/print',
+    name: 'schedule-print',
+    component: () => import('@/pages/SchedulePrintPage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/',
     component: () => import('@/layouts/AppLayout.vue'),
     meta: { requiresAuth: true },
