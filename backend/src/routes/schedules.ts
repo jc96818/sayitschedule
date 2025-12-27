@@ -388,7 +388,8 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       return reply.status(404).send({ error: 'Schedule not found' })
     }
 
-    const deleted = await sessionRepository.delete(sessionId, scheduleId)
+    // SECURITY: Pass organizationId to ensure session belongs to org-owned schedule
+    const deleted = await sessionRepository.delete(sessionId, scheduleId, organizationId)
     if (!deleted) {
       return reply.status(404).send({ error: 'Session not found' })
     }
@@ -448,7 +449,8 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       case 'cancel': {
         // Cancel (delete) the matching session(s)
         const session = matchingResults[0].session
-        const deleted = await sessionRepository.delete(session.id, id)
+        // SECURITY: Pass organizationId to ensure session belongs to org-owned schedule
+        const deleted = await sessionRepository.delete(session.id, id, organizationId)
 
         if (!deleted) {
           return reply.status(500).send({ error: 'Failed to cancel session' })

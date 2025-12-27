@@ -167,9 +167,17 @@ export class ScheduleRepository {
 
   async delete(id: string, organizationId: string): Promise<boolean> {
     try {
-      // Delete sessions first, then schedule
+      // SECURITY: Delete sessions only for schedules belonging to this organization
+      // Uses a subquery to ensure we only delete sessions from org-owned schedules
       await prisma.$transaction([
-        prisma.session.deleteMany({ where: { scheduleId: id } }),
+        prisma.session.deleteMany({
+          where: {
+            schedule: {
+              id,
+              organizationId
+            }
+          }
+        }),
         prisma.schedule.delete({ where: { id, organizationId } })
       ])
       return true
@@ -336,11 +344,25 @@ export class SessionRepository {
     }
   }
 
-  async delete(sessionId: string, scheduleId: string): Promise<boolean> {
+  async delete(sessionId: string, scheduleId: string, organizationId?: string): Promise<boolean> {
     try {
-      await prisma.session.delete({
-        where: { id: sessionId, scheduleId }
-      })
+      // If organizationId is provided, use a more secure delete that verifies org ownership
+      if (organizationId) {
+        await prisma.session.deleteMany({
+          where: {
+            id: sessionId,
+            schedule: {
+              id: scheduleId,
+              organizationId
+            }
+          }
+        })
+      } else {
+        // Fallback for cases where org context isn't available (should be rare)
+        await prisma.session.delete({
+          where: { id: sessionId, scheduleId }
+        })
+      }
       return true
     } catch {
       return false
