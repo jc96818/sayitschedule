@@ -89,16 +89,47 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const token = localStorage.getItem('token')
 
+  // Redirect to login if auth required but no token
   if (to.meta.requiresAuth && !token) {
     next({ name: 'login' })
-  } else if (to.name === 'login' && token) {
-    next({ name: 'dashboard' })
-  } else {
-    next()
+    return
   }
+
+  // Redirect to dashboard if already logged in and going to login
+  if (to.name === 'login' && token) {
+    next({ name: 'dashboard' })
+    return
+  }
+
+  // Check superadmin requirement
+  if (to.meta.requiresSuperAdmin) {
+    // Dynamically import to avoid circular dependency
+    const { useAuthStore } = await import('@/stores/auth')
+    const authStore = useAuthStore()
+
+    // Ensure user data is loaded
+    if (!authStore.user && token) {
+      try {
+        await authStore.fetchCurrentUser()
+      } catch {
+        // Token invalid, redirect to login
+        next({ name: 'login' })
+        return
+      }
+    }
+
+    // Check if user is superadmin
+    if (!authStore.isSuperAdmin) {
+      // Non-superadmin trying to access superadmin routes - redirect to dashboard
+      next({ name: 'dashboard' })
+      return
+    }
+  }
+
+  next()
 })
 
 export default router
