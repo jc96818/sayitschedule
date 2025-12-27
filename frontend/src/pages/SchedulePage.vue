@@ -302,6 +302,15 @@ async function handleCreateDraftCopy() {
   }
 }
 
+async function handlePublish() {
+  if (!currentSchedule.value) return
+  try {
+    await schedulesStore.publishSchedule(currentSchedule.value.id)
+  } catch (error) {
+    console.error('Failed to publish schedule:', error)
+  }
+}
+
 onMounted(() => {
   loadSchedule()
   staffStore.fetchStaff() // Load staff for therapist filter and gender lookup
@@ -311,16 +320,16 @@ onMounted(() => {
 <template>
   <div>
     <header class="header">
-      <div class="header-title">
-        <h2>Weekly Schedule</h2>
-        <p>
-          {{ weekDateRange }}
-          <Badge v-if="currentSchedule" :variant="currentSchedule.status === 'published' ? 'success' : 'warning'" style="margin-left: 8px;">
-            {{ currentSchedule.status === 'published' ? 'Published' : 'Draft' }}
-          </Badge>
-        </p>
-      </div>
-      <div class="header-actions">
+      <div class="header-left">
+        <div class="header-title">
+          <h2>Weekly Schedule</h2>
+          <p>
+            {{ weekDateRange }}
+            <Badge v-if="currentSchedule" :variant="currentSchedule.status === 'published' ? 'success' : 'warning'" style="margin-left: 8px;">
+              {{ currentSchedule.status === 'published' ? 'Published' : 'Draft' }}
+            </Badge>
+          </p>
+        </div>
         <div class="calendar-nav">
           <Button variant="outline" size="sm" @click="prevWeek">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
@@ -335,6 +344,8 @@ onMounted(() => {
             </svg>
           </Button>
         </div>
+      </div>
+      <div class="header-actions">
         <Button variant="outline" :disabled="!currentSchedule" @click="handleExportPdf">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -351,6 +362,17 @@ onMounted(() => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
           Edit Draft Copy
+        </Button>
+        <Button
+          v-if="currentSchedule?.status === 'draft'"
+          variant="primary"
+          :loading="schedulesStore.publishing"
+          @click="handlePublish"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Publish Schedule
         </Button>
         <RouterLink to="/schedule/generate" class="btn btn-primary">
           Generate New
@@ -705,11 +727,20 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.header-left .header-title {
+  min-width: 280px;
+}
+
 .calendar-nav {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-right: 16px;
 }
 
 .view-tabs {
