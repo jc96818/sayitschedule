@@ -12,6 +12,7 @@ import {
   calculateNewEndTime,
   getDateForDayOfWeek
 } from '../services/sessionLookup.js'
+import { validateSessionEntities } from '../services/sessionValidation.js'
 
 const generateScheduleSchema = z.object({
   weekStartDate: z.string()
@@ -20,6 +21,7 @@ const generateScheduleSchema = z.object({
 const updateSessionSchema = z.object({
   staffId: z.string().optional(),
   patientId: z.string().optional(),
+  roomId: z.string().nullish(),
   date: z.string().optional(),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
@@ -274,16 +276,32 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
     const body = request.body as {
       staffId: string
       patientId: string
+      roomId?: string
       date: string
       startTime: string
       endTime: string
       notes?: string
     }
 
+    // SECURITY: Validate that referenced entities belong to this organization
+    const validation = await validateSessionEntities(organizationId, {
+      staffId: body.staffId,
+      patientId: body.patientId,
+      roomId: body.roomId
+    })
+
+    if (!validation.valid) {
+      return reply.status(400).send({
+        error: 'Invalid session entities',
+        details: validation.errors
+      })
+    }
+
     const session = await sessionRepository.create({
       scheduleId: id,
       therapistId: body.staffId,
       patientId: body.patientId,
+      roomId: body.roomId || null,
       date: new Date(body.date),
       startTime: body.startTime,
       endTime: body.endTime,
@@ -310,6 +328,34 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
     const schedule = await scheduleRepository.findById(scheduleId, organizationId)
     if (!schedule) {
       return reply.status(404).send({ error: 'Schedule not found' })
+    }
+
+    // SECURITY: Validate any entity IDs being updated belong to this organization
+    // Only validate fields that are actually being changed
+    const entitiesToValidate: { staffId?: string; patientId?: string; roomId?: string | null } = {}
+
+    if (body.staffId !== undefined) {
+      entitiesToValidate.staffId = body.staffId
+    }
+    if (body.patientId !== undefined) {
+      entitiesToValidate.patientId = body.patientId
+    }
+    // roomId can be explicitly set to null to remove room assignment
+    // We only validate if a non-null value is provided
+    if (body.roomId) {
+      entitiesToValidate.roomId = body.roomId
+    }
+
+    // Only run validation if there are entity IDs to check
+    if (Object.keys(entitiesToValidate).length > 0) {
+      const validation = await validateSessionEntities(organizationId, entitiesToValidate)
+
+      if (!validation.valid) {
+        return reply.status(400).send({
+          error: 'Invalid session entities',
+          details: validation.errors
+        })
+      }
     }
 
     const session = await sessionRepository.update(sessionId, scheduleId, {

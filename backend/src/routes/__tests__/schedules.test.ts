@@ -57,10 +57,15 @@ vi.mock('../../services/sessionLookup.js', () => ({
   getDateForDayOfWeek: vi.fn()
 }))
 
+vi.mock('../../services/sessionValidation.js', () => ({
+  validateSessionEntities: vi.fn()
+}))
+
 // Import mocked modules
 import { scheduleRepository, sessionRepository } from '../../repositories/schedules.js'
 import { generateSchedule } from '../../services/scheduler.js'
 import { findMatchingSessions, checkForConflicts } from '../../services/sessionLookup.js'
+import { validateSessionEntities } from '../../services/sessionValidation.js'
 
 describe('Schedule Routes', () => {
   let app: FastifyInstance
@@ -332,6 +337,7 @@ describe('Schedule Routes', () => {
       }
 
       vi.mocked(scheduleRepository.findById).mockResolvedValue(mockSchedule as any)
+      vi.mocked(validateSessionEntities).mockResolvedValue({ valid: true, errors: [] })
       vi.mocked(sessionRepository.create).mockResolvedValue(mockSession as any)
 
       const response = await app.inject({
@@ -349,6 +355,33 @@ describe('Schedule Routes', () => {
       expect(response.statusCode).toBe(201)
       const body = JSON.parse(response.payload)
       expect(body.data.id).toBe('session-1')
+    })
+
+    it('returns 400 when session entities are invalid (cross-tenant)', async () => {
+      const mockSchedule = { id: 'schedule-1', status: 'draft' }
+
+      vi.mocked(scheduleRepository.findById).mockResolvedValue(mockSchedule as any)
+      vi.mocked(validateSessionEntities).mockResolvedValue({
+        valid: false,
+        errors: ['Staff member not found or does not belong to this organization']
+      })
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/schedules/schedule-1/sessions',
+        payload: {
+          staffId: 'staff-from-other-org',
+          patientId: 'patient-1',
+          date: '2025-01-06',
+          startTime: '09:00',
+          endTime: '10:00'
+        }
+      })
+
+      expect(response.statusCode).toBe(400)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('Invalid session entities')
+      expect(body.details).toContain('Staff member not found or does not belong to this organization')
     })
 
     it('returns 404 when schedule not found', async () => {
