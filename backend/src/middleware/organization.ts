@@ -32,6 +32,11 @@ export async function organizationMiddleware(
     organizationId: null
   }
 
+  // Always allow health checks to succeed even if the DB is down.
+  if (request.url.startsWith('/api/health')) {
+    return
+  }
+
   // Skip organization context for super admin routes and auth routes
   if (
     request.url.startsWith('/api/organizations') ||
@@ -41,8 +46,17 @@ export async function organizationMiddleware(
   }
 
   // Get organization from subdomain or environment variable (for local dev)
-  const host = request.headers.host || ''
-  const subdomain = host.split('.')[0]
+  const hostHeader = request.headers.host || ''
+  const hostname = hostHeader.split(':')[0]
+
+  if (!hostname) return
+
+  // Skip lookups for localhost and direct IP access (ALB and container health checks).
+  if (hostname === 'localhost' || hostname === 'www' || hostname.match(/^\d{1,3}(\.\d{1,3}){3}$/)) {
+    return
+  }
+
+  const subdomain = hostname.split('.')[0]
 
   // In development, use ORG_DOMAIN env var to specify subdomain
   const targetSubdomain = process.env.NODE_ENV === 'development' && process.env.ORG_DOMAIN
@@ -51,9 +65,13 @@ export async function organizationMiddleware(
 
   // Look up organization ID from subdomain
   if (targetSubdomain && targetSubdomain !== 'localhost' && targetSubdomain !== 'www') {
-    const orgId = await getOrganizationId(targetSubdomain)
-    if (orgId) {
-      request.ctx.organizationId = orgId
+    try {
+      const orgId = await getOrganizationId(targetSubdomain)
+      if (orgId) {
+        request.ctx.organizationId = orgId
+      }
+    } catch (err) {
+      request.log.error({ err }, 'Failed to resolve organization from subdomain')
     }
   }
 }

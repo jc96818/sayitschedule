@@ -4,20 +4,30 @@ import { PrismaPg } from '@prisma/adapter-pg'
 // Global Prisma client instance
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
+function withSslModeNoVerify(connectionString: string): string {
+  if (!connectionString) return connectionString
+
+  try {
+    const url = new URL(connectionString)
+    url.searchParams.set('sslmode', 'no-verify')
+    return url.toString()
+  } catch {
+    if (connectionString.match(/([?&])sslmode=[^&]*/)) {
+      return connectionString.replace(/([?&])sslmode=[^&]*/, '$1sslmode=no-verify')
+    }
+    return connectionString + (connectionString.includes('?') ? '&' : '?') + 'sslmode=no-verify'
+  }
+}
+
 // Prisma 7 requires a driver adapter for database connections
 function createPrismaClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL || ''
+  const rawConnectionString = process.env.DATABASE_URL || ''
+  const connectionString =
+    process.env.NODE_ENV === 'production'
+      ? withSslModeNoVerify(rawConnectionString)
+      : rawConnectionString
 
-  // Configure pool with SSL for AWS RDS (self-signed certificate)
-  const poolConfig = {
-    connectionString,
-    // In production, accept self-signed certificates from AWS RDS
-    ssl: process.env.NODE_ENV === 'production'
-      ? { rejectUnauthorized: false }
-      : undefined
-  }
-
-  const adapter = new PrismaPg(poolConfig)
+  const adapter = new PrismaPg({ connectionString })
   return new PrismaClient({ adapter })
 }
 
