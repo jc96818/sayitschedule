@@ -490,15 +490,15 @@ th {
 .voice-interface {
   background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
   border-radius: var(--radius-lg);
-  padding: 32px;
+  padding: 16px 24px;
   text-align: center;
   color: white;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .mic-button {
-  width: 80px;
-  height: 80px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background-color: white;
   border: none;
@@ -506,7 +506,7 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -568,23 +568,25 @@ th {
 
 /* ===== Voice Interface Extras ===== */
 .voice-interface h3 {
-  font-size: 18px;
-  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 
 .voice-interface p {
   opacity: 0.9;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
+  font-size: 13px;
 }
 
 .voice-status {
-  margin-top: 16px;
-  font-size: 14px;
+  margin-top: 8px;
+  font-size: 13px;
   opacity: 0.9;
 }
 
 .voice-description {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .hints-link {
@@ -594,11 +596,11 @@ th {
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.85);
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: var(--radius-md);
-  margin-top: 12px;
+  margin-top: 8px;
   transition: background-color 0.2s, color 0.2s;
 }
 
@@ -614,16 +616,16 @@ th {
 .transcription-box {
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-md);
-  padding: 16px;
-  margin-top: 16px;
+  padding: 12px;
+  margin-top: 12px;
   text-align: left;
-  min-height: 60px;
+  min-height: 48px;
 }
 
 .transcription-box .label {
-  font-size: 12px;
+  font-size: 11px;
   opacity: 0.7;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 /* ===== Confirmation Card ===== */

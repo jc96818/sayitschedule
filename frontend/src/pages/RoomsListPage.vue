@@ -179,7 +179,7 @@ const capabilitySuggestions = [
       <!-- Voice Interface -->
       <VoiceInput
         title="Voice Room Management"
-        description="Click the microphone and speak to add new rooms. Example: 'Create room 101 with sensory equipment and wheelchair access'"
+        description="Click the microphone and speak to add new rooms."
         :show-hints-link="true"
         @result="handleVoiceResult"
         @show-hints="voiceHintsModal?.openModal()"
