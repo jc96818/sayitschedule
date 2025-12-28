@@ -19,6 +19,8 @@ import { scheduleRoutes } from './routes/schedules.js'
 import { userRoutes } from './routes/users.js'
 import { voiceRoutes } from './routes/voice.js'
 import { transcriptionRoutes } from './routes/transcription.js'
+import { superAdminUserRoutes } from './routes/super-admin-users.js'
+import { accountRoutes } from './routes/account.js'
 import { organizationMiddleware } from './middleware/organization.js'
 import { checkDbHealth } from './db/index.js'
 
@@ -56,6 +58,8 @@ async function start() {
   await server.register(userRoutes, { prefix: '/api/users' })
   await server.register(voiceRoutes, { prefix: '/api/voice' })
   await server.register(transcriptionRoutes, { prefix: '/api/transcription' })
+  await server.register(superAdminUserRoutes, { prefix: '/api/super-admin/users' })
+  await server.register(accountRoutes, { prefix: '/api/account' })
 
   // Health check - basic (for load balancer)
   server.get('/api/health', async () => {

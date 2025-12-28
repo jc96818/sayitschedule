@@ -23,6 +23,8 @@ export interface User {
   role: UserRole
   createdAt: string
   lastLogin: string | null
+  mfaEnabled?: boolean
+  passwordChangedAt?: string | null
 }
 
 // Staff
@@ -198,7 +200,27 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  token: string
-  user: User
-  organization: Organization | null
+  token?: string
+  user?: User
+  organization?: Organization | null
+  // MFA fields (when MFA is required)
+  requiresMfa?: boolean
+  mfaToken?: string
+}
+
+// MFA types
+export interface MfaSetupResponse {
+  qrCode: string
+  secret: string
+  otpauthUrl: string
+}
+
+export interface MfaVerifyResponse {
+  success: boolean
+  backupCodes: string[]
+}
+
+export interface MfaStatusResponse {
+  enabled: boolean
+  backupCodesRemaining: number
 }

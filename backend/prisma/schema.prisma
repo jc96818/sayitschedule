@@ -96,6 +96,12 @@ model User {
   createdAt      DateTime      @default(now()) @map("created_at")
   lastLogin      DateTime?     @map("last_login")
 
+  // MFA fields (available for all users)
+  mfaEnabled        Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret         String?   @map("mfa_secret") @db.VarChar(255)
+  mfaBackupCodes    String[]  @default([]) @map("mfa_backup_codes")
+  passwordChangedAt DateTime? @map("password_changed_at")
+
   staff         Staff[]
   rulesCreated  Rule[]
   schedulesCreated Schedule[]

@@ -76,7 +76,7 @@ docker exec sayitschedule-db psql -U postgres -d sayitschedule -c "SELECT * FROM
 
 These test accounts are available:
 
-- **Super Admin**: `superadmin@sayitschedule.com` / `admin123`
+- **Super Admin**: `superadmin@sayitschedule.com` / `sayitadmin2025`
 - **Admin**: `admin@demo.sayitschedule.com` / `admin123`
 - **Assistant**: `assistant@demo.sayitschedule.com` / `admin123`
 

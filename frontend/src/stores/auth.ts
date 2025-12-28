@@ -1,12 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { User, Organization, LoginRequest } from '@/types'
-import { authService } from '@/services/api'
+import type { User, Organization, LoginRequest, LoginResponse } from '@/types'
+import { authService, mfaAuthService } from '@/services/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const organization = ref<Organization | null>(null)
   const token = ref<string | null>(localStorage.getItem('token'))
+
+  // MFA state
+  const mfaRequired = ref(false)
+  const mfaToken = ref<string | null>(null)
 
   const isAuthenticated = computed(() => !!token.value)
   const isSuperAdmin = computed(() => user.value?.role === 'super_admin')
@@ -18,12 +22,44 @@ export const useAuthStore = defineStore('auth', () => {
     isSuperAdmin.value || isAdmin.value || isAdminAssistant.value
   )
 
-  async function login(credentials: LoginRequest) {
+  async function login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await authService.login(credentials)
-    token.value = response.token
-    user.value = response.user
-    organization.value = response.organization
-    localStorage.setItem('token', response.token)
+
+    if (response.requiresMfa && response.mfaToken) {
+      // MFA required - store the token and return
+      mfaRequired.value = true
+      mfaToken.value = response.mfaToken
+      return response
+    }
+
+    // No MFA - complete login
+    completeLogin(response)
+    return response
+  }
+
+  async function verifyMfa(code: string): Promise<LoginResponse> {
+    if (!mfaToken.value) {
+      throw new Error('No MFA token available')
+    }
+
+    const response = await mfaAuthService.verifyMfa(mfaToken.value, code)
+    completeLogin(response)
+    clearMfaState()
+    return response
+  }
+
+  function completeLogin(response: LoginResponse) {
+    if (response.token && response.user) {
+      token.value = response.token
+      user.value = response.user
+      organization.value = response.organization || null
+      localStorage.setItem('token', response.token)
+    }
+  }
+
+  function clearMfaState() {
+    mfaRequired.value = false
+    mfaToken.value = null
   }
 
   async function logout() {
@@ -52,6 +88,8 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     organization,
     token,
+    mfaRequired,
+    mfaToken,
     isAuthenticated,
     isSuperAdmin,
     isAdmin,
@@ -60,6 +98,8 @@ export const useAuthStore = defineStore('auth', () => {
     canManageUsers,
     canManageSchedules,
     login,
+    verifyMfa,
+    clearMfaState,
     logout,
     fetchCurrentUser,
     setOrganizationContext

@@ -19,12 +19,19 @@ export interface UserUpdate {
   role?: UserRole
 }
 
+export interface MfaUpdate {
+  mfaEnabled?: boolean
+  mfaSecret?: string | null
+  mfaBackupCodes?: string[]
+}
+
 export type { User }
-export type UserWithoutPassword = Omit<User, 'passwordHash'>
+export type UserWithoutPassword = Omit<User, 'passwordHash' | 'mfaSecret' | 'mfaBackupCodes'>
+export type UserWithMfaStatus = UserWithoutPassword & { mfaEnabled: boolean }
 
 export class UserRepository {
   private sanitizeUser(user: User): UserWithoutPassword {
-    const { passwordHash, ...rest } = user
+    const { passwordHash, mfaSecret, mfaBackupCodes, ...rest } = user
     return rest
   }
 
@@ -140,6 +147,123 @@ export class UserRepository {
 
   async verifyPassword(user: User, password: string): Promise<boolean> {
     return bcrypt.compare(password, user.passwordHash)
+  }
+
+  /**
+   * Find all super admin users (organizationId is null, role is super_admin)
+   */
+  async findAllSuperAdmins(
+    params: PaginationParams & { search?: string }
+  ): Promise<PaginatedResult<UserWithoutPassword>> {
+    const { take, skip } = getPaginationOffsets(params)
+
+    const where: Prisma.UserWhereInput = {
+      role: 'super_admin',
+      organizationId: null
+    }
+
+    if (params.search) {
+      where.OR = [
+        { name: { contains: params.search, mode: 'insensitive' } },
+        { email: { contains: params.search, mode: 'insensitive' } }
+      ]
+    }
+
+    const [data, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { name: 'asc' }
+      }),
+      prisma.user.count({ where })
+    ])
+
+    return paginate(data.map(u => this.sanitizeUser(u)), total, params)
+  }
+
+  /**
+   * Count total super admin users
+   */
+  async countSuperAdmins(): Promise<number> {
+    return prisma.user.count({
+      where: {
+        role: 'super_admin',
+        organizationId: null
+      }
+    })
+  }
+
+  /**
+   * Update user password and set passwordChangedAt
+   */
+  async updatePassword(id: string, newPassword: string): Promise<boolean> {
+    try {
+      const passwordHash = await bcrypt.hash(newPassword, 10)
+      await prisma.user.update({
+        where: { id },
+        data: {
+          passwordHash,
+          passwordChangedAt: new Date()
+        }
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Update MFA settings for a user
+   */
+  async updateMfa(id: string, data: MfaUpdate): Promise<UserWithoutPassword | null> {
+    try {
+      const user = await prisma.user.update({
+        where: { id },
+        data: {
+          mfaEnabled: data.mfaEnabled,
+          mfaSecret: data.mfaSecret,
+          mfaBackupCodes: data.mfaBackupCodes
+        }
+      })
+      return this.sanitizeUser(user)
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Get user's MFA secret and backup codes (for verification)
+   */
+  async getMfaData(id: string): Promise<{
+    mfaEnabled: boolean
+    mfaSecret: string | null
+    mfaBackupCodes: string[]
+  } | null> {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        mfaEnabled: true,
+        mfaSecret: true,
+        mfaBackupCodes: true
+      }
+    })
+    return user
+  }
+
+  /**
+   * Update only the backup codes (after one is used)
+   */
+  async updateBackupCodes(id: string, backupCodes: string[]): Promise<boolean> {
+    try {
+      await prisma.user.update({
+        where: { id },
+        data: { mfaBackupCodes: backupCodes }
+      })
+      return true
+    } catch {
+      return false
+    }
   }
 }
 

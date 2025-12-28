@@ -4,10 +4,16 @@ import { authenticate } from '../middleware/auth.js'
 import { userRepository } from '../repositories/users.js'
 import { organizationRepository } from '../repositories/organizations.js'
 import { logAudit } from '../repositories/audit.js'
+import { mfaService } from '../services/mfa.js'
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1)
+})
+
+const verifyMfaSchema = z.object({
+  mfaToken: z.string().min(1),
+  code: z.string().min(6).max(10) // 6 digits for TOTP, up to 10 for backup codes (XXXX-XXXX)
 })
 
 export async function authRoutes(fastify: FastifyInstance) {
@@ -27,6 +33,26 @@ export async function authRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ error: 'Invalid email or password' })
     }
 
+    // Check if MFA is enabled for this user
+    const mfaData = await userRepository.getMfaData(user.id)
+    if (mfaData?.mfaEnabled) {
+      // Generate a temporary MFA token (5 minute expiry)
+      const mfaToken = fastify.jwt.sign(
+        {
+          userId: user.id,
+          purpose: 'mfa-verification',
+          organizationId: request.ctx.organizationId // Include subdomain context
+        },
+        { expiresIn: '5m' }
+      )
+
+      return {
+        requiresMfa: true,
+        mfaToken
+      }
+    }
+
+    // No MFA - proceed with normal login
     // Update last login
     await userRepository.updateLastLogin(user.id)
 
@@ -59,7 +85,100 @@ export async function authRoutes(fastify: FastifyInstance) {
         role: user.role,
         organizationId: user.organizationId,
         createdAt: user.createdAt,
-        lastLogin: user.lastLogin
+        lastLogin: user.lastLogin,
+        mfaEnabled: false
+      },
+      organization: organization
+        ? {
+            id: organization.id,
+            name: organization.name,
+            subdomain: organization.subdomain,
+            logoUrl: organization.logoUrl,
+            primaryColor: organization.primaryColor,
+            secondaryColor: organization.secondaryColor,
+            status: organization.status
+          }
+        : null
+    }
+  })
+
+  // Verify MFA code to complete login
+  fastify.post('/verify-mfa', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = verifyMfaSchema.parse(request.body)
+
+    // Verify and decode the MFA token
+    let decoded: { userId: string; purpose: string; organizationId?: string }
+    try {
+      decoded = fastify.jwt.verify(body.mfaToken) as { userId: string; purpose: string; organizationId?: string }
+    } catch {
+      return reply.status(401).send({ error: 'Invalid or expired MFA token. Please login again.' })
+    }
+
+    if (decoded.purpose !== 'mfa-verification') {
+      return reply.status(401).send({ error: 'Invalid token type' })
+    }
+
+    // Get user and MFA data
+    const user = await userRepository.findById(decoded.userId)
+    if (!user) {
+      return reply.status(401).send({ error: 'User not found' })
+    }
+
+    const mfaData = await userRepository.getMfaData(user.id)
+    if (!mfaData?.mfaEnabled || !mfaData.mfaSecret) {
+      return reply.status(400).send({ error: 'MFA is not enabled for this account' })
+    }
+
+    // Try TOTP verification first
+    const secret = mfaService.decryptSecret(mfaData.mfaSecret)
+    let isValid = mfaService.verifyToken(secret, body.code)
+
+    // If TOTP fails, try backup code
+    if (!isValid && body.code.includes('-')) {
+      const result = await mfaService.verifyBackupCode(mfaData.mfaBackupCodes, body.code)
+      if (result.valid) {
+        isValid = true
+        // Update remaining backup codes
+        await userRepository.updateBackupCodes(user.id, result.remainingCodes)
+      }
+    }
+
+    if (!isValid) {
+      return reply.status(401).send({ error: 'Invalid verification code' })
+    }
+
+    // MFA verified - complete login
+    await userRepository.updateLastLogin(user.id)
+
+    // Get organization using the context from MFA token (for super_admin on subdomain)
+    let organization = null
+    const orgId = user.organizationId || (user.role === 'super_admin' ? decoded.organizationId : null)
+    if (orgId) {
+      organization = await organizationRepository.findById(orgId)
+    }
+
+    // Generate final JWT token
+    const token = fastify.jwt.sign({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      organizationId: user.organizationId
+    })
+
+    // Log the login
+    await logAudit(user.id, 'login', 'user', user.id, user.organizationId)
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        organizationId: user.organizationId,
+        createdAt: user.createdAt,
+        lastLogin: user.lastLogin,
+        mfaEnabled: true
       },
       organization: organization
         ? {

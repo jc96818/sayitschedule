@@ -96,6 +96,16 @@ const routes: RouteRecordRaw[] = [
         path: 'organizations/:id',
         name: 'organization-edit',
         component: () => import('@/pages/OrganizationEditPage.vue')
+      },
+      {
+        path: 'users',
+        name: 'super-admin-users',
+        component: () => import('@/pages/SuperAdminUsersPage.vue')
+      },
+      {
+        path: 'account',
+        name: 'super-admin-account',
+        component: () => import('@/pages/AccountSettingsPage.vue')
       }
     ]
   }

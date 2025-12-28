@@ -11,7 +11,10 @@ import type {
   Schedule,
   Session,
   ApiResponse,
-  PaginatedResponse
+  PaginatedResponse,
+  MfaSetupResponse,
+  MfaVerifyResponse,
+  MfaStatusResponse
 } from '@/types'
 
 // Transcription settings types
@@ -42,8 +45,15 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      // Don't auto-redirect for MFA verification failures or login attempts
+      // These should be handled by the component to show proper error messages
+      const url = error.config?.url || ''
+      const isMfaOrLoginEndpoint = url.includes('/auth/verify-mfa') || url.includes('/auth/login')
+
+      if (!isMfaOrLoginEndpoint) {
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
@@ -342,6 +352,79 @@ export const voiceService = {
 
   async parseScheduleGenerate(transcript: string): Promise<ApiResponse<ParsedVoiceCommand>> {
     const { data } = await api.post('/voice/parse/schedule-generate', { transcript })
+    return data
+  }
+}
+
+// Super Admin Users Service
+export const superAdminUsersService = {
+  async list(params?: { search?: string }): Promise<PaginatedResponse<User>> {
+    const { data } = await api.get('/super-admin/users', { params })
+    return data
+  },
+
+  async get(id: string): Promise<ApiResponse<User>> {
+    const { data } = await api.get(`/super-admin/users/${id}`)
+    return data
+  },
+
+  async create(user: { email: string; password: string; name: string }): Promise<ApiResponse<User>> {
+    const { data } = await api.post('/super-admin/users', user)
+    return data
+  },
+
+  async update(id: string, user: { email?: string; name?: string }): Promise<ApiResponse<User>> {
+    const { data } = await api.put(`/super-admin/users/${id}`, user)
+    return data
+  },
+
+  async delete(id: string): Promise<void> {
+    await api.delete(`/super-admin/users/${id}`)
+  },
+
+  async resetPassword(id: string, password: string): Promise<{ success: boolean }> {
+    const { data } = await api.post(`/super-admin/users/${id}/reset-password`, { password })
+    return data
+  }
+}
+
+// Account Service (for current user's account settings)
+export const accountService = {
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean }> {
+    const { data } = await api.post('/account/change-password', { currentPassword, newPassword })
+    return data
+  },
+
+  async getMfaStatus(): Promise<MfaStatusResponse> {
+    const { data } = await api.get('/account/mfa/status')
+    return data
+  },
+
+  async setupMfa(): Promise<MfaSetupResponse> {
+    const { data } = await api.post('/account/mfa/setup')
+    return data
+  },
+
+  async verifyMfa(code: string): Promise<MfaVerifyResponse> {
+    const { data } = await api.post('/account/mfa/verify', { code })
+    return data
+  },
+
+  async disableMfa(password: string): Promise<{ success: boolean }> {
+    const { data } = await api.post('/account/mfa/disable', { password })
+    return data
+  },
+
+  async regenerateBackupCodes(password: string): Promise<{ backupCodes: string[] }> {
+    const { data } = await api.post('/account/mfa/backup-codes', { password })
+    return data
+  }
+}
+
+// Auth Service MFA verification (for login flow)
+export const mfaAuthService = {
+  async verifyMfa(mfaToken: string, code: string): Promise<LoginResponse> {
+    const { data } = await api.post('/auth/verify-mfa', { mfaToken, code })
     return data
   }
 }
