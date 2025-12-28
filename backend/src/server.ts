@@ -4,6 +4,7 @@ import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
 import fastifyStatic from '@fastify/static'
+import websocket from '@fastify/websocket'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
@@ -17,6 +18,7 @@ import { roomRoutes } from './routes/rooms.js'
 import { scheduleRoutes } from './routes/schedules.js'
 import { userRoutes } from './routes/users.js'
 import { voiceRoutes } from './routes/voice.js'
+import { transcriptionRoutes } from './routes/transcription.js'
 import { organizationMiddleware } from './middleware/organization.js'
 import { checkDbHealth } from './db/index.js'
 
@@ -37,6 +39,9 @@ async function start() {
     secret: process.env.JWT_SECRET || 'development-secret-change-in-production'
   })
 
+  // Register WebSocket support
+  await server.register(websocket)
+
   // Add organization context middleware
   server.addHook('onRequest', organizationMiddleware)
 
@@ -50,6 +55,7 @@ async function start() {
   await server.register(scheduleRoutes, { prefix: '/api/schedules' })
   await server.register(userRoutes, { prefix: '/api/users' })
   await server.register(voiceRoutes, { prefix: '/api/voice' })
+  await server.register(transcriptionRoutes, { prefix: '/api/transcription' })
 
   // Health check - basic (for load balancer)
   server.get('/api/health', async () => {

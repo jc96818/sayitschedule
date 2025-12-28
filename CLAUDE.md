@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with this codebase.
 
 ## Project Overview
 
-Say It Schedule is a multi-tenant SaaS platform for scheduling therapy sessions. It manages organizations, staff (therapists), patients, rooms, and generates optimized weekly schedules based on complex rules and constraints.
+Say It Schedule is a multi-tenant SaaS platform for scheduling therapy sessions using voice commands. It manages organizations, staff (therapists), patients, rooms, and generates optimized weekly schedules based on complex rules and constraints. Most major functions can be performed by the user speaking their requests into the microphone.
 
 ## Tech Stack
 
@@ -100,3 +100,9 @@ See `/backend/prisma/schema.prisma` for the complete data model. Key entities:
 - Room
 - Schedule, ScheduleSession
 - SchedulingRule
+
+## User Roles
+
+- **Superadmin**: Can add and manage organizations and change context to any organization
+- **Administrator**: Belongs to an organization and can perform all managements tasks within that organization
+- **Staff**: Belongs to an organization and can view schedules and update personal information and availability

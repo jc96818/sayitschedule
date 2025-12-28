@@ -1,28 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-
-// Web Speech API types
-interface SpeechRecognitionEvent extends Event {
-  resultIndex: number
-  results: SpeechRecognitionResultList
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string
-}
-
-interface SpeechRecognitionInstance {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  onstart: (() => void) | null
-  onresult: ((event: SpeechRecognitionEvent) => void) | null
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
-  abort: () => void
-}
+import { ref, onUnmounted } from 'vue'
+import { TranscriptionStream, type TranscriptResult } from '@/services/transcription'
 
 interface Props {
   title?: string
@@ -38,89 +16,99 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   result: [transcript: string]
+  interim: [transcript: string]
   error: [error: string]
   showHints: []
 }>()
 
 const isRecording = ref(false)
 const transcript = ref('')
+const interimTranscript = ref('')
 const status = ref('Click to start recording')
 
-let recognition: SpeechRecognitionInstance | null = null
+let transcriptionStream: TranscriptionStream | null = null
 
-onMounted(() => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const windowAny = window as any
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognitionClass = windowAny.SpeechRecognition || windowAny.webkitSpeechRecognition
-    if (SpeechRecognitionClass) {
-      recognition = new SpeechRecognitionClass() as SpeechRecognitionInstance
-      recognition.continuous = false
-      recognition.interimResults = true
-      recognition.lang = 'en-US'
-
-      recognition.onstart = () => {
-        console.log('[VoiceInput] Recognition started')
-        isRecording.value = true
-        status.value = 'Listening...'
-      }
-
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        const current = event.resultIndex
-        transcript.value = event.results[current][0].transcript
-        console.log('[VoiceInput] Result:', transcript.value, 'isFinal:', event.results[current].isFinal)
-
-        if (event.results[current].isFinal) {
-          emit('result', transcript.value)
-        }
-      }
-
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error('[VoiceInput] Error:', event.error)
-        isRecording.value = false
-
-        // Provide user-friendly error messages
-        const errorMessages: Record<string, string> = {
-          'not-allowed': 'Microphone access denied. Please allow microphone permissions.',
-          'no-speech': 'No speech detected. Please try again.',
-          'audio-capture': 'No microphone found. Please connect a microphone.',
-          'network': 'Network error. Please check your connection.',
-          'aborted': 'Recording was cancelled.'
-        }
-        status.value = errorMessages[event.error] || `Error: ${event.error}`
-        emit('error', event.error)
-      }
-
-      recognition.onend = () => {
-        console.log('[VoiceInput] Recognition ended')
-        isRecording.value = false
-        if (!status.value.startsWith('Error')) {
-          status.value = 'Click to start recording'
-        }
-      }
-    }
-  }
-})
-
-onUnmounted(() => {
-  if (recognition) {
-    recognition.abort()
-  }
-})
-
-function toggleRecording() {
-  if (!recognition) {
-    status.value = 'Speech recognition not supported'
-    return
-  }
-
-  if (isRecording.value) {
-    recognition.stop()
+function handleTranscript(result: TranscriptResult) {
+  if (result.isPartial) {
+    interimTranscript.value = result.transcript
+    emit('interim', result.transcript)
   } else {
-    transcript.value = ''
-    recognition.start()
+    transcript.value = result.transcript
+    interimTranscript.value = ''
   }
 }
+
+function handleFinalTranscript(finalText: string) {
+  transcript.value = finalText
+  interimTranscript.value = ''
+  emit('result', finalText)
+}
+
+function handleError(error: { code: string; message: string; retryable: boolean }) {
+  console.error('[VoiceInput] Error:', error)
+  isRecording.value = false
+
+  const errorMessages: Record<string, string> = {
+    UNAUTHORIZED: 'Please log in to use voice input.',
+    INVALID_TOKEN: 'Session expired. Please log in again.',
+    AUDIO_CAPTURE_ERROR: 'Microphone access denied. Please allow microphone permissions.',
+    WEBSOCKET_ERROR: 'Connection error. Please try again.',
+    TRANSCRIPTION_ERROR: 'Transcription service error. Please try again.',
+    SERVICE_NOT_CONFIGURED: 'Voice transcription is not configured.',
+    NO_ORG_CONTEXT: 'Organization context required.',
+    FORBIDDEN: 'You do not have permission to use voice input.'
+  }
+
+  status.value = errorMessages[error.code] || error.message
+  emit('error', error.message)
+}
+
+async function toggleRecording() {
+  if (isRecording.value) {
+    // Stop recording
+    transcriptionStream?.stop()
+    status.value = 'Processing...'
+  } else {
+    // Start recording
+    transcript.value = ''
+    interimTranscript.value = ''
+
+    transcriptionStream = new TranscriptionStream({
+      onReady: (sessionId, provider) => {
+        console.log(`[VoiceInput] Ready: session=${sessionId}, provider=${provider}`)
+        isRecording.value = true
+        status.value = 'Listening...'
+      },
+      onTranscript: handleTranscript,
+      onFinalTranscript: handleFinalTranscript,
+      onError: handleError,
+      onClose: (reason) => {
+        console.log(`[VoiceInput] Closed: ${reason}`)
+        isRecording.value = false
+        if (reason === 'complete') {
+          status.value = 'Click to start recording'
+        } else if (reason === 'error') {
+          // Error message already set by handleError
+        } else {
+          status.value = 'Session timed out. Please try again.'
+        }
+      }
+    })
+
+    try {
+      status.value = 'Connecting...'
+      await transcriptionStream.start()
+    } catch (error) {
+      console.error('[VoiceInput] Start error:', error)
+      status.value = error instanceof Error ? error.message : 'Failed to start. Please try again.'
+      isRecording.value = false
+    }
+  }
+}
+
+onUnmounted(() => {
+  transcriptionStream?.stop()
+})
 </script>
 
 <template>
@@ -143,9 +131,19 @@ function toggleRecording() {
       View voice command examples
     </button>
 
-    <div v-if="transcript" class="transcription-box">
+    <div v-if="transcript || interimTranscript" class="transcription-box">
       <div class="label">Heard:</div>
-      <div>{{ transcript }}</div>
+      <div>
+        <span>{{ transcript }}</span>
+        <span v-if="interimTranscript" class="interim-transcript">{{ interimTranscript }}</span>
+      </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.interim-transcript {
+  color: var(--text-muted, #6b7280);
+  font-style: italic;
+}
+</style>
