@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import Fastify, { FastifyInstance } from 'fastify'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
+import { MedicalSpecialty, Status, TranscriptionProvider } from '@prisma/client'
 import type { JWTPayload } from '../../types/index.js'
 
 // Default mock user for test assertions
@@ -85,12 +86,12 @@ describe('Organization Routes - Transcription Settings', () => {
     await app.close()
   })
 
-  describe('GET /api/organizations/current/transcription', () => {
-    it('returns transcription settings for current organization', async () => {
-      const mockSettings = {
-        transcriptionProvider: 'aws_medical',
-        medicalSpecialty: 'PRIMARYCARE'
-      }
+	describe('GET /api/organizations/current/transcription', () => {
+	    it('returns transcription settings for current organization', async () => {
+	      const mockSettings = {
+	        transcriptionProvider: TranscriptionProvider.aws_medical,
+	        medicalSpecialty: MedicalSpecialty.PRIMARYCARE
+	      }
 
       vi.mocked(organizationRepository.getTranscriptionSettings).mockResolvedValue(mockSettings)
 
@@ -141,20 +142,20 @@ describe('Organization Routes - Transcription Settings', () => {
   })
 
   describe('PUT /api/organizations/current/transcription', () => {
-    it('updates transcription settings for current organization', async () => {
-      const mockOrganization = {
-        id: 'test-org-id',
-        name: 'Test Org',
-        subdomain: 'test',
-        logoUrl: null,
-        primaryColor: '#2563eb',
-        secondaryColor: '#1e40af',
-        status: 'active',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        transcriptionProvider: 'aws_standard',
-        medicalSpecialty: 'CARDIOLOGY'
-      }
+	    it('updates transcription settings for current organization', async () => {
+	      const mockOrganization = {
+	        id: 'test-org-id',
+	        name: 'Test Org',
+	        subdomain: 'test',
+	        logoUrl: null,
+	        primaryColor: '#2563eb',
+	        secondaryColor: '#1e40af',
+	        status: Status.active,
+	        createdAt: new Date(),
+	        updatedAt: new Date(),
+	        transcriptionProvider: TranscriptionProvider.aws_standard,
+	        medicalSpecialty: MedicalSpecialty.CARDIOLOGY
+	      }
 
       vi.mocked(organizationRepository.update).mockResolvedValue(mockOrganization)
 
@@ -169,13 +170,13 @@ describe('Organization Routes - Transcription Settings', () => {
 
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.body)
-      expect(body.data.transcriptionProvider).toBe('aws_standard')
-      expect(body.data.medicalSpecialty).toBe('CARDIOLOGY')
-      expect(organizationRepository.update).toHaveBeenCalledWith('test-org-id', {
-        transcriptionProvider: 'aws_standard',
-        medicalSpecialty: 'CARDIOLOGY'
-      })
-    })
+	      expect(body.data.transcriptionProvider).toBe('aws_standard')
+	      expect(body.data.medicalSpecialty).toBe('CARDIOLOGY')
+	      expect(organizationRepository.update).toHaveBeenCalledWith('test-org-id', {
+	        transcriptionProvider: TranscriptionProvider.aws_standard,
+	        medicalSpecialty: MedicalSpecialty.CARDIOLOGY
+	      })
+	    })
 
     it('returns 403 when user is not admin', async () => {
       await app.close()
@@ -241,7 +242,7 @@ describe('Organization Routes - Transcription Settings', () => {
       expect(response.statusCode).toBe(400)
     })
 
-    it('allows super_admin to update another organization', async () => {
+	    it('allows super_admin to update another organization', async () => {
       await app.close()
       app = await buildTestApp({
         mockUser: {
@@ -252,19 +253,19 @@ describe('Organization Routes - Transcription Settings', () => {
         }
       })
 
-      const mockOrganization = {
-        id: 'other-org-id',
-        name: 'Other Org',
-        subdomain: 'other',
-        logoUrl: null,
-        primaryColor: '#2563eb',
-        secondaryColor: '#1e40af',
-        status: 'active',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        transcriptionProvider: 'aws_medical',
-        medicalSpecialty: 'ONCOLOGY'
-      }
+	      const mockOrganization = {
+	        id: 'other-org-id',
+	        name: 'Other Org',
+	        subdomain: 'other',
+	        logoUrl: null,
+	        primaryColor: '#2563eb',
+	        secondaryColor: '#1e40af',
+	        status: Status.active,
+	        createdAt: new Date(),
+	        updatedAt: new Date(),
+	        transcriptionProvider: TranscriptionProvider.aws_medical,
+	        medicalSpecialty: MedicalSpecialty.ONCOLOGY
+	      }
 
       vi.mocked(organizationRepository.update).mockResolvedValue(mockOrganization)
 
@@ -278,11 +279,11 @@ describe('Organization Routes - Transcription Settings', () => {
         }
       })
 
-      expect(response.statusCode).toBe(200)
-      expect(organizationRepository.update).toHaveBeenCalledWith('other-org-id', {
-        transcriptionProvider: 'aws_medical',
-        medicalSpecialty: 'ONCOLOGY'
-      })
-    })
+	      expect(response.statusCode).toBe(200)
+	      expect(organizationRepository.update).toHaveBeenCalledWith('other-org-id', {
+	        transcriptionProvider: TranscriptionProvider.aws_medical,
+	        medicalSpecialty: MedicalSpecialty.ONCOLOGY
+	      })
+	    })
   })
 })
