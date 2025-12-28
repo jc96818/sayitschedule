@@ -12,6 +12,7 @@ const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
 // Add/Edit rule modal
 const showAddModal = ref(false)
 const editingRule = ref<ParsedRuleItem | null>(null)
+const editingExistingRule = ref<Rule | null>(null)
 const newRule = ref<Partial<Rule>>({
   category: 'scheduling',
   description: '',
@@ -22,8 +23,28 @@ const newRule = ref<Partial<Rule>>({
 // Voice confirmation state
 const showVoiceConfirmation = ref(false)
 
+// Category filter tabs
+const selectedCategory = ref<string>('all')
+
+const categoryTabs = [
+  { value: 'all', label: 'All Rules' },
+  { value: 'gender_pairing', label: 'Gender Pairing' },
+  { value: 'session', label: 'Session Rules' },
+  { value: 'specific_pairing', label: 'Specific Pairings' },
+  { value: 'availability', label: 'Availability' },
+  { value: 'certification', label: 'Certification' }
+]
+
 // Computed: Check if we have multiple rules
 const hasMultipleRules = computed(() => rulesStore.pendingRules.length > 1)
+
+// Computed: Filtered rules by selected category
+const filteredRules = computed(() => {
+  if (selectedCategory.value === 'all') {
+    return rulesStore.rules
+  }
+  return rulesStore.rules.filter(rule => rule.category === selectedCategory.value)
+})
 
 const categoryLabels: Record<string, string> = {
   gender_pairing: 'Gender Pairing',
@@ -43,11 +64,22 @@ function getCategoryBadgeVariant(category: string): 'primary' | 'success' | 'war
   const variants: Record<string, 'primary' | 'success' | 'warning' | 'danger' | 'secondary'> = {
     gender_pairing: 'primary',
     session: 'success',
-    availability: 'warning',
-    specific_pairing: 'secondary',
+    availability: 'danger',
+    specific_pairing: 'warning',
     certification: 'primary'
   }
   return variants[category] || 'primary'
+}
+
+function getCategoryIconClass(category: string): string {
+  const classes: Record<string, string> = {
+    gender_pairing: 'icon-primary',
+    session: 'icon-success',
+    availability: 'icon-danger',
+    specific_pairing: 'icon-warning',
+    certification: 'icon-primary'
+  }
+  return classes[category] || 'icon-primary'
 }
 
 function getConfidenceClass(confidence: number): string {
@@ -142,14 +174,27 @@ function handleModalClose() {
     }
   }
   editingRule.value = null
+  editingExistingRule.value = null
   showAddModal.value = false
   resetForm()
 }
 
 async function handleAddRule() {
   if (editingRule.value) {
+    // Saving a pending voice-parsed rule
     handleSaveEditedRule()
+  } else if (editingExistingRule.value) {
+    // Updating an existing saved rule
+    try {
+      await rulesStore.updateRule(editingExistingRule.value.id, newRule.value)
+      showAddModal.value = false
+      editingExistingRule.value = null
+      resetForm()
+    } catch (error) {
+      console.error('Failed to update rule:', error)
+    }
   } else {
+    // Creating a new rule manually
     try {
       await rulesStore.createRule(newRule.value)
       showAddModal.value = false
@@ -158,6 +203,18 @@ async function handleAddRule() {
       console.error('Failed to create rule:', error)
     }
   }
+}
+
+// Edit an existing saved rule
+function handleEditExistingRule(rule: Rule) {
+  editingExistingRule.value = rule
+  newRule.value = {
+    category: rule.category,
+    description: rule.description,
+    priority: rule.priority,
+    isActive: rule.isActive
+  }
+  showAddModal.value = true
 }
 
 async function handleToggleRule(rule: Rule) {
@@ -397,10 +454,23 @@ onMounted(() => {
         {{ rulesStore.error }}
       </Alert>
 
-      <!-- Rules by Category -->
+      <!-- Category Tabs -->
+      <div class="tabs">
+        <button
+          v-for="tab in categoryTabs"
+          :key="tab.value"
+          class="tab"
+          :class="{ active: selectedCategory === tab.value }"
+          @click="selectedCategory = tab.value"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <!-- Rules List -->
       <div class="card">
         <div class="card-header">
-          <h3>Active Rules ({{ rulesStore.activeRules.length }})</h3>
+          <h3>{{ selectedCategory === 'all' ? 'All Rules' : categoryLabels[selectedCategory] || selectedCategory }} ({{ filteredRules.length }})</h3>
         </div>
 
         <div v-if="rulesStore.loading && rulesStore.rules.length === 0" class="card-body text-center">
@@ -411,21 +481,52 @@ onMounted(() => {
           <p class="text-muted">No rules defined. Add your first rule using voice or the manual form.</p>
         </div>
 
+        <div v-else-if="filteredRules.length === 0" class="card-body text-center">
+          <p class="text-muted">No rules in this category.</p>
+        </div>
+
         <div v-else class="card-body">
-          <div v-for="rule in rulesStore.rules" :key="rule.id" class="rule-item">
+          <div
+            v-for="rule in filteredRules"
+            :key="rule.id"
+            class="rule-item"
+            :class="{ disabled: !rule.isActive }"
+          >
+            <div class="rule-icon" :class="getCategoryIconClass(rule.category)">
+              <svg v-if="rule.category === 'gender_pairing'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <svg v-else-if="rule.category === 'session'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <svg v-else-if="rule.category === 'availability'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <svg v-else-if="rule.category === 'specific_pairing'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
             <div class="rule-content">
-              <Badge :variant="getCategoryBadgeVariant(rule.category)" style="margin-bottom: 4px;">
-                {{ getCategoryLabel(rule.category) }}
-              </Badge>
               <p>{{ rule.description }}</p>
             </div>
+            <Badge :variant="rule.isActive ? getCategoryBadgeVariant(rule.category) : 'secondary'">
+              {{ rule.isActive ? getCategoryLabel(rule.category) : 'Disabled' }}
+            </Badge>
             <div class="rule-actions">
               <Toggle
                 :model-value="rule.isActive"
                 @update:model-value="() => handleToggleRule(rule)"
               />
-              <button class="btn btn-ghost btn-sm btn-icon" title="Delete rule" @click="handleDeleteRule(rule.id)">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+              <button class="btn btn-ghost btn-sm btn-icon" title="Edit rule" @click="handleEditExistingRule(rule)">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button class="btn btn-ghost btn-sm btn-icon btn-icon-danger" title="Delete rule" @click="handleDeleteRule(rule.id)">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
@@ -439,7 +540,7 @@ onMounted(() => {
     <!-- Add/Edit Rule Modal -->
     <Modal
       v-model="showAddModal"
-      :title="editingRule ? 'Edit Rule' : 'Add Scheduling Rule'"
+      :title="editingRule || editingExistingRule ? 'Edit Rule' : 'Add Scheduling Rule'"
       size="md"
       @close="handleModalClose"
     >
@@ -482,7 +583,7 @@ onMounted(() => {
           <small class="text-muted">Higher priority rules are applied first</small>
         </div>
 
-        <div v-if="!editingRule" class="form-group">
+        <div v-if="!editingRule && !editingExistingRule" class="form-group">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
             <input v-model="newRule.isActive" type="checkbox" />
             <span>Rule is active</span>
@@ -494,7 +595,7 @@ onMounted(() => {
             Cancel
           </Button>
           <Button type="submit" variant="primary" :loading="rulesStore.loading">
-            {{ editingRule ? 'Save Changes' : 'Add Rule' }}
+            {{ (editingRule || editingExistingRule) ? 'Save Changes' : 'Add Rule' }}
           </Button>
         </div>
       </form>
@@ -507,25 +608,111 @@ onMounted(() => {
   color: var(--danger-color);
 }
 
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab {
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  background-color: var(--background-color);
+  color: var(--text-primary);
+}
+
+.tab.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
 .rule-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 16px;
   padding: 16px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   margin-bottom: 12px;
+  background-color: var(--card-background);
+  transition: border-color 0.2s ease;
+}
+
+.rule-item:hover {
+  border-color: var(--primary-color);
+}
+
+.rule-item.disabled {
+  opacity: 0.6;
+}
+
+.rule-item.disabled:hover {
+  border-color: var(--border-color);
+}
+
+.rule-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rule-icon.icon-primary {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+}
+
+.rule-icon.icon-success {
+  background-color: var(--success-light);
+  color: var(--success-color);
+}
+
+.rule-icon.icon-warning {
+  background-color: var(--warning-light);
+  color: var(--warning-color);
+}
+
+.rule-icon.icon-danger {
+  background-color: var(--danger-light);
+  color: var(--danger-color);
+}
+
+.rule-item.disabled .rule-icon {
+  background-color: #f1f5f9;
+  color: var(--text-muted);
+}
+
+.rule-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .rule-content p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .rule-item > .rule-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .btn-icon {
@@ -534,6 +721,10 @@ onMounted(() => {
 }
 
 .btn-icon:hover {
+  color: var(--text-primary);
+}
+
+.btn-icon-danger:hover {
   color: var(--danger-color);
 }
 
