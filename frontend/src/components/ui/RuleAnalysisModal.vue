@@ -241,7 +241,9 @@ const hasNoIssues = computed(() => {
     </div>
 
     <template #footer>
-      <Button variant="primary" @click="closeModal">Done</Button>
+      <Button variant="primary" @click="closeModal">
+        {{ rulesStore.analyzing ? 'Cancel' : 'Done' }}
+      </Button>
     </template>
   </Modal>
 </template>
