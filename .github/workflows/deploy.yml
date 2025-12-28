@@ -234,36 +234,71 @@ jobs:
             --services ${{ env.ECS_SERVICE }} \
             --query 'services[0].networkConfiguration' \
             --output json)
-
-          SUBNETS=$(echo $NETWORK_CONFIG | jq -r '.awsvpcConfiguration.subnets | join(",")')
-          SECURITY_GROUPS=$(echo $NETWORK_CONFIG | jq -r '.awsvpcConfiguration.securityGroups | join(",")')
+          echo "Network configuration: $(echo "$NETWORK_CONFIG" | jq -c '.')"
 
           # Run Prisma migration as a one-off ECS task
-          TASK_ARN=$(aws ecs run-task \
+          RUN_TASK_OUTPUT=$(aws ecs run-task \
             --cluster ${{ env.ECS_CLUSTER }} \
             --task-definition "$TASK_DEF_ARN" \
             --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUPS],assignPublicIp=DISABLED}" \
+            --network-configuration "$NETWORK_CONFIG" \
             --overrides '{
               "containerOverrides": [{
                 "name": "'"${{ env.CONTAINER_NAME }}"'",
                 "command": ["npx", "prisma", "migrate", "deploy"]
               }]
             }' \
-            --query 'tasks[0].taskArn' \
-            --output text)
+            --output json)
+
+          echo "$RUN_TASK_OUTPUT" | jq -r '.failures[]? | "ECS run-task failure: arn=\(.arn // "n/a") reason=\(.reason // "n/a") detail=\(.detail // "n/a")"'
+          TASK_ARN=$(echo "$RUN_TASK_OUTPUT" | jq -r '.tasks[0].taskArn // empty')
+          if [ -z "$TASK_ARN" ]; then
+            echo "No ECS task ARN returned from run-task"
+            exit 1
+          fi
+          echo "Migration task ARN: $TASK_ARN"
 
           aws ecs wait tasks-stopped \
             --cluster ${{ env.ECS_CLUSTER }} \
             --tasks "$TASK_ARN"
 
-          EXIT_CODE=$(aws ecs describe-tasks \
+          TASK_DESC=$(aws ecs describe-tasks \
             --cluster ${{ env.ECS_CLUSTER }} \
             --tasks "$TASK_ARN" \
-            --query 'tasks[0].containers[0].exitCode' \
-            --output text)
+            --output json)
 
-          test "$EXIT_CODE" = "0"
+          echo "$TASK_DESC" | jq -r '.tasks[0] | {lastStatus, stoppedReason, containers: [.containers[] | {name, lastStatus, exitCode, reason}]}'
+          EXIT_CODE=$(echo "$TASK_DESC" | jq -r --arg NAME "${{ env.CONTAINER_NAME }}" '(.tasks[0].containers | map(select(.name == $NAME)) | .[0].exitCode) // "null"')
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            TASK_ID="${TASK_ARN##*/}"
+            TASK_DEF_USED=$(echo "$TASK_DESC" | jq -r '.tasks[0].taskDefinitionArn')
+
+            if [ -z "$TASK_DEF_USED" ] || [ "$TASK_DEF_USED" = "null" ]; then
+              echo "No task definition ARN found on the stopped task; skipping CloudWatch log lookup"
+              exit 1
+            fi
+
+            TD=$(aws ecs describe-task-definition --task-definition "$TASK_DEF_USED" --output json)
+            LOG_GROUP=$(echo "$TD" | jq -r --arg NAME "${{ env.CONTAINER_NAME }}" '.taskDefinition.containerDefinitions[] | select(.name == $NAME) | .logConfiguration.options."awslogs-group" // empty')
+            LOG_PREFIX=$(echo "$TD" | jq -r --arg NAME "${{ env.CONTAINER_NAME }}" '.taskDefinition.containerDefinitions[] | select(.name == $NAME) | .logConfiguration.options."awslogs-stream-prefix" // empty')
+
+            if [ -n "$LOG_GROUP" ] && [ -n "$LOG_PREFIX" ]; then
+              LOG_STREAM="${LOG_PREFIX}/${{ env.CONTAINER_NAME }}/${TASK_ID}"
+              echo "=== CloudWatch logs (${LOG_GROUP}:${LOG_STREAM}) ==="
+              aws logs get-log-events \
+                --log-group-name "$LOG_GROUP" \
+                --log-stream-name "$LOG_STREAM" \
+                --start-from-head \
+                --output json | jq -r '.events[].message' || true
+            else
+              echo "Could not determine CloudWatch log group/stream from task definition"
+            fi
+
+            exit 1
+          fi
+
+          echo "Migration task completed successfully (exitCode=0)"
 
   # ====================
   # Deploy to ECS
