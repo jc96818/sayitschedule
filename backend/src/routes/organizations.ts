@@ -191,8 +191,8 @@ export async function organizationRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const ctx = request.ctx.user!
 
-      // Get organization ID from context
-      const organizationId = ctx.organizationId
+      // Get organization ID from JWT or subdomain context (for super_admin on org subdomain)
+      const organizationId = ctx.organizationId || (ctx.role === 'super_admin' ? request.ctx.organizationId : null)
       if (!organizationId) {
         return reply.status(400).send({ error: 'Organization context required' })
       }
@@ -230,12 +230,17 @@ export async function organizationRoutes(fastify: FastifyInstance) {
       }
       const body = parseResult.data
 
-      // Super admins can specify an organization ID, regular admins use their own
+      // Determine target organization:
+      // - If super_admin specifies organizationId in request body, use that
+      // - Otherwise use JWT organizationId (for regular admins)
+      // - For super_admin on org subdomain, use subdomain context
       let targetOrgId: string | undefined
       if (ctx.role === 'super_admin' && body.organizationId) {
         targetOrgId = body.organizationId
       } else if (ctx.organizationId) {
         targetOrgId = ctx.organizationId
+      } else if (ctx.role === 'super_admin' && request.ctx.organizationId) {
+        targetOrgId = request.ctx.organizationId
       }
 
       if (!targetOrgId) {

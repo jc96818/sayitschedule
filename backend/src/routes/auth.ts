@@ -30,10 +30,13 @@ export async function authRoutes(fastify: FastifyInstance) {
     // Update last login
     await userRepository.updateLastLogin(user.id)
 
-    // Get organization if user has one
+    // Get organization:
+    // - For regular users: use their organizationId from the database
+    // - For super_admin on an org subdomain: use the org from the subdomain context
     let organization = null
-    if (user.organizationId) {
-      organization = await organizationRepository.findById(user.organizationId)
+    const orgId = user.organizationId || (user.role === 'super_admin' ? request.ctx.organizationId : null)
+    if (orgId) {
+      organization = await organizationRepository.findById(orgId)
     }
 
     // Generate JWT token

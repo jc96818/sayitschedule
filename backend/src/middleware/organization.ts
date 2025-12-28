@@ -37,11 +37,9 @@ export async function organizationMiddleware(
     return
   }
 
-  // Skip organization context for super admin routes and auth routes
-  if (
-    request.url.startsWith('/api/organizations') ||
-    request.url.startsWith('/api/auth')
-  ) {
+  // Skip organization context for super admin routes
+  // Note: Auth routes DO need organization context for subdomain-based login
+  if (request.url.startsWith('/api/organizations')) {
     return
   }
 

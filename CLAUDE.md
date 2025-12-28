@@ -60,6 +60,28 @@ docker-compose up -d         # Start local PostgreSQL
 docker-compose down          # Stop containers
 ```
 
+### Database Access
+
+The local PostgreSQL container is named `sayitschedule-db`. To access:
+
+```bash
+# Connect to psql
+docker exec -it sayitschedule-db psql -U postgres -d sayitschedule
+
+# Run a query directly
+docker exec sayitschedule-db psql -U postgres -d sayitschedule -c "SELECT * FROM users;"
+```
+
+### Test Accounts
+
+These test accounts are available:
+
+- **Super Admin**: `superadmin@sayitschedule.com` / `admin123`
+- **Admin**: `admin@demo.sayitschedule.com` / `admin123`
+- **Assistant**: `assistant@demo.sayitschedule.com` / `admin123`
+
+Access the demo organization at `http://demo.localhost:5173` in development.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env` for local development. Key variables:

@@ -95,9 +95,8 @@ function handleReset() {
 }
 
 // Load transcription settings
+// Note: Backend determines org from subdomain context, so we don't require organization.value
 async function loadTranscriptionSettings() {
-  if (!organization.value) return
-
   transcriptionLoading.value = true
   transcriptionError.value = null
 
@@ -113,9 +112,8 @@ async function loadTranscriptionSettings() {
 }
 
 // Save transcription settings
+// Note: Backend determines org from subdomain context, so we don't require organization.value
 async function handleSaveTranscription() {
-  if (!organization.value) return
-
   transcriptionSaving.value = true
   transcriptionError.value = null
   transcriptionSuccess.value = false
@@ -124,7 +122,7 @@ async function handleSaveTranscription() {
     await organizationService.updateTranscriptionSettings({
       transcriptionProvider: transcriptionProvider.value,
       medicalSpecialty: medicalSpecialty.value,
-      organizationId: organization.value.id
+      organizationId: organization.value?.id
     })
 
     transcriptionSuccess.value = true
