@@ -14,7 +14,20 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
-        changeOrigin: true
+        changeOrigin: false,
+        // Preserve the original Host header for subdomain detection
+        // The backend uses the Host header to determine organization context
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            // Forward the original host header to backend via X-Forwarded-Host
+            const originalHost = req.headers.host
+            if (originalHost) {
+              proxyReq.setHeader('X-Forwarded-Host', originalHost)
+              // Also set the Host header directly to the original
+              proxyReq.setHeader('Host', originalHost)
+            }
+          })
+        }
       }
     }
   }

@@ -88,8 +88,9 @@ export const organizationService = {
     return data
   },
 
-  async switchContext(id: string): Promise<void> {
-    await api.post(`/organizations/${id}/switch`)
+  async switchContext(id: string): Promise<{ token: string; organization: Organization }> {
+    const { data } = await api.post(`/organizations/${id}/switch`)
+    return data
   },
 
   async updateBranding(branding: {

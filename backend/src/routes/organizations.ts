@@ -169,8 +169,10 @@ export async function organizationRoutes(fastify: FastifyInstance) {
   )
 
   // Switch organization context (super admin only)
+  // Issues a new JWT with the target organization's ID for use on org subdomains
   fastify.post('/:id/switch', { preHandler: requireSuperAdmin() }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string }
+    const ctx = request.ctx.user!
 
     const organization = await organizationRepository.findById(id)
     if (!organization) {
@@ -181,7 +183,18 @@ export async function organizationRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization is inactive' })
     }
 
-    return { success: true, organization }
+    // Issue a new JWT with the target organization's ID
+    // This allows the superadmin to operate within the org's context on their subdomain
+    const token = fastify.jwt.sign({
+      userId: ctx.userId,
+      email: ctx.email,
+      role: ctx.role,
+      organizationId: id // Include the target org's ID in the JWT
+    })
+
+    await logAudit(ctx.userId, 'switch_context', 'organization', id, null, { targetOrgId: id })
+
+    return { success: true, organization, token }
   })
 
   // Get transcription settings for current organization

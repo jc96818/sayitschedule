@@ -38,9 +38,18 @@ export function getBaseDomain(): string {
 export function getSubdomain(): string | null {
   const hostname = window.location.hostname
 
-  // No subdomain in development
+  // Plain localhost with no subdomain
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return null
+  }
+
+  // Handle *.localhost for local development (e.g., demo.localhost)
+  if (hostname.endsWith('.localhost')) {
+    const subdomain = hostname.replace('.localhost', '')
+    if (RESERVED_SUBDOMAINS.includes(subdomain)) {
+      return null
+    }
+    return subdomain
   }
 
   const parts = hostname.split('.')
@@ -66,9 +75,14 @@ export function getSubdomain(): string | null {
 export function isRootDomain(): boolean {
   const hostname = window.location.hostname
 
-  // Localhost is treated as root domain for login purposes
+  // Plain localhost is treated as root domain for login purposes
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return true
+  }
+
+  // *.localhost means we have a subdomain
+  if (hostname.endsWith('.localhost')) {
+    return false
   }
 
   const parts = hostname.split('.')
@@ -80,6 +94,12 @@ export function isRootDomain(): boolean {
  */
 export function isAdminSubdomain(): boolean {
   const hostname = window.location.hostname
+
+  // Handle admin.localhost for local development
+  if (hostname === 'admin.localhost') {
+    return true
+  }
+
   const parts = hostname.split('.')
   return parts.length > 2 && parts[0] === 'admin'
 }
@@ -96,19 +116,22 @@ export function buildSubdomainUrl(
   includeToken?: string
 ): string {
   const protocol = window.location.protocol
-  const baseDomain = getBaseDomain()
+  const hostname = window.location.hostname
+  const port = window.location.port
 
-  // In development, stay on localhost but could use query param for org
-  if (baseDomain.includes('localhost') || baseDomain.includes('127.0.0.1')) {
-    const url = new URL(path, window.location.origin)
+  // Handle *.localhost for local development
+  if (hostname.endsWith('.localhost') || hostname === 'localhost') {
+    const portSuffix = port ? `:${port}` : ''
+    let url = `${protocol}//${subdomain}.localhost${portSuffix}${path}`
     if (includeToken) {
-      url.searchParams.set('auth_token', includeToken)
+      const separator = path.includes('?') ? '&' : '?'
+      url += `${separator}auth_token=${encodeURIComponent(includeToken)}`
     }
-    // In dev, we can't actually use subdomains, so just return the path
-    return url.toString()
+    return url
   }
 
   // Production - build subdomain URL
+  const baseDomain = getBaseDomain()
   let url = `${protocol}//${subdomain}.${baseDomain}${path}`
 
   if (includeToken) {
@@ -129,10 +152,11 @@ export function getPostLoginRedirectUrl(
   token: string
 ): string | null {
   const currentSubdomain = getSubdomain()
-  const baseDomain = getBaseDomain()
+  const hostname = window.location.hostname
 
-  // In development, don't redirect across subdomains
-  if (baseDomain.includes('localhost') || baseDomain.includes('127.0.0.1')) {
+  // Only skip redirects for plain localhost (no subdomain support)
+  // *.localhost supports subdomains for local development
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return null
   }
 

@@ -78,10 +78,9 @@ function resetForm() {
 
 async function handleEnterOrg(org: Organization) {
   try {
-    await organizationsStore.switchContext(org.id)
-    // Redirect superadmin to the organization's subdomain
-    // This ensures the backend receives the correct Host header for org context
-    const token = authStore.token
+    // Switch context returns a new JWT with the org's ID embedded
+    const { token } = await organizationsStore.switchContext(org.id)
+    // Redirect superadmin to the organization's subdomain with the new token
     if (token && org.subdomain) {
       const redirectUrl = buildSubdomainUrl(org.subdomain, '/', token)
       window.location.href = redirectUrl

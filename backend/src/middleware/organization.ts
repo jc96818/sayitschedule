@@ -44,19 +44,31 @@ export async function organizationMiddleware(
   }
 
   // Get organization from subdomain or environment variable (for local dev)
-  const hostHeader = request.headers.host || ''
+  // In development, Vite proxy forwards the original host via X-Forwarded-Host
+  const forwardedHost = request.headers['x-forwarded-host'] as string | undefined
+  const hostHeader = forwardedHost || request.headers.host || ''
   const hostname = hostHeader.split(':')[0]
 
   if (!hostname) return
 
-  // Skip lookups for localhost and direct IP access (ALB and container health checks).
+  // Skip lookups for plain localhost, www, and direct IP access (ALB and container health checks).
+  // Note: *.localhost (e.g., demo.localhost) is allowed for local development
   if (hostname === 'localhost' || hostname === 'www' || hostname.match(/^\d{1,3}(\.\d{1,3}){3}$/)) {
     return
   }
 
-  const subdomain = hostname.split('.')[0]
+  // Extract subdomain from hostname
+  let subdomain: string | null = null
 
-  // In development, use ORG_DOMAIN env var to specify subdomain
+  // Handle *.localhost for local development (e.g., demo.localhost)
+  if (hostname.endsWith('.localhost')) {
+    subdomain = hostname.replace('.localhost', '')
+  } else {
+    // Production: extract first part of hostname (e.g., demo from demo.sayitschedule.com)
+    subdomain = hostname.split('.')[0]
+  }
+
+  // In development, use ORG_DOMAIN env var to specify subdomain (fallback)
   const targetSubdomain = process.env.NODE_ENV === 'development' && process.env.ORG_DOMAIN
     ? process.env.ORG_DOMAIN
     : subdomain

@@ -77,13 +77,11 @@ export const useOrganizationsStore = defineStore('organizations', () => {
     }
   }
 
-  async function switchContext(id: string) {
+  async function switchContext(id: string): Promise<{ token: string; organization: Organization }> {
     try {
-      await organizationService.switchContext(id)
-      const org = organizations.value.find((o) => o.id === id)
-      if (org) {
-        currentOrganization.value = org
-      }
+      const result = await organizationService.switchContext(id)
+      currentOrganization.value = result.organization
+      return result
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to switch organization context'
       throw e
