@@ -286,11 +286,23 @@ jobs:
             if [ -n "$LOG_GROUP" ] && [ -n "$LOG_PREFIX" ]; then
               LOG_STREAM="${LOG_PREFIX}/${{ env.CONTAINER_NAME }}/${TASK_ID}"
               echo "=== CloudWatch logs (${LOG_GROUP}:${LOG_STREAM}) ==="
-              aws logs get-log-events \
+              set +e
+              LOGS_JSON=$(aws logs get-log-events \
                 --log-group-name "$LOG_GROUP" \
                 --log-stream-name "$LOG_STREAM" \
                 --start-from-head \
-                --output json | jq -r '.events[].message' || true
+                --output json 2>&1)
+              LOGS_EXIT_CODE=$?
+              set -e
+
+              if [ "$LOGS_EXIT_CODE" != "0" ]; then
+                echo "$LOGS_JSON"
+                if echo "$LOGS_JSON" | grep -q "AccessDenied"; then
+                  echo "Tip: grant the GitHub Actions AWS principal permission for logs:GetLogEvents (and logs:DescribeLogStreams) on $LOG_GROUP"
+                fi
+              else
+                echo "$LOGS_JSON" | jq -r '.events[].message'
+              fi
             else
               echo "Could not determine CloudWatch log group/stream from task definition"
             fi

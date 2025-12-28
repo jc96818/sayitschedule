@@ -145,6 +145,23 @@ Go to **GitHub > Settings > Secrets > Actions** and add:
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 
+The AWS credentials must have permissions to push to ECR, update ECS, and run one-off ECS tasks for migrations. If you want the workflow to print migration logs on failure, also grant CloudWatch Logs read access:
+
+- `logs:GetLogEvents`
+- `logs:DescribeLogStreams`
+
+Example IAM statement (scope down further if desired):
+
+```json
+{
+  "Effect": "Allow",
+  "Action": ["logs:GetLogEvents", "logs:DescribeLogStreams"],
+  "Resource": [
+    "arn:aws:logs:us-east-1:313746776981:log-group:/ecs/sayitschedule-demo:log-stream:*"
+  ]
+}
+```
+
 #### 8. Deploy Application
 
 ```bash
