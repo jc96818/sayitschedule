@@ -301,18 +301,20 @@ export async function analyzeRulesWithAI(
     }
   }
 
-  const systemPrompt = `You are an expert scheduling rules analyst. Your task is to analyze scheduling rules for a therapy scheduling system and identify:
+  const systemPrompt = `You are an expert scheduling rules analyst. Your task is to analyze scheduling rules for a therapy scheduling system and identify ONLY significant issues:
 
-1. CONFLICTS: Rules that contradict each other or create impossible scheduling scenarios
-2. DUPLICATES: Rules that are functionally identical or redundant
-3. ENHANCEMENTS: Suggestions for improving rule coverage or effectiveness
+1. CONFLICTS: Rules that directly contradict each other or create impossible scheduling scenarios
+2. DUPLICATES: Rules that are functionally identical or nearly identical (not just related)
+3. ENHANCEMENTS: Critical missing rules that would cause scheduling failures
 
-When analyzing rules, consider:
-- Gender pairing rules and their interactions
-- Availability constraints and overlaps
-- Specific pairing requirements vs general rules
-- Certification requirements
-- Session timing and frequency rules
+IMPORTANT GUIDELINES:
+- Be CONSERVATIVE. Only report issues that would cause real problems.
+- It is perfectly acceptable to return empty arrays if the rules are well-structured.
+- Do NOT suggest enhancements just because rules could theoretically be more explicit or detailed.
+- Do NOT flag rules as duplicates if they cover different aspects of the same topic.
+- Do NOT suggest adding rules that are already implied by existing rules.
+- Avoid suggesting stylistic or organizational improvements.
+- A well-maintained rule set should have FEW or NO findings.
 
 You must return ONLY a valid JSON object with no additional text.`
 
@@ -368,17 +370,21 @@ Return a JSON object with this exact structure:
   }
 }
 
-IMPORTANT for enhancements:
-- "suggestion" should explain what's missing or what could be improved
-- "suggestedRules" should contain ready-to-use rule descriptions that the user can directly add to the system
-- Each suggestedRule should have a clear, actionable description written as an actual scheduling rule
+CRITICAL INSTRUCTIONS:
+- Only report ACTUAL problems, not theoretical or stylistic concerns.
+- Empty arrays are the CORRECT response when rules are well-structured.
+- Do NOT invent problems to fill the response.
+- Enhancements should ONLY be suggested for critical gaps that would cause scheduling failures.
+- If rules adequately cover a topic, do NOT suggest making them "more explicit" or "clearer".
 
-Severity/Priority guidelines:
-- HIGH: Critical issues that will cause scheduling failures or major problems
-- MEDIUM: Issues that may cause suboptimal schedules or occasional problems
-- LOW: Minor issues or nice-to-have improvements
+Severity/Priority guidelines (use sparingly):
+- HIGH: Critical issues that WILL cause scheduling failures
+- MEDIUM: Issues that create ambiguity leading to incorrect schedules
+- LOW: Do NOT use - if it's low priority, don't report it at all
 
-Be thorough but practical. Only report genuine issues, not hypothetical edge cases.`
+For enhancements (only if truly necessary):
+- "suggestedRules" should contain ready-to-use rule descriptions
+- Only suggest rules that fill genuine gaps, not refinements of existing rules`
 
   try {
     const response = await getOpenAI().chat.completions.create({

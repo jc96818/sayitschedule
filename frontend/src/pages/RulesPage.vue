@@ -30,6 +30,9 @@ const showVoiceConfirmation = ref(false)
 // Category filter tabs
 const selectedCategory = ref<string>('all')
 
+// Status filter - defaults to 'active' to hide deactivated rules
+const statusFilter = ref<'all' | 'active' | 'inactive'>('active')
+
 const categoryTabs = [
   { value: 'all', label: 'All Rules' },
   { value: 'gender_pairing', label: 'Gender Pairing' },
@@ -42,12 +45,23 @@ const categoryTabs = [
 // Computed: Check if we have multiple rules
 const hasMultipleRules = computed(() => rulesStore.pendingRules.length > 1)
 
-// Computed: Filtered rules by selected category
+// Computed: Filtered rules by selected category and status
 const filteredRules = computed(() => {
-  if (selectedCategory.value === 'all') {
-    return rulesStore.rules
+  let result = rulesStore.rules
+
+  // Filter by status
+  if (statusFilter.value === 'active') {
+    result = result.filter(rule => rule.isActive)
+  } else if (statusFilter.value === 'inactive') {
+    result = result.filter(rule => !rule.isActive)
   }
-  return rulesStore.rules.filter(rule => rule.category === selectedCategory.value)
+
+  // Filter by category
+  if (selectedCategory.value !== 'all') {
+    result = result.filter(rule => rule.category === selectedCategory.value)
+  }
+
+  return result
 })
 
 const categoryLabels: Record<string, string> = {
@@ -255,6 +269,7 @@ async function handleCreateRuleFromAnalysis(suggestedRule: SuggestedRuleForCreat
     await rulesStore.createRule({
       category: suggestedRule.category as Rule['category'],
       description: suggestedRule.description,
+      ruleLogic: {},
       priority: suggestedRule.priority || 50,
       isActive: true
     })
@@ -483,17 +498,27 @@ onMounted(() => {
         {{ rulesStore.error }}
       </Alert>
 
-      <!-- Category Tabs -->
-      <div class="tabs">
-        <button
-          v-for="tab in categoryTabs"
-          :key="tab.value"
-          class="tab"
-          :class="{ active: selectedCategory === tab.value }"
-          @click="selectedCategory = tab.value"
-        >
-          {{ tab.label }}
-        </button>
+      <!-- Filters Row -->
+      <div class="filters-row">
+        <!-- Category Tabs -->
+        <div class="tabs">
+          <button
+            v-for="tab in categoryTabs"
+            :key="tab.value"
+            class="tab"
+            :class="{ active: selectedCategory === tab.value }"
+            @click="selectedCategory = tab.value"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+
+        <!-- Status Filter -->
+        <select v-model="statusFilter" class="form-control status-filter">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="all">All Status</option>
+        </select>
       </div>
 
       <!-- Rules List -->
@@ -637,10 +662,22 @@ onMounted(() => {
   color: var(--danger-color);
 }
 
+.filters-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.status-filter {
+  width: auto;
+  min-width: 120px;
+}
+
 .tabs {
   display: flex;
   gap: 4px;
-  margin-bottom: 16px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }

@@ -108,6 +108,22 @@ async function handleDeactivateRule(ruleId: string) {
   }
 }
 
+// Keep one rule and deactivate all others in the duplicate group
+async function handleKeepOnlyRule(keepRuleId: string, allRuleIds: string[]) {
+  processingRuleId.value = keepRuleId
+  try {
+    // Deactivate all rules except the one to keep
+    const rulesToDeactivate = allRuleIds.filter(id => id !== keepRuleId)
+    for (const ruleId of rulesToDeactivate) {
+      await rulesStore.deactivateRuleFromAnalysis(ruleId)
+    }
+  } catch (error) {
+    console.error('Failed to resolve duplicate:', error)
+  } finally {
+    processingRuleId.value = null
+  }
+}
+
 function handleCreateSuggestedRule(rule: SuggestedRuleForCreate, enhancementIndex: number) {
   // Emit event to parent to create the suggested rule
   emit('createRule', rule)
@@ -248,28 +264,29 @@ function handleDismissEnhancement(index: number) {
         <div v-if="expandedSections.has('duplicates')" class="section-content">
           <div v-for="(duplicate, index) in rulesStore.analysisResult.duplicates" :key="index" class="item-card">
             <p class="item-description">{{ duplicate.description }}</p>
-            <div class="affected-rules">
-              <span class="affected-label">Similar rules:</span>
-              <span v-for="ruleId in duplicate.ruleIds" :key="ruleId" class="rule-chip">
-                {{ getRuleDescription(ruleId) }}
-              </span>
-            </div>
             <div class="suggestion-box">
               <strong>Recommendation:</strong> {{ duplicate.recommendation }}
             </div>
-            <div class="item-actions">
-              <span class="action-label">Keep only:</span>
-              <Button
-                v-for="(ruleId, ruleIndex) in duplicate.ruleIds"
+            <div class="duplicate-rules-list">
+              <span class="duplicate-rules-label">Choose which rule to keep:</span>
+              <div
+                v-for="ruleId in duplicate.ruleIds"
                 :key="ruleId"
-                variant="outline"
-                size="sm"
-                :loading="processingRuleId === ruleId"
-                :disabled="processingRuleId !== null"
-                @click="handleDeactivateRule(duplicate.ruleIds.filter((_, i) => i !== ruleIndex)[0])"
+                class="duplicate-rule-option"
               >
-                {{ getShortRuleDescription(ruleId) }}
-              </Button>
+                <div class="duplicate-rule-text">
+                  {{ getRuleDescription(ruleId) }}
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  :loading="processingRuleId === ruleId"
+                  :disabled="processingRuleId !== null"
+                  @click="handleKeepOnlyRule(ruleId, duplicate.ruleIds)"
+                >
+                  Keep This
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -288,8 +305,17 @@ function handleDismissEnhancement(index: number) {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        <div v-if="expandedSections.has('enhancements')" class="section-content">
-          <div v-for="(enhancement, index) in rulesStore.analysisResult.enhancements" :key="index" class="item-card">
+        <TransitionGroup
+          v-if="expandedSections.has('enhancements')"
+          name="item-collapse"
+          tag="div"
+          class="section-content"
+        >
+          <div
+            v-for="(enhancement, index) in rulesStore.analysisResult.enhancements"
+            :key="enhancement.suggestion"
+            class="item-card"
+          >
             <div class="item-header">
               <Badge :variant="getPriorityVariant(enhancement.priority)">
                 {{ enhancement.priority.toUpperCase() }} PRIORITY
@@ -339,7 +365,7 @@ function handleDismissEnhancement(index: number) {
               </Button>
             </div>
           </div>
-        </div>
+        </TransitionGroup>
       </div>
     </div>
 
@@ -721,5 +747,66 @@ function handleDismissEnhancement(index: number) {
   font-size: 13px;
   color: var(--text-primary);
   line-height: 1.4;
+}
+
+/* Duplicate Rules UI */
+.duplicate-rules-list {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--warning-light, #fef3c7);
+  border-radius: var(--radius-md);
+}
+
+.duplicate-rules-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--warning-color, #d97706);
+  margin-bottom: 10px;
+}
+
+.duplicate-rule-option {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  background: var(--card-background);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.duplicate-rule-option:last-child {
+  margin-bottom: 0;
+}
+
+.duplicate-rule-text {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* Collapse Animation for TransitionGroup */
+.item-collapse-move,
+.item-collapse-enter-active,
+.item-collapse-leave-active {
+  transition: all 0.3s ease;
+}
+
+.item-collapse-enter-from {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.item-collapse-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.item-collapse-leave-active {
+  position: absolute;
+  width: calc(100% - 32px);
 }
 </style>
