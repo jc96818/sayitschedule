@@ -43,7 +43,7 @@ async function seed() {
   console.log('Created demo organization:', demoOrg.id)
 
   // Create super admin (no organization)
-  const superAdminPassword = await bcrypt.hash('admin123', 10)
+  const superAdminPassword = await bcrypt.hash('sayitadmin2025', 10)
   const superAdmin = await prisma.user.create({
     data: {
       email: 'superadmin@sayitschedule.com',
@@ -57,7 +57,7 @@ async function seed() {
   console.log('Created super admin:', superAdmin.email)
 
   // Create admin for demo org
-  const adminPassword = await bcrypt.hash('admin123', 10)
+  const adminPassword = await bcrypt.hash('sayitadmin2025', 10)
   const admin = await prisma.user.create({
     data: {
       email: 'admin@demo.sayitschedule.com',
@@ -215,9 +215,9 @@ async function seed() {
 
   console.log('\n=== Seed completed successfully! ===')
   console.log('\nTest accounts:')
-  console.log('Super Admin: superadmin@sayitschedule.com / admin123')
-  console.log('Admin: admin@demo.sayitschedule.com / admin123')
-  console.log('Assistant: assistant@demo.sayitschedule.com / admin123')
+  console.log('Super Admin: superadmin@sayitschedule.com / sayitadmin2025')
+  console.log('Admin: admin@demo.sayitschedule.com / sayitadmin2025')
+  console.log('Assistant: assistant@demo.sayitschedule.com / sayitadmin2025')
 
   await prisma.$disconnect()
   process.exit(0)
