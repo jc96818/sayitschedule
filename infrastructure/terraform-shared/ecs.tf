@@ -116,6 +116,26 @@ resource "aws_iam_role" "ecs_task" {
   })
 }
 
+# IAM policy for AWS Transcribe (Medical and Standard)
+resource "aws_iam_role_policy" "ecs_transcribe" {
+  name = "${local.app_name}-ecs-transcribe-demo"
+  role = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "transcribe:StartStreamTranscription",
+          "transcribe:StartMedicalStreamTranscription"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # ECR Repository
 resource "aws_ecr_repository" "app" {
   name                 = "${local.app_name}-demo"
@@ -177,7 +197,10 @@ resource "aws_ecs_task_definition" "app" {
 
       environment = [
         { name = "NODE_ENV", value = "production" },
-        { name = "PORT", value = "3000" }
+        { name = "PORT", value = "3000" },
+        { name = "AWS_REGION", value = var.aws_region },
+        { name = "DEFAULT_TRANSCRIPTION_PROVIDER", value = var.transcription_provider },
+        { name = "DEFAULT_MEDICAL_SPECIALTY", value = var.transcription_medical_specialty }
       ]
 
       secrets = [

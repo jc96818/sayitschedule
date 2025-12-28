@@ -94,3 +94,26 @@ variable "create_root_record" {
   type        = bool
   default     = false
 }
+
+# Transcription Configuration
+variable "transcription_provider" {
+  description = "Default transcription provider (aws-medical for HIPAA, aws-standard otherwise)"
+  type        = string
+  default     = "aws-medical"
+
+  validation {
+    condition     = contains(["aws-medical", "aws-standard"], var.transcription_provider)
+    error_message = "transcription_provider must be either 'aws-medical' or 'aws-standard'."
+  }
+}
+
+variable "transcription_medical_specialty" {
+  description = "Medical specialty for AWS Medical Transcribe"
+  type        = string
+  default     = "PRIMARYCARE"
+
+  validation {
+    condition     = contains(["PRIMARYCARE", "CARDIOLOGY", "NEUROLOGY", "ONCOLOGY", "RADIOLOGY", "UROLOGY"], var.transcription_medical_specialty)
+    error_message = "transcription_medical_specialty must be one of: PRIMARYCARE, CARDIOLOGY, NEUROLOGY, ONCOLOGY, RADIOLOGY, UROLOGY."
+  }
+}
