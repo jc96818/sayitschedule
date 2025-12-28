@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { buildSubdomainUrl, getSubdomain } from '@/utils/subdomain'
 
 const route = useRoute()
 const router = useRouter()
@@ -10,10 +11,18 @@ const authStore = useAuthStore()
 const user = computed(() => authStore.user)
 const organization = computed(() => authStore.organization)
 
-// SuperAdmin viewing an organization context
-const isSuperAdminInOrgContext = computed(() =>
-  authStore.isSuperAdmin && organization.value !== null
-)
+// SuperAdmin viewing an organization context (on an org subdomain, not admin subdomain)
+const isSuperAdminInOrgContext = computed(() => {
+  const subdomain = getSubdomain()
+  return authStore.isSuperAdmin && subdomain !== null && subdomain !== 'admin'
+})
+
+function handleBackToSuperAdmin() {
+  const token = authStore.token
+  if (token) {
+    window.location.href = buildSubdomainUrl('admin', '/super-admin', token)
+  }
+}
 
 const userInitials = computed(() => {
   if (!user.value?.name) return '?'
@@ -102,12 +111,12 @@ async function handleLogout() {
 <template>
   <aside class="sidebar">
     <!-- SuperAdmin context banner -->
-    <RouterLink v-if="isSuperAdminInOrgContext" to="/super-admin" class="super-admin-banner">
+    <a v-if="isSuperAdminInOrgContext" href="#" class="super-admin-banner" @click.prevent="handleBackToSuperAdmin">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
       </svg>
       <span>Back to Super Admin</span>
-    </RouterLink>
+    </a>
 
     <div class="sidebar-header">
       <img
