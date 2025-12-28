@@ -14,8 +14,10 @@ import {
   type TranscriptionProviderType,
   type ClientMessage,
   type ServerMessage,
+  type MedicalSpecialty,
 } from '../services/transcription/index.js'
 import type { JWTPayload, UserRole } from '../types/index.js'
+import { organizationRepository } from '../repositories/organizations.js'
 
 const ALLOWED_ROLES: UserRole[] = ['super_admin', 'admin', 'admin_assistant']
 
@@ -90,6 +92,20 @@ export async function transcriptionRoutes(fastify: FastifyInstance) {
 
     console.log(`[Transcription] WebSocket connected: session=${sessionId}, user=${user.userId}`)
 
+    // Fetch organization transcription settings
+    let orgProvider: TranscriptionProviderType = getDefaultProvider()
+    let orgMedicalSpecialty: MedicalSpecialty = 'PRIMARYCARE'
+
+    if (organizationId) {
+      const orgSettings = await organizationRepository.getTranscriptionSettings(organizationId)
+      if (orgSettings) {
+        // Map Prisma enum to our provider type
+        orgProvider = orgSettings.transcriptionProvider === 'aws_medical' ? 'aws-medical' : 'aws-standard'
+        orgMedicalSpecialty = orgSettings.medicalSpecialty as MedicalSpecialty
+        console.log(`[Transcription] Using org settings: provider=${orgProvider}, specialty=${orgMedicalSpecialty}`)
+      }
+    }
+
     // Create async iterable from audio queue
     async function* audioStream(): AsyncIterable<Buffer> {
       while (!streamEnded || audioQueue.length > 0) {
@@ -159,19 +175,19 @@ export async function transcriptionRoutes(fastify: FastifyInstance) {
 
         switch (message.type) {
           case 'config': {
-            // Determine provider type
-            const providerType: TranscriptionProviderType = message.provider || getDefaultProvider()
+            // Use organization settings as default, allow client override
+            const providerType: TranscriptionProviderType = message.provider || orgProvider
 
             config = {
               provider: providerType,
               languageCode: 'en-US',
               sampleRate: message.sampleRate || 16000,
               mediaEncoding: message.encoding || 'pcm',
-              medicalSpecialty: 'PRIMARYCARE',
+              medicalSpecialty: orgMedicalSpecialty,
               contentType: 'CONVERSATION',
             }
 
-            console.log(`[Transcription] Config received: provider=${providerType}, sampleRate=${config.sampleRate}`)
+            console.log(`[Transcription] Config received: provider=${providerType}, specialty=${orgMedicalSpecialty}, sampleRate=${config.sampleRate}`)
 
             sendMessage(socket, {
               type: 'ready',

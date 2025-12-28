@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { organizationService } from '@/services/api'
+import { organizationService, type TranscriptionProviderType, type MedicalSpecialty } from '@/services/api'
 import { applyBranding } from '@/composables/useBranding'
 import { Alert } from '@/components/ui'
 
@@ -14,6 +14,14 @@ const name = ref('')
 const primaryColor = ref('#2563eb')
 const secondaryColor = ref('#1e40af')
 const logoUrl = ref<string | null>(null)
+
+// Transcription settings state
+const transcriptionProvider = ref<TranscriptionProviderType>('aws_medical')
+const medicalSpecialty = ref<MedicalSpecialty>('PRIMARYCARE')
+const transcriptionLoading = ref(false)
+const transcriptionSaving = ref(false)
+const transcriptionError = ref<string | null>(null)
+const transcriptionSuccess = ref(false)
 
 // UI state
 const saving = ref(false)
@@ -85,6 +93,55 @@ function handleReset() {
     logoUrl.value = organization.value.logoUrl
   }
 }
+
+// Load transcription settings
+async function loadTranscriptionSettings() {
+  if (!organization.value) return
+
+  transcriptionLoading.value = true
+  transcriptionError.value = null
+
+  try {
+    const response = await organizationService.getTranscriptionSettings()
+    transcriptionProvider.value = response.data.transcriptionProvider
+    medicalSpecialty.value = response.data.medicalSpecialty
+  } catch (e) {
+    transcriptionError.value = e instanceof Error ? e.message : 'Failed to load transcription settings'
+  } finally {
+    transcriptionLoading.value = false
+  }
+}
+
+// Save transcription settings
+async function handleSaveTranscription() {
+  if (!organization.value) return
+
+  transcriptionSaving.value = true
+  transcriptionError.value = null
+  transcriptionSuccess.value = false
+
+  try {
+    await organizationService.updateTranscriptionSettings({
+      transcriptionProvider: transcriptionProvider.value,
+      medicalSpecialty: medicalSpecialty.value,
+      organizationId: organization.value.id
+    })
+
+    transcriptionSuccess.value = true
+    setTimeout(() => {
+      transcriptionSuccess.value = false
+    }, 3000)
+  } catch (e) {
+    transcriptionError.value = e instanceof Error ? e.message : 'Failed to save transcription settings'
+  } finally {
+    transcriptionSaving.value = false
+  }
+}
+
+// Load settings on mount
+onMounted(() => {
+  loadTranscriptionSettings()
+})
 </script>
 
 <template>
@@ -197,6 +254,72 @@ function handleReset() {
 
         <div class="card">
           <div class="card-header">
+            <h3>Voice Transcription</h3>
+          </div>
+          <div class="card-body">
+            <Alert v-if="transcriptionError" variant="danger" class="mb-3" dismissible @dismiss="transcriptionError = null">
+              {{ transcriptionError }}
+            </Alert>
+
+            <Alert v-if="transcriptionSuccess" variant="success" class="mb-3">
+              Transcription settings saved successfully!
+            </Alert>
+
+            <div v-if="transcriptionLoading" class="loading-state">
+              Loading transcription settings...
+            </div>
+
+            <template v-else>
+              <div class="form-group">
+                <label for="transcription-provider">Transcription Provider</label>
+                <select
+                  id="transcription-provider"
+                  v-model="transcriptionProvider"
+                  class="form-control"
+                >
+                  <option value="aws_medical">AWS Medical Transcribe (HIPAA-eligible)</option>
+                  <option value="aws_standard">AWS Standard Transcribe</option>
+                </select>
+                <small class="text-muted">
+                  AWS Medical Transcribe is optimized for medical terminology and HIPAA-eligible.
+                </small>
+              </div>
+
+              <div v-if="transcriptionProvider === 'aws_medical'" class="form-group">
+                <label for="medical-specialty">Medical Specialty</label>
+                <select
+                  id="medical-specialty"
+                  v-model="medicalSpecialty"
+                  class="form-control"
+                >
+                  <option value="PRIMARYCARE">Primary Care</option>
+                  <option value="CARDIOLOGY">Cardiology</option>
+                  <option value="NEUROLOGY">Neurology</option>
+                  <option value="ONCOLOGY">Oncology</option>
+                  <option value="RADIOLOGY">Radiology</option>
+                  <option value="UROLOGY">Urology</option>
+                </select>
+                <small class="text-muted">
+                  Selecting the appropriate specialty improves transcription accuracy for medical terms.
+                </small>
+              </div>
+
+              <div class="button-row">
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  :disabled="transcriptionSaving"
+                  @click="handleSaveTranscription"
+                >
+                  {{ transcriptionSaving ? 'Saving...' : 'Save Transcription Settings' }}
+                </button>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
             <h3>Holidays</h3>
           </div>
           <div class="card-body">
@@ -281,6 +404,12 @@ function handleReset() {
 
 .holiday-list li {
   color: var(--text-secondary);
+}
+
+.loading-state {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
 }
 
 @media (max-width: 640px) {

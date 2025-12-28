@@ -14,6 +14,15 @@ import type {
   PaginatedResponse
 } from '@/types'
 
+// Transcription settings types
+export type TranscriptionProviderType = 'aws_medical' | 'aws_standard'
+export type MedicalSpecialty = 'PRIMARYCARE' | 'CARDIOLOGY' | 'NEUROLOGY' | 'ONCOLOGY' | 'RADIOLOGY' | 'UROLOGY'
+
+export interface TranscriptionSettings {
+  transcriptionProvider: TranscriptionProviderType
+  medicalSpecialty: MedicalSpecialty
+}
+
 const api = axios.create({
   baseURL: '/api',
   headers: {
@@ -91,6 +100,20 @@ export const organizationService = {
     organizationId?: string
   }): Promise<ApiResponse<Organization>> {
     const { data } = await api.put('/organizations/current/branding', branding)
+    return data
+  },
+
+  async getTranscriptionSettings(): Promise<ApiResponse<TranscriptionSettings>> {
+    const { data } = await api.get('/organizations/current/transcription')
+    return data
+  },
+
+  async updateTranscriptionSettings(settings: {
+    transcriptionProvider?: 'aws_medical' | 'aws_standard'
+    medicalSpecialty?: MedicalSpecialty
+    organizationId?: string
+  }): Promise<ApiResponse<TranscriptionSettings>> {
+    const { data } = await api.put('/organizations/current/transcription', settings)
     return data
   }
 }

@@ -41,6 +41,21 @@ enum RuleCategory {
   certification
 }
 
+// Transcription provider options
+enum TranscriptionProvider {
+  aws_medical
+  aws_standard
+}
+
+enum MedicalSpecialty {
+  PRIMARYCARE
+  CARDIOLOGY
+  NEUROLOGY
+  ONCOLOGY
+  RADIOLOGY
+  UROLOGY
+}
+
 // Organizations
 model Organization {
   id             String   @id @default(cuid())
@@ -52,6 +67,10 @@ model Organization {
   status         Status   @default(active)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Transcription settings
+  transcriptionProvider  TranscriptionProvider @default(aws_medical) @map("transcription_provider")
+  medicalSpecialty       MedicalSpecialty      @default(PRIMARYCARE) @map("medical_specialty")
 
   users          User[]
   staff          Staff[]

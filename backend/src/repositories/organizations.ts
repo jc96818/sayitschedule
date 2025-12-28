@@ -1,5 +1,5 @@
 import { prisma, paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
-import type { Organization, Status, Prisma } from '@prisma/client'
+import type { Organization, Status, Prisma, TranscriptionProvider, MedicalSpecialty } from '@prisma/client'
 
 export interface OrganizationCreate {
   name: string
@@ -7,6 +7,8 @@ export interface OrganizationCreate {
   logoUrl?: string | null
   primaryColor?: string
   secondaryColor?: string
+  transcriptionProvider?: TranscriptionProvider
+  medicalSpecialty?: MedicalSpecialty
 }
 
 export interface OrganizationUpdate {
@@ -16,6 +18,8 @@ export interface OrganizationUpdate {
   primaryColor?: string
   secondaryColor?: string
   status?: Status
+  transcriptionProvider?: TranscriptionProvider
+  medicalSpecialty?: MedicalSpecialty
 }
 
 export type { Organization }
@@ -104,6 +108,21 @@ export class OrganizationRepository {
     ])
 
     return { users, staff, patients }
+  }
+
+  async getTranscriptionSettings(id: string): Promise<{
+    transcriptionProvider: TranscriptionProvider
+    medicalSpecialty: MedicalSpecialty
+  } | null> {
+    const org = await prisma.organization.findUnique({
+      where: { id },
+      select: {
+        transcriptionProvider: true,
+        medicalSpecialty: true
+      }
+    })
+
+    return org
   }
 }
 

@@ -183,4 +183,81 @@ export async function organizationRoutes(fastify: FastifyInstance) {
 
     return { success: true, organization }
   })
+
+  // Get transcription settings for current organization
+  fastify.get(
+    '/current/transcription',
+    { preHandler: authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const ctx = request.ctx.user!
+
+      // Get organization ID from context
+      const organizationId = ctx.organizationId
+      if (!organizationId) {
+        return reply.status(400).send({ error: 'Organization context required' })
+      }
+
+      const settings = await organizationRepository.getTranscriptionSettings(organizationId)
+      if (!settings) {
+        return reply.status(404).send({ error: 'Organization not found' })
+      }
+
+      return { data: settings }
+    }
+  )
+
+  // Update transcription settings for current organization (admin only)
+  fastify.put(
+    '/current/transcription',
+    { preHandler: authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const ctx = request.ctx.user!
+
+      // Only admins can update transcription settings
+      if (ctx.role !== 'admin' && ctx.role !== 'super_admin') {
+        return reply.status(403).send({ error: 'Admin role required' })
+      }
+
+      const transcriptionSchema = z.object({
+        transcriptionProvider: z.enum(['aws_medical', 'aws_standard']).optional(),
+        medicalSpecialty: z.enum(['PRIMARYCARE', 'CARDIOLOGY', 'NEUROLOGY', 'ONCOLOGY', 'RADIOLOGY', 'UROLOGY']).optional(),
+        organizationId: z.string().optional()
+      })
+
+      const parseResult = transcriptionSchema.safeParse(request.body)
+      if (!parseResult.success) {
+        return reply.status(400).send({ error: 'Invalid transcription settings', details: parseResult.error.issues })
+      }
+      const body = parseResult.data
+
+      // Super admins can specify an organization ID, regular admins use their own
+      let targetOrgId: string | undefined
+      if (ctx.role === 'super_admin' && body.organizationId) {
+        targetOrgId = body.organizationId
+      } else if (ctx.organizationId) {
+        targetOrgId = ctx.organizationId
+      }
+
+      if (!targetOrgId) {
+        return reply.status(400).send({ error: 'Organization context required' })
+      }
+
+      // Remove organizationId from the update payload
+      const { organizationId: _, ...updateData } = body
+
+      const organization = await organizationRepository.update(targetOrgId, updateData)
+      if (!organization) {
+        return reply.status(404).send({ error: 'Organization not found' })
+      }
+
+      await logAudit(ctx.userId, 'update_transcription_settings', 'organization', targetOrgId, null, updateData)
+
+      return {
+        data: {
+          transcriptionProvider: organization.transcriptionProvider,
+          medicalSpecialty: organization.medicalSpecialty
+        }
+      }
+    }
+  )
 }
