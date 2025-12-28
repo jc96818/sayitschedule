@@ -309,10 +309,7 @@ watch([statusFilter, genderFilter], () => {
                     >
                       {{ getInitials(patient.name) }}
                     </div>
-                    <div>
-                      <div style="font-weight: 500;">{{ patient.name }}</div>
-                      <div style="font-size: 12px; color: var(--text-muted);">ID: {{ patient.id.slice(0, 8) }}</div>
-                    </div>
+                    <div style="font-weight: 500;">{{ patient.name }}</div>
                   </div>
                 </td>
                 <td style="text-transform: capitalize;">{{ patient.gender }}</td>
