@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRulesStore } from '@/stores/rules'
-import type { RuleEnhancement } from '@/types'
 import Modal from './Modal.vue'
 import Badge from './Badge.vue'
 import Button from './Button.vue'
@@ -12,9 +11,15 @@ interface Props {
 
 const props = defineProps<Props>()
 
+export interface SuggestedRuleForCreate {
+  category: string
+  description: string
+  priority?: number
+}
+
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  'createRule': [suggestion: string]
+  'createRule': [rule: SuggestedRuleForCreate]
 }>()
 
 const rulesStore = useRulesStore()
@@ -103,11 +108,11 @@ async function handleDeactivateRule(ruleId: string) {
   }
 }
 
-function handleCreateEnhancement(enhancement: RuleEnhancement, index: number) {
-  // Emit event to parent to open rule creation form with pre-filled suggestion
-  emit('createRule', enhancement.suggestion)
-  // Remove this enhancement from the list
-  rulesStore.dismissEnhancement(index)
+function handleCreateSuggestedRule(rule: SuggestedRuleForCreate, enhancementIndex: number) {
+  // Emit event to parent to create the suggested rule
+  emit('createRule', rule)
+  // Remove this enhancement from the list since user is acting on it
+  rulesStore.dismissEnhancement(enhancementIndex)
 }
 
 function handleDismissEnhancement(index: number) {
@@ -300,17 +305,31 @@ function handleDismissEnhancement(index: number) {
             <div class="suggestion-box">
               <strong>Rationale:</strong> {{ enhancement.rationale }}
             </div>
+
+            <!-- Suggested Rules from AI -->
+            <div v-if="enhancement.suggestedRules && enhancement.suggestedRules.length > 0" class="suggested-rules">
+              <span class="suggested-rules-label">Suggested rules to add:</span>
+              <div v-for="(suggestedRule, ruleIndex) in enhancement.suggestedRules" :key="ruleIndex" class="suggested-rule-item">
+                <div class="suggested-rule-content">
+                  <Badge variant="secondary" class="suggested-rule-category">
+                    {{ suggestedRule.category.replace(/_/g, ' ') }}
+                  </Badge>
+                  <span class="suggested-rule-description">{{ suggestedRule.description }}</span>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  @click="handleCreateSuggestedRule(suggestedRule, index)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add
+                </Button>
+              </div>
+            </div>
+
             <div class="item-actions">
-              <Button
-                variant="primary"
-                size="sm"
-                @click="handleCreateEnhancement(enhancement, index)"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                Create Rule
-              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -654,5 +673,53 @@ function handleDismissEnhancement(index: number) {
   font-size: 12px;
   color: var(--text-secondary);
   margin-right: 4px;
+}
+
+/* Suggested Rules */
+.suggested-rules {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--primary-light);
+  border-radius: var(--radius-md);
+}
+
+.suggested-rules-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-bottom: 8px;
+}
+
+.suggested-rule-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  background: var(--card-background);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+.suggested-rule-item:last-child {
+  margin-bottom: 0;
+}
+
+.suggested-rule-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.suggested-rule-category {
+  margin-bottom: 4px;
+  text-transform: capitalize;
+}
+
+.suggested-rule-description {
+  display: block;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
 }
 </style>

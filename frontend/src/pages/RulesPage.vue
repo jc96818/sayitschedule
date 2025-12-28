@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRulesStore } from '@/stores/rules'
 import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, Toggle, RuleAnalysisModal } from '@/components/ui'
 import type { Rule, ParsedRuleItem } from '@/types'
+import type { SuggestedRuleForCreate } from '@/components/ui/RuleAnalysisModal.vue'
 
 const rulesStore = useRulesStore()
 
@@ -247,18 +248,20 @@ function resetForm() {
   }
 }
 
-// Handle create rule from AI analysis enhancement suggestion
-function handleCreateRuleFromAnalysis(suggestion: string) {
-  // Pre-fill the form with the suggestion
-  newRule.value = {
-    category: 'scheduling',
-    description: suggestion,
-    isActive: true,
-    priority: 50
+// Handle create rule from AI analysis suggested rule
+async function handleCreateRuleFromAnalysis(suggestedRule: SuggestedRuleForCreate) {
+  try {
+    // Create the rule directly from the AI suggestion
+    await rulesStore.createRule({
+      category: suggestedRule.category as Rule['category'],
+      description: suggestedRule.description,
+      priority: suggestedRule.priority || 50,
+      isActive: true
+    })
+    // Keep the analysis modal open so user can add more rules
+  } catch (error) {
+    console.error('Failed to create rule:', error)
   }
-  // Close analysis modal and open add rule modal
-  showAnalysisModal.value = false
-  showAddModal.value = true
 }
 
 onMounted(() => {

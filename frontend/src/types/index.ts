@@ -268,11 +268,18 @@ export interface RuleDuplicate {
   recommendation: string
 }
 
+export interface SuggestedRule {
+  category: string
+  description: string
+  priority?: number
+}
+
 export interface RuleEnhancement {
   relatedRuleIds: string[]
   suggestion: string
   rationale: string
   priority: 'high' | 'medium' | 'low'
+  suggestedRules?: SuggestedRule[]
 }
 
 export interface RuleAnalysisSummary {

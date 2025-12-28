@@ -77,11 +77,18 @@ export interface RuleDuplicate {
   recommendation: string
 }
 
+export interface SuggestedRule {
+  category: string
+  description: string
+  priority?: number
+}
+
 export interface RuleEnhancement {
   relatedRuleIds: string[]
   suggestion: string
   rationale: string
   priority: 'high' | 'medium' | 'low'
+  suggestedRules?: SuggestedRule[]
 }
 
 export interface RuleAnalysisResult {
@@ -341,9 +348,16 @@ Return a JSON object with this exact structure:
   "enhancements": [
     {
       "relatedRuleIds": ["<optional related rule IDs>"],
-      "suggestion": "The suggested improvement or new rule",
+      "suggestion": "The suggested improvement or what's missing",
       "rationale": "Why this enhancement would help",
-      "priority": "high" | "medium" | "low"
+      "priority": "high" | "medium" | "low",
+      "suggestedRules": [
+        {
+          "category": "gender_pairing" | "session" | "availability" | "specific_pairing" | "certification",
+          "description": "The actual rule text that can be added directly to the system",
+          "priority": 50
+        }
+      ]
     }
   ],
   "summary": {
@@ -353,6 +367,11 @@ Return a JSON object with this exact structure:
     "enhancementsSuggested": <number>
   }
 }
+
+IMPORTANT for enhancements:
+- "suggestion" should explain what's missing or what could be improved
+- "suggestedRules" should contain ready-to-use rule descriptions that the user can directly add to the system
+- Each suggestedRule should have a clear, actionable description written as an actual scheduling rule
 
 Severity/Priority guidelines:
 - HIGH: Critical issues that will cause scheduling failures or major problems
