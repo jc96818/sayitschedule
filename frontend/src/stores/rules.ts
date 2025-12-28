@@ -310,6 +310,56 @@ export const useRulesStore = defineStore('rules', () => {
     analysisResult.value = null
   }
 
+  // Deactivate a rule and remove related findings from analysis
+  async function deactivateRuleFromAnalysis(ruleId: string): Promise<void> {
+    // Deactivate the rule
+    await updateRule(ruleId, { isActive: false })
+
+    // Remove findings that reference this rule from the analysis result
+    if (analysisResult.value) {
+      analysisResult.value = {
+        ...analysisResult.value,
+        conflicts: analysisResult.value.conflicts.filter(
+          c => !c.ruleIds.includes(ruleId)
+        ),
+        duplicates: analysisResult.value.duplicates.filter(
+          d => !d.ruleIds.includes(ruleId)
+        ),
+        enhancements: analysisResult.value.enhancements.filter(
+          e => !e.relatedRuleIds.includes(ruleId)
+        ),
+        summary: {
+          ...analysisResult.value.summary,
+          conflictsFound: analysisResult.value.conflicts.filter(
+            c => !c.ruleIds.includes(ruleId)
+          ).length,
+          duplicatesFound: analysisResult.value.duplicates.filter(
+            d => !d.ruleIds.includes(ruleId)
+          ).length,
+          enhancementsSuggested: analysisResult.value.enhancements.filter(
+            e => !e.relatedRuleIds.includes(ruleId)
+          ).length
+        }
+      }
+    }
+  }
+
+  // Remove a specific finding from analysis (e.g., after user dismisses an enhancement)
+  function dismissEnhancement(index: number): void {
+    if (analysisResult.value) {
+      const newEnhancements = [...analysisResult.value.enhancements]
+      newEnhancements.splice(index, 1)
+      analysisResult.value = {
+        ...analysisResult.value,
+        enhancements: newEnhancements,
+        summary: {
+          ...analysisResult.value.summary,
+          enhancementsSuggested: newEnhancements.length
+        }
+      }
+    }
+  }
+
   // DEPRECATED: Backward compatibility wrappers
   async function confirmPendingRule() {
     if (pendingRules.value.length === 1) {
@@ -364,6 +414,8 @@ export const useRulesStore = defineStore('rules', () => {
     analyzing,
     analyzeRules,
     clearAnalysisResult,
+    deactivateRuleFromAnalysis,
+    dismissEnhancement,
 
     // DEPRECATED: Backward compatibility
     pendingRule,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRulesStore } from '@/stores/rules'
+import type { RuleEnhancement } from '@/types'
 import Modal from './Modal.vue'
 import Badge from './Badge.vue'
 import Button from './Button.vue'
@@ -13,12 +14,16 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  'createRule': [suggestion: string]
 }>()
 
 const rulesStore = useRulesStore()
 
 // Track expanded sections
 const expandedSections = ref<Set<string>>(new Set(['conflicts', 'duplicates', 'enhancements']))
+
+// Track which actions are in progress
+const processingRuleId = ref<string | null>(null)
 
 function toggleSection(section: string) {
   if (expandedSections.value.has(section)) {
@@ -51,6 +56,15 @@ function getRuleDescription(ruleId: string): string {
   return rule?.description || `Rule ${ruleId.slice(0, 8)}...`
 }
 
+// Get short rule description for button labels
+function getShortRuleDescription(ruleId: string): string {
+  const desc = getRuleDescription(ruleId)
+  if (desc.length > 30) {
+    return desc.slice(0, 27) + '...'
+  }
+  return desc
+}
+
 function getSeverityVariant(severity: string): 'danger' | 'warning' | 'primary' {
   switch (severity) {
     case 'high': return 'danger'
@@ -76,6 +90,29 @@ const hasResults = computed(() => {
 const hasNoIssues = computed(() => {
   return rulesStore.analysisResult && !hasResults.value
 })
+
+// Action handlers
+async function handleDeactivateRule(ruleId: string) {
+  processingRuleId.value = ruleId
+  try {
+    await rulesStore.deactivateRuleFromAnalysis(ruleId)
+  } catch (error) {
+    console.error('Failed to deactivate rule:', error)
+  } finally {
+    processingRuleId.value = null
+  }
+}
+
+function handleCreateEnhancement(enhancement: RuleEnhancement, index: number) {
+  // Emit event to parent to open rule creation form with pre-filled suggestion
+  emit('createRule', enhancement.suggestion)
+  // Remove this enhancement from the list
+  rulesStore.dismissEnhancement(index)
+}
+
+function handleDismissEnhancement(index: number) {
+  rulesStore.dismissEnhancement(index)
+}
 </script>
 
 <template>
@@ -172,6 +209,20 @@ const hasNoIssues = computed(() => {
             <div class="suggestion-box">
               <strong>Suggestion:</strong> {{ conflict.suggestion }}
             </div>
+            <div class="item-actions">
+              <span class="action-label">Resolve by deactivating:</span>
+              <Button
+                v-for="ruleId in conflict.ruleIds"
+                :key="ruleId"
+                variant="outline"
+                size="sm"
+                :loading="processingRuleId === ruleId"
+                :disabled="processingRuleId !== null"
+                @click="handleDeactivateRule(ruleId)"
+              >
+                {{ getShortRuleDescription(ruleId) }}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -200,6 +251,20 @@ const hasNoIssues = computed(() => {
             </div>
             <div class="suggestion-box">
               <strong>Recommendation:</strong> {{ duplicate.recommendation }}
+            </div>
+            <div class="item-actions">
+              <span class="action-label">Keep only:</span>
+              <Button
+                v-for="(ruleId, ruleIndex) in duplicate.ruleIds"
+                :key="ruleId"
+                variant="outline"
+                size="sm"
+                :loading="processingRuleId === ruleId"
+                :disabled="processingRuleId !== null"
+                @click="handleDeactivateRule(duplicate.ruleIds.filter((_, i) => i !== ruleIndex)[0])"
+              >
+                {{ getShortRuleDescription(ruleId) }}
+              </Button>
             </div>
           </div>
         </div>
@@ -234,6 +299,25 @@ const hasNoIssues = computed(() => {
             </div>
             <div class="suggestion-box">
               <strong>Rationale:</strong> {{ enhancement.rationale }}
+            </div>
+            <div class="item-actions">
+              <Button
+                variant="primary"
+                size="sm"
+                @click="handleCreateEnhancement(enhancement, index)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Create Rule
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                @click="handleDismissEnhancement(index)"
+              >
+                Dismiss
+              </Button>
             </div>
           </div>
         </div>
@@ -553,5 +637,22 @@ const hasNoIssues = computed(() => {
 
 .suggestion-box strong {
   color: var(--text-primary);
+}
+
+/* Item Actions */
+.item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.action-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-right: 4px;
 }
 </style>

@@ -247,6 +247,20 @@ function resetForm() {
   }
 }
 
+// Handle create rule from AI analysis enhancement suggestion
+function handleCreateRuleFromAnalysis(suggestion: string) {
+  // Pre-fill the form with the suggestion
+  newRule.value = {
+    category: 'scheduling',
+    description: suggestion,
+    isActive: true,
+    priority: 50
+  }
+  // Close analysis modal and open add rule modal
+  showAnalysisModal.value = false
+  showAddModal.value = true
+}
+
 onMounted(() => {
   rulesStore.fetchRules()
 })
@@ -276,7 +290,7 @@ onMounted(() => {
     </header>
 
     <!-- Rule Analysis Modal -->
-    <RuleAnalysisModal v-model="showAnalysisModal" />
+    <RuleAnalysisModal v-model="showAnalysisModal" @create-rule="handleCreateRuleFromAnalysis" />
 
     <div class="page-content">
       <!-- Voice Hints Modal -->
