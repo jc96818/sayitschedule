@@ -6,6 +6,7 @@ import {
   parsePatientCommand,
   parseStaffCommand,
   parseRuleCommand,
+  parseMultipleRulesCommand,
   parseRoomCommand,
   parseScheduleCommand,
   parseScheduleModifyCommand,
@@ -140,7 +141,7 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     }
   })
 
-  // Parse rule voice command (convenience endpoint)
+  // Parse rule voice command (supports multiple rules from single transcript)
   fastify.post('/parse/rule', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
     const organizationId = request.ctx.organizationId
 
@@ -157,8 +158,14 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     const { transcript } = z.object({ transcript: z.string().min(1) }).parse(request.body)
 
     try {
-      const result = await parseRuleCommand(transcript)
-      return { data: result }
+      const result = await parseMultipleRulesCommand(transcript)
+      console.log(`Parsed ${result.rules.length} rule(s) (overall confidence: ${result.overallConfidence})`)
+      return {
+        data: result,
+        meta: {
+          rulesCount: result.rules.length
+        }
+      }
     } catch (error) {
       console.error('Rule voice parsing failed:', error)
       return reply.status(500).send({ error: 'Failed to parse rule command.' })

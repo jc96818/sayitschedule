@@ -14,7 +14,8 @@ import type {
   PaginatedResponse,
   MfaSetupResponse,
   MfaVerifyResponse,
-  MfaStatusResponse
+  MfaStatusResponse,
+  ParsedMultiRuleResponse
 } from '@/types'
 
 // Transcription settings types
@@ -335,7 +336,7 @@ export const voiceService = {
     return data
   },
 
-  async parseRule(transcript: string): Promise<ApiResponse<ParsedVoiceCommand>> {
+  async parseRule(transcript: string): Promise<ApiResponse<ParsedMultiRuleResponse>> {
     const { data } = await api.post('/voice/parse/rule', { transcript })
     return data
   },

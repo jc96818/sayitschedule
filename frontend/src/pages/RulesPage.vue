@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRulesStore } from '@/stores/rules'
 import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, Toggle } from '@/components/ui'
-import type { Rule } from '@/types'
+import type { Rule, ParsedRuleItem } from '@/types'
 
 const rulesStore = useRulesStore()
 
 // Voice hints modal ref
 const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
 
-// Add rule modal
+// Add/Edit rule modal
 const showAddModal = ref(false)
+const editingRule = ref<ParsedRuleItem | null>(null)
 const newRule = ref<Partial<Rule>>({
   category: 'scheduling',
   description: '',
@@ -18,15 +19,18 @@ const newRule = ref<Partial<Rule>>({
   priority: 50
 })
 
-// Voice confirmation
+// Voice confirmation state
 const showVoiceConfirmation = ref(false)
-const voiceTranscript = ref('')
+
+// Computed: Check if we have multiple rules
+const hasMultipleRules = computed(() => rulesStore.pendingRules.length > 1)
 
 const categoryLabels: Record<string, string> = {
   gender_pairing: 'Gender Pairing',
   session: 'Session',
   availability: 'Availability',
   specific_pairing: 'Specific Pairing',
+  certification: 'Certification',
   scheduling: 'Scheduling',
   custom: 'Custom'
 }
@@ -40,51 +44,119 @@ function getCategoryBadgeVariant(category: string): 'primary' | 'success' | 'war
     gender_pairing: 'primary',
     session: 'success',
     availability: 'warning',
-    specific_pairing: 'secondary'
+    specific_pairing: 'secondary',
+    certification: 'primary'
   }
   return variants[category] || 'primary'
 }
 
+function getConfidenceClass(confidence: number): string {
+  if (confidence >= 0.8) return 'high'
+  if (confidence >= 0.5) return 'medium'
+  return 'low'
+}
+
 async function handleVoiceResult(transcript: string) {
-  voiceTranscript.value = transcript
   try {
     await rulesStore.parseVoiceCommand(transcript)
-    showVoiceConfirmation.value = true
+    if (rulesStore.pendingRules.length > 0) {
+      showVoiceConfirmation.value = true
+    }
   } catch (error) {
     console.error('Failed to parse voice command:', error)
   }
 }
 
-async function confirmVoiceRule() {
+// Confirm a single rule
+function handleConfirmRule(ruleId: string) {
+  rulesStore.confirmRule(ruleId)
+}
+
+// Reject a single rule
+function handleRejectRule(ruleId: string) {
+  rulesStore.rejectRule(ruleId)
+}
+
+// Start editing a single rule
+function handleEditRule(rule: ParsedRuleItem) {
+  editingRule.value = { ...rule }
+  newRule.value = {
+    category: rule.category,
+    description: rule.description,
+    priority: rule.priority,
+    isActive: true
+  }
+  rulesStore.startEditingRule(rule.id)
+  showAddModal.value = true
+}
+
+// Save edited rule
+function handleSaveEditedRule() {
+  if (editingRule.value) {
+    rulesStore.updatePendingRule(editingRule.value.id, {
+      category: newRule.value.category,
+      description: newRule.value.description || '',
+      priority: newRule.value.priority || 5
+    })
+    editingRule.value = null
+    showAddModal.value = false
+    resetForm()
+  }
+}
+
+// Confirm all and create
+async function handleConfirmAll() {
+  rulesStore.confirmAllPendingRules()
   try {
-    await rulesStore.confirmPendingRule()
+    await rulesStore.createConfirmedRules()
     showVoiceConfirmation.value = false
   } catch (error) {
-    console.error('Failed to create rule:', error)
+    console.error('Failed to create rules:', error)
   }
 }
 
+// Create confirmed rules
+async function handleCreateConfirmed() {
+  try {
+    await rulesStore.createConfirmedRules()
+    showVoiceConfirmation.value = false
+  } catch (error) {
+    console.error('Failed to create rules:', error)
+  }
+}
+
+// Cancel all voice confirmation
 function cancelVoiceConfirmation() {
-  rulesStore.clearPendingRule()
+  rulesStore.clearPendingRules()
   showVoiceConfirmation.value = false
-  voiceTranscript.value = ''
+  editingRule.value = null
 }
 
-function editVoiceParsed() {
-  if (rulesStore.pendingRule) {
-    newRule.value = { ...rulesStore.pendingRule }
-    showAddModal.value = true
-    cancelVoiceConfirmation()
+// Handle modal close
+function handleModalClose() {
+  if (editingRule.value) {
+    // If editing a pending rule and canceling, revert to pending status
+    const index = rulesStore.pendingRules.findIndex((r) => r.id === editingRule.value?.id)
+    if (index !== -1) {
+      rulesStore.pendingRules[index].status = 'pending'
+    }
   }
+  editingRule.value = null
+  showAddModal.value = false
+  resetForm()
 }
 
 async function handleAddRule() {
-  try {
-    await rulesStore.createRule(newRule.value)
-    showAddModal.value = false
-    resetForm()
-  } catch (error) {
-    console.error('Failed to create rule:', error)
+  if (editingRule.value) {
+    handleSaveEditedRule()
+  } else {
+    try {
+      await rulesStore.createRule(newRule.value)
+      showAddModal.value = false
+      resetForm()
+    } catch (error) {
+      console.error('Failed to create rule:', error)
+    }
   }
 }
 
@@ -143,8 +215,8 @@ onMounted(() => {
 
       <!-- Voice Interface -->
       <VoiceInput
-        title="Add Rule by Voice"
-        description="Click the microphone and speak your scheduling rule naturally."
+        title="Add Rules by Voice"
+        description="Click the microphone and speak your scheduling rules. You can add multiple rules at once!"
         :show-hints-link="true"
         @result="handleVoiceResult"
         @show-hints="voiceHintsModal?.openModal()"
@@ -157,37 +229,166 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Voice Confirmation Card -->
-      <div v-if="showVoiceConfirmation && rulesStore.pendingRule" class="confirmation-card">
-        <h4>AI Interpretation</h4>
-        <div class="transcription-box mb-2">
-          <div class="label">You said:</div>
-          <div>"{{ voiceTranscript }}"</div>
-        </div>
-        <div class="interpreted-rule">
-          <strong>New Scheduling Rule:</strong>
-          <p style="margin-top: 8px;">{{ rulesStore.pendingRule.description }}</p>
-          <div style="margin-top: 8px; font-size: 13px; color: var(--text-muted);">
-            Category: {{ getCategoryLabel(rulesStore.pendingRule.category || 'custom') }}
-            <span v-if="rulesStore.parseConfidence" style="margin-left: 16px;">
-              Confidence: {{ Math.round(rulesStore.parseConfidence * 100) }}%
-            </span>
+      <!-- Multi-Rule Voice Confirmation Card -->
+      <div v-if="showVoiceConfirmation && rulesStore.pendingRules.length > 0" class="confirmation-card">
+        <div class="confirmation-header">
+          <h4>AI Interpretation</h4>
+          <div v-if="hasMultipleRules" class="rule-count-badge">
+            <Badge variant="primary">
+              {{ rulesStore.pendingRules.length }} rules detected
+            </Badge>
           </div>
         </div>
-        <div class="confirmation-actions">
-          <Button variant="success" @click="confirmVoiceRule" :loading="rulesStore.loading">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            Add Rule
-          </Button>
-          <Button variant="outline" @click="editVoiceParsed">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Edit Details
-          </Button>
-          <Button variant="ghost" class="text-danger" @click="cancelVoiceConfirmation">Cancel</Button>
+
+        <!-- Transcript Box -->
+        <div class="transcription-box mb-3">
+          <div class="label">You said:</div>
+          <div>"{{ rulesStore.originalTranscript }}"</div>
+        </div>
+
+        <!-- Global Warnings -->
+        <Alert
+          v-if="rulesStore.globalWarnings.length > 0"
+          variant="warning"
+          class="mb-3"
+        >
+          <ul class="warnings-list">
+            <li v-for="warning in rulesStore.globalWarnings" :key="warning">
+              {{ warning }}
+            </li>
+          </ul>
+        </Alert>
+
+        <!-- Individual Rule Cards -->
+        <div class="pending-rules-list">
+          <div
+            v-for="(rule, index) in rulesStore.pendingRules"
+            :key="rule.id"
+            class="pending-rule-card"
+            :class="{
+              'confirmed': rule.status === 'confirmed',
+              'rejected': rule.status === 'rejected',
+              'editing': rule.status === 'editing'
+            }"
+          >
+            <div class="rule-header">
+              <span class="rule-number">Rule {{ index + 1 }}</span>
+              <Badge :variant="getCategoryBadgeVariant(rule.category)">
+                {{ getCategoryLabel(rule.category) }}
+              </Badge>
+              <span class="confidence-indicator" :class="getConfidenceClass(rule.confidence)">
+                {{ Math.round(rule.confidence * 100) }}% confident
+              </span>
+            </div>
+
+            <div class="rule-description">
+              {{ rule.description }}
+            </div>
+
+            <!-- Per-Rule Warnings -->
+            <div v-if="rule.warnings.length > 0" class="rule-warnings">
+              <span v-for="warning in rule.warnings" :key="warning" class="warning-text">
+                {{ warning }}
+              </span>
+            </div>
+
+            <!-- Status Indicator -->
+            <div v-if="rule.status !== 'pending'" class="rule-status">
+              <Badge v-if="rule.status === 'confirmed'" variant="success">Confirmed</Badge>
+              <Badge v-else-if="rule.status === 'rejected'" variant="danger">Rejected</Badge>
+              <Badge v-else-if="rule.status === 'editing'" variant="warning">Editing...</Badge>
+            </div>
+
+            <!-- Rule Actions -->
+            <div v-if="rule.status === 'pending'" class="rule-actions">
+              <Button
+                variant="success"
+                size="sm"
+                @click="handleConfirmRule(rule.id)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Confirm
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                @click="handleEditRule(rule)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                class="text-danger"
+                @click="handleRejectRule(rule.id)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Reject
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary & Bulk Actions -->
+        <div class="confirmation-summary">
+          <div class="summary-stats">
+            <span v-if="rulesStore.confirmedCount > 0" class="stat confirmed">
+              {{ rulesStore.confirmedCount }} confirmed
+            </span>
+            <span v-if="rulesStore.pendingCount > 0" class="stat pending">
+              {{ rulesStore.pendingCount }} pending review
+            </span>
+          </div>
+
+          <div class="confirmation-actions">
+            <!-- Quick actions for multiple rules -->
+            <template v-if="hasMultipleRules && rulesStore.pendingCount > 0">
+              <Button
+                variant="outline"
+                @click="rulesStore.confirmAllPendingRules()"
+              >
+                Confirm All Remaining
+              </Button>
+            </template>
+
+            <!-- Create confirmed rules -->
+            <Button
+              v-if="rulesStore.confirmedCount > 0"
+              variant="primary"
+              :loading="rulesStore.loading"
+              @click="handleCreateConfirmed"
+            >
+              Create {{ rulesStore.confirmedCount }} Rule{{ rulesStore.confirmedCount > 1 ? 's' : '' }}
+            </Button>
+
+            <!-- Single rule: Confirm All at once -->
+            <Button
+              v-if="!hasMultipleRules && rulesStore.pendingCount === 1"
+              variant="success"
+              :loading="rulesStore.loading"
+              @click="handleConfirmAll"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Add Rule
+            </Button>
+
+            <Button
+              variant="ghost"
+              class="text-danger"
+              @click="cancelVoiceConfirmation"
+            >
+              Cancel All
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -235,8 +436,13 @@ onMounted(() => {
 
     </div>
 
-    <!-- Add Rule Modal -->
-    <Modal v-model="showAddModal" title="Add Scheduling Rule" size="md">
+    <!-- Add/Edit Rule Modal -->
+    <Modal
+      v-model="showAddModal"
+      :title="editingRule ? 'Edit Rule' : 'Add Scheduling Rule'"
+      size="md"
+      @close="handleModalClose"
+    >
       <form @submit.prevent="handleAddRule">
         <div class="form-group">
           <label for="category">Category</label>
@@ -245,6 +451,7 @@ onMounted(() => {
             <option value="session">Session</option>
             <option value="availability">Availability</option>
             <option value="specific_pairing">Specific Pairing</option>
+            <option value="certification">Certification</option>
             <option value="scheduling">Scheduling</option>
             <option value="custom">Custom</option>
           </select>
@@ -275,7 +482,7 @@ onMounted(() => {
           <small class="text-muted">Higher priority rules are applied first</small>
         </div>
 
-        <div class="form-group">
+        <div v-if="!editingRule" class="form-group">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
             <input v-model="newRule.isActive" type="checkbox" />
             <span>Rule is active</span>
@@ -283,11 +490,11 @@ onMounted(() => {
         </div>
 
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
-          <Button type="button" variant="outline" @click="showAddModal = false">
+          <Button type="button" variant="outline" @click="handleModalClose">
             Cancel
           </Button>
           <Button type="submit" variant="primary" :loading="rulesStore.loading">
-            Add Rule
+            {{ editingRule ? 'Save Changes' : 'Add Rule' }}
           </Button>
         </div>
       </form>
@@ -315,7 +522,7 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.rule-actions {
+.rule-item > .rule-actions {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -338,28 +545,17 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.confirmation-card h4 {
+.confirmation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.confirmation-header h4 {
   font-size: 14px;
   color: var(--text-secondary);
-  margin-bottom: 12px;
-}
-
-.interpreted-rule {
-  font-size: 16px;
-  font-weight: 500;
-  margin-bottom: 16px;
-  padding: 16px;
-  background-color: var(--background-color);
-  border-radius: var(--radius-md);
-}
-
-.interpreted-rule p {
   margin: 0;
-}
-
-.confirmation-actions {
-  display: flex;
-  gap: 12px;
 }
 
 .transcription-box {
@@ -373,5 +569,120 @@ onMounted(() => {
   font-size: 12px;
   opacity: 0.7;
   margin-bottom: 8px;
+}
+
+.warnings-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.pending-rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.pending-rule-card {
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.pending-rule-card.confirmed {
+  border-color: var(--success-color);
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.pending-rule-card.rejected {
+  opacity: 0.5;
+  border-color: var(--danger-color);
+}
+
+.pending-rule-card.editing {
+  border-color: var(--warning-color);
+}
+
+.rule-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.rule-number {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.confidence-indicator {
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.confidence-indicator.high {
+  color: var(--success-color);
+}
+
+.confidence-indicator.medium {
+  color: var(--warning-color);
+}
+
+.confidence-indicator.low {
+  color: var(--danger-color);
+}
+
+.rule-description {
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.rule-warnings {
+  font-size: 12px;
+  color: var(--warning-color);
+  margin-bottom: 8px;
+}
+
+.rule-status {
+  margin-bottom: 8px;
+}
+
+.pending-rule-card > .rule-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.confirmation-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.summary-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.summary-stats .stat {
+  font-size: 13px;
+}
+
+.summary-stats .stat.confirmed {
+  color: var(--success-color);
+}
+
+.summary-stats .stat.pending {
+  color: var(--text-muted);
+}
+
+.confirmation-actions {
+  display: flex;
+  gap: 12px;
 }
 </style>

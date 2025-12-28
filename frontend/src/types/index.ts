@@ -106,6 +106,35 @@ export interface Rule {
   updatedAt: string
 }
 
+// Parsed rule item from voice input (for multi-rule parsing)
+export type PendingRuleStatus = 'pending' | 'confirmed' | 'rejected' | 'editing'
+
+export interface ParsedRuleItem {
+  id: string // Client-generated for tracking
+  category: RuleCategory
+  description: string
+  priority: number
+  ruleLogic: Record<string, unknown>
+  confidence: number
+  warnings: string[]
+  status: PendingRuleStatus
+}
+
+export interface ParsedMultiRuleResponse {
+  commandType: 'create_rules'
+  rules: Array<{
+    category: RuleCategory
+    description: string
+    priority?: number
+    ruleLogic?: Record<string, unknown>
+    confidence: number
+    warnings: string[]
+  }>
+  overallConfidence: number
+  originalTranscript: string
+  globalWarnings: string[]
+}
+
 // Schedule
 export type ScheduleStatus = 'draft' | 'published'
 

@@ -17,6 +17,7 @@ vi.mock('../../services/voiceParser.js', () => ({
   parsePatientCommand: vi.fn(),
   parseStaffCommand: vi.fn(),
   parseRuleCommand: vi.fn(),
+  parseMultipleRulesCommand: vi.fn(),
   parseScheduleCommand: vi.fn(),
   parseScheduleModifyCommand: vi.fn(),
   parseScheduleGenerateCommand: vi.fn()
@@ -28,6 +29,7 @@ import {
   parsePatientCommand,
   parseStaffCommand,
   parseRuleCommand,
+  parseMultipleRulesCommand,
   parseScheduleModifyCommand,
   parseScheduleGenerateCommand
 } from '../../services/voiceParser.js'
@@ -351,20 +353,25 @@ describe('Voice Routes', () => {
   })
 
   describe('POST /api/voice/parse/rule', () => {
-    it('parses rule command successfully', async () => {
+    it('parses single rule command successfully', async () => {
       const originalEnv = process.env.OPENAI_API_KEY
       process.env.OPENAI_API_KEY = 'test-key'
 
-      vi.mocked(parseRuleCommand).mockResolvedValue({
-        commandType: 'create_rule',
-        confidence: 0.90,
-        data: {
-          category: 'session',
-          description: 'Maximum 2 sessions per therapist per day',
-          ruleLogic: { maxSessions: 2, per: 'day' }
-        },
-        warnings: [],
-        originalTranscript: 'Maximum 2 sessions per therapist per day'
+      vi.mocked(parseMultipleRulesCommand).mockResolvedValue({
+        commandType: 'create_rules',
+        rules: [
+          {
+            category: 'session',
+            description: 'Maximum 2 sessions per therapist per day',
+            priority: 5,
+            ruleLogic: { maxSessions: 2, per: 'day' },
+            confidence: 0.90,
+            warnings: []
+          }
+        ],
+        overallConfidence: 0.90,
+        originalTranscript: 'Maximum 2 sessions per therapist per day',
+        globalWarnings: []
       })
 
       const response = await app.inject({
@@ -379,7 +386,145 @@ describe('Voice Routes', () => {
 
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.payload)
-      expect(body.data.commandType).toBe('create_rule')
+      expect(body.data.commandType).toBe('create_rules')
+      expect(body.data.rules).toHaveLength(1)
+      expect(body.data.rules[0].category).toBe('session')
+      expect(body.meta.rulesCount).toBe(1)
+    })
+
+    it('parses multiple rules from single transcript', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      vi.mocked(parseMultipleRulesCommand).mockResolvedValue({
+        commandType: 'create_rules',
+        rules: [
+          {
+            category: 'availability',
+            description: 'Debbie is only available on Wednesdays',
+            priority: 5,
+            ruleLogic: { staffName: 'Debbie', availableDays: ['wednesday'] },
+            confidence: 0.92,
+            warnings: []
+          },
+          {
+            category: 'availability',
+            description: 'Amy is only available on Mondays and Fridays',
+            priority: 5,
+            ruleLogic: { staffName: 'Amy', availableDays: ['monday', 'friday'] },
+            confidence: 0.88,
+            warnings: []
+          }
+        ],
+        overallConfidence: 0.88,
+        originalTranscript: 'Debbie is only available on Wednesdays and Amy is only available on Mondays and Fridays',
+        globalWarnings: []
+      })
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/rule',
+        payload: {
+          transcript: 'Debbie is only available on Wednesdays and Amy is only available on Mondays and Fridays'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.payload)
+      expect(body.data.commandType).toBe('create_rules')
+      expect(body.data.rules).toHaveLength(2)
+      expect(body.data.rules[0].description).toContain('Debbie')
+      expect(body.data.rules[1].description).toContain('Amy')
+      expect(body.data.overallConfidence).toBe(0.88) // Minimum of both
+      expect(body.meta.rulesCount).toBe(2)
+    })
+
+    it('includes per-rule confidence and warnings', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      vi.mocked(parseMultipleRulesCommand).mockResolvedValue({
+        commandType: 'create_rules',
+        rules: [
+          {
+            category: 'gender_pairing',
+            description: 'John should only see male therapists',
+            priority: 5,
+            ruleLogic: { patientName: 'John', therapistGender: 'male' },
+            confidence: 0.95,
+            warnings: []
+          },
+          {
+            category: 'certification',
+            description: 'Sarah needs a therapist with ABA certification',
+            priority: 5,
+            ruleLogic: { patientName: 'Sarah', requiredCertification: 'ABA' },
+            confidence: 0.78,
+            warnings: ['ABA certification inferred from context']
+          }
+        ],
+        overallConfidence: 0.78,
+        originalTranscript: 'John should only see male therapists and Sarah needs a therapist with ABA certification',
+        globalWarnings: []
+      })
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/rule',
+        payload: {
+          transcript: 'John should only see male therapists and Sarah needs a therapist with ABA certification'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.payload)
+      expect(body.data.rules[0].confidence).toBe(0.95)
+      expect(body.data.rules[1].confidence).toBe(0.78)
+      expect(body.data.rules[1].warnings).toContain('ABA certification inferred from context')
+    })
+
+    it('returns 503 when OpenAI API key is not configured', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      delete process.env.OPENAI_API_KEY
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/rule',
+        payload: {
+          transcript: 'Some rule'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(503)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toContain('not configured')
+    })
+
+    it('returns 500 when voice parsing fails', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      vi.mocked(parseMultipleRulesCommand).mockRejectedValue(new Error('Parsing failed'))
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/rule',
+        payload: {
+          transcript: 'Some rule'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(500)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toContain('Failed to parse rule command')
     })
   })
 

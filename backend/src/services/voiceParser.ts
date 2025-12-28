@@ -52,6 +52,25 @@ export interface ParsedRuleData {
   ruleLogic?: Record<string, unknown>
 }
 
+// Individual rule item with its own confidence and warnings (for multi-rule parsing)
+export interface ParsedRuleItem {
+  category: 'gender_pairing' | 'session' | 'availability' | 'specific_pairing' | 'certification'
+  description: string
+  priority?: number
+  ruleLogic?: Record<string, unknown>
+  confidence: number
+  warnings: string[]
+}
+
+// Response type for multi-rule parsing
+export interface ParsedMultiRuleResponse {
+  commandType: 'create_rules'
+  rules: ParsedRuleItem[]
+  overallConfidence: number
+  originalTranscript: string
+  globalWarnings: string[]
+}
+
 export interface ParsedRoomData {
   name: string
   description?: string
@@ -121,16 +140,48 @@ Extract staff information like:
     rule: `${basePrompt}
 
 The user is creating SCHEDULING RULES for the therapy center.
-Extract rule information like:
+IMPORTANT: A single voice command may contain MULTIPLE rules. Look for:
+- Conjunctions like "and", "also", "plus" connecting separate constraints
+- Multiple staff/patient names with different constraints
+- Separate conditions that should be individual rules
+
+For EACH rule detected, extract:
 - category: one of [gender_pairing, session, availability, specific_pairing, certification]
   - gender_pairing: rules about matching genders (e.g., "female patients with female therapists")
   - session: rules about session timing/frequency
-  - availability: rules about availability windows
+  - availability: rules about when staff/patients are available or unavailable
   - specific_pairing: specific therapist-patient assignments
   - certification: rules about certification requirements
 - description: clear description of the rule
 - priority: 1-10 (default 5)
-- ruleLogic: structured logic object`,
+- ruleLogic: structured logic object with parsed constraints
+- confidence: 0.0-1.0 for this specific rule
+- warnings: array of any ambiguities for this rule
+
+EXAMPLES OF MULTIPLE RULES:
+- "Debbie is only available on Wednesdays and Amy is only available on Mondays and Fridays"
+  → 2 rules: one for Debbie (availability: Wednesday), one for Amy (availability: Monday, Friday)
+- "John should only see male therapists and Sarah needs a therapist with ABA certification"
+  → 2 rules: one gender_pairing for John, one certification for Sarah
+- "Morning sessions only before 11 AM"
+  → 1 rule: session timing constraint
+
+Return JSON with this structure:
+{
+  "commandType": "create_rules",
+  "rules": [
+    {
+      "category": "...",
+      "description": "...",
+      "priority": 5,
+      "ruleLogic": {...},
+      "confidence": 0.9,
+      "warnings": []
+    }
+  ],
+  "overallConfidence": <minimum confidence across all rules>,
+  "globalWarnings": ["...any warnings about the overall interpretation..."]
+}`,
 
     room: `${basePrompt}
 
@@ -240,6 +291,21 @@ Determine what type of command the user is trying to execute:
 }
 
 function getUserPrompt(transcript: string, context: VoiceContext): string {
+  // Special handling for rule context - uses multi-rule format
+  if (context === 'rule') {
+    return `Parse this voice command for scheduling rules: "${transcript}"
+
+The response format is already defined in the system prompt. Follow that structure exactly.
+
+Guidelines:
+- Detect if transcript contains MULTIPLE rules (look for "and", "also", multiple names with different constraints)
+- Each rule should have its own confidence score
+- overallConfidence should be the MINIMUM of all rule confidences
+- Use proper name capitalization (e.g., "Debbie" not "debbie")
+- Default priority to 5 if not specified
+- Include warnings for any assumptions or inferred values`
+  }
+
   // For schedule_modify and schedule_generate, use different command type patterns
   let commandTypeHint: string
   if (context === 'general') {
@@ -336,9 +402,82 @@ export async function parseStaffCommand(transcript: string): Promise<ParsedVoice
   return parseVoiceCommand(transcript, 'staff')
 }
 
-// Helper function to parse rule-specific commands
+// Helper function to parse rule-specific commands (legacy single-rule format)
 export async function parseRuleCommand(transcript: string): Promise<ParsedVoiceCommand> {
   return parseVoiceCommand(transcript, 'rule')
+}
+
+// Helper function to parse multiple rules from a single transcript
+export async function parseMultipleRulesCommand(transcript: string): Promise<ParsedMultiRuleResponse> {
+  const systemPrompt = getSystemPrompt('rule')
+  const userPrompt = getUserPrompt(transcript, 'rule')
+
+  try {
+    const response = await getOpenAI().chat.completions.create({
+      model: 'gpt-5.1',
+      reasoning_effort: 'low',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      response_format: { type: 'json_object' },
+      max_completion_tokens: 2048, // Increased for multiple rules
+      store: false
+    })
+
+    const content = response.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('No response content from OpenAI')
+    }
+
+    const parsed = JSON.parse(content) as Partial<ParsedMultiRuleResponse>
+
+    // Validate and normalize response
+    if (!parsed.commandType) {
+      parsed.commandType = 'create_rules'
+    }
+    if (!Array.isArray(parsed.rules)) {
+      // Handle legacy single-rule response format or malformed response
+      parsed.rules = []
+    }
+    if (!Array.isArray(parsed.globalWarnings)) {
+      parsed.globalWarnings = []
+    }
+
+    // Ensure each rule has required fields with defaults
+    const validCategories = ['gender_pairing', 'session', 'availability', 'specific_pairing', 'certification'] as const
+    parsed.rules = parsed.rules.map(rule => ({
+      category: validCategories.includes(rule.category as typeof validCategories[number])
+        ? rule.category
+        : 'session',
+      description: rule.description || '',
+      priority: typeof rule.priority === 'number' ? rule.priority : 5,
+      ruleLogic: rule.ruleLogic || {},
+      confidence: typeof rule.confidence === 'number' ? rule.confidence : 0.5,
+      warnings: Array.isArray(rule.warnings) ? rule.warnings : []
+    }))
+
+    // Calculate overall confidence as minimum across all rules
+    if (typeof parsed.overallConfidence !== 'number') {
+      parsed.overallConfidence = parsed.rules.length > 0
+        ? Math.min(...parsed.rules.map(r => r.confidence))
+        : 0
+    }
+
+    return {
+      commandType: parsed.commandType,
+      rules: parsed.rules,
+      overallConfidence: parsed.overallConfidence,
+      originalTranscript: transcript,
+      globalWarnings: parsed.globalWarnings
+    }
+  } catch (error) {
+    if (error instanceof OpenAI.APIError) {
+      console.error('OpenAI API Error:', error.message)
+      throw new Error(`Voice parsing service error: ${error.message}`)
+    }
+    throw error
+  }
 }
 
 // Helper function to parse room-specific commands
