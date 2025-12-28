@@ -1,0 +1,102 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code when working with this codebase.
+
+## Project Overview
+
+Say It Schedule is a multi-tenant SaaS platform for scheduling therapy sessions. It manages organizations, staff (therapists), patients, rooms, and generates optimized weekly schedules based on complex rules and constraints.
+
+## Tech Stack
+
+- **Frontend**: Vue 3, Vite, Pinia, TypeScript, Vue Router
+- **Backend**: Fastify, TypeScript, Prisma ORM
+- **Database**: PostgreSQL
+- **Infrastructure**: Docker, Terraform, AWS ECS Fargate, RDS
+
+## Project Structure
+
+```
+/backend          - Fastify API server
+  /src/routes     - API endpoints
+  /src/services   - Business logic
+  /src/repositories - Data access layer
+  /prisma         - Database schema & migrations
+/frontend         - Vue 3 SPA
+  /src/pages      - Page components
+  /src/stores     - Pinia state management
+  /src/components - Reusable UI components
+/infrastructure   - Terraform AWS configs
+/docs             - Documentation
+```
+
+## Common Commands
+
+### Backend (run from /backend)
+
+```bash
+npm run dev                 # Start dev server with hot reload
+npm run build               # Compile TypeScript
+npm run test:run            # Run tests once
+npm run test                # Run tests in watch mode
+npm run db:migrate          # Run Prisma migrations (dev)
+npm run db:migrate:deploy   # Deploy migrations (production)
+npm run db:studio           # Open Prisma Studio GUI
+npm run lint                # ESLint with auto-fix
+```
+
+### Frontend (run from /frontend)
+
+```bash
+npm run dev          # Start Vite dev server
+npm run build        # Production build
+npm run type-check   # Vue TSC type checking
+npm run lint         # ESLint with auto-fix
+```
+
+### Docker
+
+```bash
+docker-compose up -d         # Start local PostgreSQL
+docker-compose down          # Stop containers
+```
+
+## Environment Variables
+
+Copy `.env.example` to `.env` for local development. Key variables:
+
+- `DATABASE_URL` - PostgreSQL connection string
+- `JWT_SECRET` - Authentication secret
+- `OPENAI_API_KEY` - For voice input parsing
+
+Local database URL: `postgresql://postgres:postgres@localhost:5433/sayitschedule`
+
+## Architecture Patterns
+
+- **Layered architecture**: Routes → Services → Repositories → Database
+- **Repository pattern**: All database queries go through repository classes
+- **Multi-tenant**: Organization context injected via JWT middleware
+- **JWT authentication**: Stateless auth with organization isolation
+
+## Key Conventions
+
+- All backend code uses TypeScript with strict mode
+- API routes are organized by resource (auth, staff, patients, schedules, etc.)
+- Prisma schema is the source of truth for database structure
+- Frontend stores handle API calls and state management
+- Use existing patterns when adding new features
+
+## Testing
+
+Backend tests use Vitest. Run `npm run test:run` from `/backend` to execute.
+
+## Database Schema
+
+See `/backend/prisma/schema.prisma` for the complete data model. Key entities:
+
+- Organization (tenant)
+- User (authentication)
+- Staff (therapists)
+- Patient
+- Room
+- Schedule, ScheduleSession
+- SchedulingRule

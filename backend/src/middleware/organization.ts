@@ -63,8 +63,13 @@ export async function organizationMiddleware(
     ? process.env.ORG_DOMAIN
     : subdomain
 
+  // Skip org lookup for special subdomains:
+  // - 'sayitschedule' is the root domain (sayitschedule.com extracts as 'sayitschedule')
+  // - 'admin' is the superadmin subdomain (admin.sayitschedule.com)
+  const reservedSubdomains = ['localhost', 'www', 'sayitschedule', 'admin']
+
   // Look up organization ID from subdomain
-  if (targetSubdomain && targetSubdomain !== 'localhost' && targetSubdomain !== 'www') {
+  if (targetSubdomain && !reservedSubdomains.includes(targetSubdomain)) {
     try {
       const orgId = await getOrganizationId(targetSubdomain)
       if (orgId) {

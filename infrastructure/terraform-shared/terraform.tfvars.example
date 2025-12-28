@@ -3,9 +3,21 @@
 
 aws_region = "us-east-1"
 
-# Host header for ALB routing (subdomain that routes to sayitschedule)
-# This should be covered by your ACM certificate
-host_header = "sayitschedule.wespeaksoon.com"
+# Host header for ALB routing
+# Use wildcard for multi-tenant subdomains: *.sayitschedule.com
+# Or use specific subdomain: demo.sayitschedule.com
+host_header = "*.sayitschedule.com"
+
+# Additional host headers to route (e.g., root domain for login page)
+additional_host_headers = ["sayitschedule.com"]
+
+# Route53 configuration for DNS records
+route53_zone_name  = "sayitschedule.com"
+subdomain          = "*"              # Creates *.sayitschedule.com record
+create_root_record = true             # Creates sayitschedule.com record
+
+# ACM certificate ARN (must cover *.sayitschedule.com and sayitschedule.com)
+certificate_arn = "arn:aws:acm:us-east-1:YOUR_ACCOUNT:certificate/YOUR_CERT_ID"
 
 # Database credentials (creates user/database in shared RDS)
 # Generate password: openssl rand -base64 24

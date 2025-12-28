@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { getPostLoginRedirectUrl } from '@/utils/subdomain'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -18,7 +19,21 @@ async function handleSubmit() {
 
   try {
     await authStore.login({ email: email.value, password: password.value })
-    // Redirect superadmins to their dashboard, others to regular dashboard
+
+    // Check if we need to redirect to a different subdomain
+    const redirectUrl = getPostLoginRedirectUrl(
+      authStore.isSuperAdmin,
+      authStore.organization?.subdomain,
+      authStore.token!
+    )
+
+    if (redirectUrl) {
+      // Cross-subdomain redirect - use window.location for full page navigation
+      window.location.href = redirectUrl
+      return
+    }
+
+    // Same-subdomain navigation - use Vue Router
     if (authStore.isSuperAdmin) {
       router.push('/super-admin')
     } else {

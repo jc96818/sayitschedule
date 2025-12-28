@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { consumeAuthTokenFromUrl, getSubdomain, isAdminSubdomain, buildSubdomainUrl } from '@/utils/subdomain'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -106,7 +107,10 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, _from, next) => {
-  const token = localStorage.getItem('token')
+  // First, check for auth token in URL (cross-subdomain transfer)
+  const transferredToken = consumeAuthTokenFromUrl()
+
+  const token = transferredToken || localStorage.getItem('token')
 
   // Redirect to login if auth required but no token
   if (to.meta.requiresAuth && !token) {
@@ -120,26 +124,61 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
-  // Check superadmin requirement
-  if (to.meta.requiresSuperAdmin) {
-    // Dynamically import to avoid circular dependency
+  // For authenticated routes, validate subdomain matches user's organization
+  if (to.meta.requiresAuth && token) {
     const { useAuthStore } = await import('@/stores/auth')
     const authStore = useAuthStore()
 
     // Ensure user data is loaded
-    if (!authStore.user && token) {
+    if (!authStore.user) {
       try {
         await authStore.fetchCurrentUser()
       } catch {
         // Token invalid, redirect to login
+        localStorage.removeItem('token')
         next({ name: 'login' })
         return
       }
     }
 
-    // Check if user is superadmin
+    const currentSubdomain = getSubdomain()
+    const isOnAdminSubdomain = isAdminSubdomain()
+
+    // Superadmin validation
+    if (authStore.isSuperAdmin) {
+      // Superadmins should be on admin subdomain for super-admin routes
+      if (to.meta.requiresSuperAdmin && !isOnAdminSubdomain) {
+        // Redirect to admin subdomain
+        const redirectUrl = buildSubdomainUrl('admin', to.fullPath, token)
+        window.location.href = redirectUrl
+        return
+      }
+    } else {
+      // Non-superadmin users
+      const userOrgSubdomain = authStore.organization?.subdomain
+
+      // Check if user is on the wrong subdomain
+      if (userOrgSubdomain && currentSubdomain && currentSubdomain !== userOrgSubdomain) {
+        // User is on wrong org subdomain - redirect to their org
+        const redirectUrl = buildSubdomainUrl(userOrgSubdomain, to.fullPath, token)
+        window.location.href = redirectUrl
+        return
+      }
+
+      // Non-superadmin trying to access superadmin routes
+      if (to.meta.requiresSuperAdmin) {
+        next({ name: 'dashboard' })
+        return
+      }
+    }
+  }
+
+  // Check superadmin requirement (legacy check, kept for safety)
+  if (to.meta.requiresSuperAdmin) {
+    const { useAuthStore } = await import('@/stores/auth')
+    const authStore = useAuthStore()
+
     if (!authStore.isSuperAdmin) {
-      // Non-superadmin trying to access superadmin routes - redirect to dashboard
       next({ name: 'dashboard' })
       return
     }

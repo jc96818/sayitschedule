@@ -40,8 +40,14 @@ variable "ai_api_key" {
 
 # Host-based routing
 variable "host_header" {
-  description = "Host header for ALB routing (e.g., sayitschedule.wespeaksoon.com)"
+  description = "Host header pattern for ALB routing. Use *.domain.com for wildcard subdomains."
   type        = string
+}
+
+variable "additional_host_headers" {
+  description = "Additional host headers to route (e.g., root domain sayitschedule.com)"
+  type        = list(string)
+  default     = []
 }
 
 # Container configuration
@@ -78,7 +84,13 @@ variable "route53_zone_name" {
 }
 
 variable "subdomain" {
-  description = "Subdomain to create (e.g., demo for demo.sayitschedule.com)"
+  description = "Subdomain to create (e.g., demo for demo.sayitschedule.com). Use * for wildcard."
   type        = string
   default     = "demo"
+}
+
+variable "create_root_record" {
+  description = "Whether to create a Route53 record for the root domain (sayitschedule.com)"
+  type        = bool
+  default     = false
 }
