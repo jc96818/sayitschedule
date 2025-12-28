@@ -38,6 +38,25 @@ variable "ai_api_key" {
   sensitive   = true
 }
 
+variable "mfa_encryption_key" {
+  description = "AES-256 encryption key for MFA secrets (64 hex characters)"
+  type        = string
+  sensitive   = true
+}
+
+# Security configuration
+variable "jwt_expires_in" {
+  description = "JWT token expiration (e.g., 15m, 8h, 7d)"
+  type        = string
+  default     = "7d"
+}
+
+variable "bcrypt_cost" {
+  description = "Bcrypt cost factor (12+ recommended for production)"
+  type        = number
+  default     = 12
+}
+
 # Host-based routing
 variable "host_header" {
   description = "Host header pattern for ALB routing. Use *.domain.com for wildcard subdomains."

@@ -400,8 +400,8 @@ export const accountService = {
     return data
   },
 
-  async setupMfa(): Promise<MfaSetupResponse> {
-    const { data } = await api.post('/account/mfa/setup')
+  async setupMfa(password: string): Promise<MfaSetupResponse> {
+    const { data } = await api.post('/account/mfa/setup', { password })
     return data
   },
 

@@ -23,6 +23,7 @@ import { superAdminUserRoutes } from './routes/super-admin-users.js'
 import { accountRoutes } from './routes/account.js'
 import { organizationMiddleware } from './middleware/organization.js'
 import { checkDbHealth } from './db/index.js'
+import { getJwtExpiresIn } from './config/security.js'
 
 const server = Fastify({
   logger: true
@@ -37,8 +38,19 @@ async function start() {
 
   await server.register(cookie)
 
+  const jwtSecret = process.env.JWT_SECRET
+  if (!jwtSecret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET environment variable is required in production')
+    }
+    server.log.warn('JWT_SECRET is not set; using an insecure development default (do not use in production)')
+  }
+
   await server.register(jwt, {
-    secret: process.env.JWT_SECRET || 'development-secret-change-in-production'
+    secret: jwtSecret || 'development-secret-change-in-production',
+    sign: {
+      expiresIn: getJwtExpiresIn()
+    }
   })
 
   // Register WebSocket support

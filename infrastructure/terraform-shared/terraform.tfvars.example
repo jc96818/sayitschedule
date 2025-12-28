@@ -32,6 +32,14 @@ jwt_secret = "your-secure-jwt-secret-32-chars-minimum"
 # OpenAI API key for voice processing
 ai_api_key = "sk-your-openai-api-key"
 
+# MFA encryption key (64 hex characters for AES-256)
+# Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+mfa_encryption_key = "your-64-char-hex-key"
+
+# Optional: Security configuration
+# jwt_expires_in = "7d"    # Token expiration (default: 7d)
+# bcrypt_cost    = 12      # Bcrypt cost factor (default: 12)
+
 # Optional: Adjust container size
 # container_cpu    = 256   # 0.25 vCPU (minimum)
 # container_memory = 512   # 512 MB

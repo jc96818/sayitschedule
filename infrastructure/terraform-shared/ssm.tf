@@ -33,3 +33,14 @@ resource "aws_ssm_parameter" "ai_api_key" {
     Name = "${local.app_name}-ai-api-key"
   }
 }
+
+resource "aws_ssm_parameter" "mfa_encryption_key" {
+  name        = "/${local.app_name}/demo/MFA_ENCRYPTION_KEY"
+  description = "AES-256 encryption key for MFA secrets"
+  type        = "SecureString"
+  value       = var.mfa_encryption_key
+
+  tags = {
+    Name = "${local.app_name}-mfa-encryption-key"
+  }
+}

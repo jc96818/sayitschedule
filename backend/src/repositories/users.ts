@@ -1,6 +1,7 @@
 import { prisma, paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
 import type { User, UserRole, Prisma } from '@prisma/client'
 import bcrypt from 'bcrypt'
+import { getBcryptCost } from '../config/security.js'
 
 export type { UserRole }
 
@@ -91,7 +92,7 @@ export class UserRepository {
   }
 
   async create(data: UserCreate): Promise<UserWithoutPassword> {
-    const passwordHash = await bcrypt.hash(data.password, 10)
+    const passwordHash = await bcrypt.hash(data.password, getBcryptCost())
 
     const user = await prisma.user.create({
       data: {
@@ -113,7 +114,7 @@ export class UserRepository {
     if (data.name) updateData.name = data.name
     if (data.role) updateData.role = data.role
     if (data.password) {
-      updateData.passwordHash = await bcrypt.hash(data.password, 10)
+      updateData.passwordHash = await bcrypt.hash(data.password, getBcryptCost())
     }
 
     try {
@@ -199,7 +200,7 @@ export class UserRepository {
    */
   async updatePassword(id: string, newPassword: string): Promise<boolean> {
     try {
-      const passwordHash = await bcrypt.hash(newPassword, 10)
+      const passwordHash = await bcrypt.hash(newPassword, getBcryptCost())
       await prisma.user.update({
         where: { id },
         data: {
@@ -211,6 +212,22 @@ export class UserRepository {
     } catch {
       return false
     }
+  }
+
+  async getAuthState(userId: string): Promise<{
+    role: UserRole
+    organizationId: string | null
+    passwordChangedAt: Date | null
+  } | null> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        role: true,
+        organizationId: true,
+        passwordChangedAt: true
+      }
+    })
+    return user
   }
 
   /**

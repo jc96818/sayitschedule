@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { JWTPayload, UserRole } from '../types/index.js'
 import { validateTenantAccess } from './tenantValidation.js'
+import { userRepository } from '../repositories/users.js'
 
 export async function authenticate(
   request: FastifyRequest,
@@ -20,6 +21,29 @@ export async function authenticate(
     // This prevents host-org confusion attacks where attacker uses
     // their valid JWT but sends request to another org's subdomain
     await validateTenantAccess(request, reply)
+
+    if (reply.sent) {
+      return
+    }
+
+    // Validate that the user still exists and has not changed role/org or password since token issuance.
+    const authState = await userRepository.getAuthState(decoded.userId)
+    if (!authState) {
+      return reply.status(401).send({ error: 'Invalid token' })
+    }
+
+    if (authState.role !== decoded.role) {
+      return reply.status(401).send({ error: 'Invalid token' })
+    }
+
+    if (decoded.role !== 'super_admin' && authState.organizationId !== decoded.organizationId) {
+      return reply.status(401).send({ error: 'Invalid token' })
+    }
+
+    const issuedAtMs = decoded.iat ? decoded.iat * 1000 : null
+    if (issuedAtMs && authState.passwordChangedAt && issuedAtMs < authState.passwordChangedAt.getTime()) {
+      return reply.status(401).send({ error: 'Invalid token' })
+    }
   } catch {
     return reply.status(401).send({ error: 'Invalid token' })
   }

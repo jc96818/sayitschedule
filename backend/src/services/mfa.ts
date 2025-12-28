@@ -2,6 +2,7 @@ import { authenticator } from 'otplib'
 import * as QRCode from 'qrcode'
 import * as crypto from 'crypto'
 import * as bcrypt from 'bcrypt'
+import { getBcryptCost } from '../config/security.js'
 
 // App name shown in authenticator apps
 const APP_NAME = 'Say It Schedule'
@@ -65,12 +66,15 @@ export const mfaService = {
   generateBackupCodes(): string[] {
     const codes: string[] = []
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // Exclude confusing chars (0, O, 1, I)
+    const unique = new Set<string>()
 
-    for (let i = 0; i < 10; i++) {
+    while (codes.length < 10) {
       let code = ''
       for (let j = 0; j < 8; j++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length))
+        code += chars.charAt(crypto.randomInt(0, chars.length))
       }
+      if (unique.has(code)) continue
+      unique.add(code)
       // Format as XXXX-XXXX for readability
       codes.push(`${code.slice(0, 4)}-${code.slice(4)}`)
     }
@@ -83,7 +87,7 @@ export const mfaService = {
    */
   async hashBackupCodes(codes: string[]): Promise<string[]> {
     const hashedCodes = await Promise.all(
-      codes.map((code) => bcrypt.hash(code.replace('-', ''), 10))
+      codes.map((code) => bcrypt.hash(code.replace('-', ''), getBcryptCost()))
     )
     return hashedCodes
   },
@@ -115,12 +119,11 @@ export const mfaService = {
    */
   encryptSecret(secret: string): string {
     const key = getEncryptionKey()
-    const iv = crypto.randomBytes(16)
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv)
-    let encrypted = cipher.update(secret, 'utf8', 'hex')
-    encrypted += cipher.final('hex')
-    // Prepend IV to encrypted data
-    return iv.toString('hex') + ':' + encrypted
+    const iv = crypto.randomBytes(12) // 96-bit nonce recommended for GCM
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
+    const encrypted = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()])
+    const tag = cipher.getAuthTag()
+    return `${iv.toString('hex')}:${encrypted.toString('hex')}:${tag.toString('hex')}`
   },
 
   /**
@@ -128,11 +131,32 @@ export const mfaService = {
    */
   decryptSecret(encryptedSecret: string): string {
     const key = getEncryptionKey()
-    const [ivHex, encrypted] = encryptedSecret.split(':')
-    const iv = Buffer.from(ivHex, 'hex')
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv)
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8')
-    decrypted += decipher.final('utf8')
-    return decrypted
+    const parts = encryptedSecret.split(':')
+
+    // Current format: iv:ciphertext:tag (AES-256-GCM)
+    if (parts.length === 3) {
+      const [ivHex, encryptedHex, tagHex] = parts
+      const iv = Buffer.from(ivHex, 'hex')
+      const tag = Buffer.from(tagHex, 'hex')
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
+      decipher.setAuthTag(tag)
+      const decrypted = Buffer.concat([
+        decipher.update(Buffer.from(encryptedHex, 'hex')),
+        decipher.final()
+      ])
+      return decrypted.toString('utf8')
+    }
+
+    // Legacy format: iv:ciphertext (AES-256-CBC) - kept for backward compatibility.
+    if (parts.length === 2) {
+      const [ivHex, encryptedHex] = parts
+      const iv = Buffer.from(ivHex, 'hex')
+      const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv)
+      let decrypted = decipher.update(encryptedHex, 'hex', 'utf8')
+      decrypted += decipher.final('utf8')
+      return decrypted
+    }
+
+    throw new Error('Invalid encrypted secret format')
   }
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { mfaService } from '../mfa.js'
 import { authenticator } from 'otplib'
+import * as crypto from 'crypto'
 
 describe('MFA Service', () => {
   describe('generateSecret', () => {
@@ -164,9 +165,10 @@ describe('MFA Service', () => {
       const encrypted = mfaService.encryptSecret(secret)
 
       const parts = encrypted.split(':')
-      expect(parts).toHaveLength(2)
-      expect(parts[0]).toHaveLength(32) // 16 bytes IV in hex
+      expect(parts).toHaveLength(3)
+      expect(parts[0]).toHaveLength(24) // 12 bytes IV in hex
       expect(parts[1].length).toBeGreaterThan(0)
+      expect(parts[2]).toHaveLength(32) // 16 bytes auth tag in hex
     })
 
     it('should handle special characters in the secret', () => {
@@ -185,6 +187,21 @@ describe('MFA Service', () => {
       const decrypted = mfaService.decryptSecret(encrypted)
 
       expect(decrypted).toBe(secret)
+    })
+
+    it('should decrypt legacy AES-256-CBC ciphertexts (backward compatible)', () => {
+      const originalSecret = 'JBSWY3DPEHPK3PXP'
+
+      // Mirror legacy key derivation logic used in mfaService when MFA_ENCRYPTION_KEY is unset in test.
+      const key = crypto.scryptSync('dev-mfa-key', 'salt', 32)
+      const iv = crypto.randomBytes(16)
+      const cipher = crypto.createCipheriv('aes-256-cbc', key, iv)
+      let encrypted = cipher.update(originalSecret, 'utf8', 'hex')
+      encrypted += cipher.final('hex')
+      const legacyCiphertext = `${iv.toString('hex')}:${encrypted}`
+
+      const decrypted = mfaService.decryptSecret(legacyCiphertext)
+      expect(decrypted).toBe(originalSecret)
     })
   })
 })

@@ -13,7 +13,8 @@ const mockUserRepository = {
   create: vi.fn(),
   update: vi.fn(),
   delete: vi.fn(),
-  updatePassword: vi.fn()
+  updatePassword: vi.fn(),
+  getAuthState: vi.fn()
 }
 
 vi.mock('../../repositories/users.js', () => ({
@@ -44,6 +45,12 @@ describe('Super Admin Users Routes', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    mockUserRepository.getAuthState.mockImplementation(async (userId: string) => {
+      if (userId.startsWith('super-admin')) {
+        return { role: 'super_admin', organizationId: null, passwordChangedAt: null }
+      }
+      return { role: 'admin', organizationId: 'org-1', passwordChangedAt: null }
+    })
 
     app = Fastify({ logger: false })
     await app.register(cookie)

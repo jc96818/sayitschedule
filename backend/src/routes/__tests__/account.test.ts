@@ -11,7 +11,8 @@ const mockUserRepository = {
   updatePassword: vi.fn(),
   getMfaData: vi.fn(),
   updateMfa: vi.fn(),
-  updateBackupCodes: vi.fn()
+  updateBackupCodes: vi.fn(),
+  getAuthState: vi.fn()
 }
 
 // Mock the MFA service
@@ -49,6 +50,11 @@ describe('Account Routes', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    mockUserRepository.getAuthState.mockResolvedValue({
+      role: 'admin',
+      organizationId: 'org-1',
+      passwordChangedAt: null
+    })
 
     app = Fastify({ logger: false })
     await app.register(cookie)
@@ -206,6 +212,11 @@ describe('Account Routes', () => {
 
   describe('POST /api/account/mfa/setup', () => {
     it('should generate MFA setup data', async () => {
+      mockUserRepository.findByIdWithPassword.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: 'hashed-password'
+      })
+      mockUserRepository.verifyPassword.mockResolvedValue(true)
       mockUserRepository.getMfaData.mockResolvedValue({
         mfaEnabled: false
       })
@@ -220,7 +231,8 @@ describe('Account Routes', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/account/mfa/setup',
-        headers: { authorization: `Bearer ${userToken}` }
+        headers: { authorization: `Bearer ${userToken}` },
+        payload: { password: 'Password123!' }
       })
 
       expect(response.statusCode).toBe(200)
@@ -231,6 +243,11 @@ describe('Account Routes', () => {
     })
 
     it('should reject if MFA already enabled', async () => {
+      mockUserRepository.findByIdWithPassword.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: 'hashed-password'
+      })
+      mockUserRepository.verifyPassword.mockResolvedValue(true)
       mockUserRepository.getMfaData.mockResolvedValue({
         mfaEnabled: true
       })
@@ -238,7 +255,8 @@ describe('Account Routes', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/account/mfa/setup',
-        headers: { authorization: `Bearer ${userToken}` }
+        headers: { authorization: `Bearer ${userToken}` },
+        payload: { password: 'Password123!' }
       })
 
       expect(response.statusCode).toBe(400)

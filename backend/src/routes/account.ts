@@ -1,9 +1,11 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { authenticate } from '../middleware/auth.js'
+import { getClientIp, rateLimit } from '../middleware/rateLimit.js'
 import { userRepository } from '../repositories/users.js'
 import { mfaService } from '../services/mfa.js'
 import { logAudit } from '../repositories/audit.js'
+import { getAuthRateLimitWindowMs } from '../config/security.js'
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
@@ -12,6 +14,10 @@ const changePasswordSchema = z.object({
 
 const verifyMfaSchema = z.object({
   code: z.string().min(6).max(8)
+})
+
+const setupMfaSchema = z.object({
+  password: z.string().min(1)
 })
 
 const disableMfaSchema = z.object({
@@ -23,6 +29,18 @@ const regenerateBackupCodesSchema = z.object({
 })
 
 export async function accountRoutes(fastify: FastifyInstance) {
+  const windowMs = getAuthRateLimitWindowMs()
+  const mfaSetupLimiter = rateLimit({
+    windowMs,
+    max: 5,
+    key: (request) => request.ctx.user?.userId || getClientIp(request)
+  })
+  const mfaVerifyLimiter = rateLimit({
+    windowMs,
+    max: 10,
+    key: (request) => request.ctx.user?.userId || getClientIp(request)
+  })
+
   // Change password (requires current password)
   fastify.post('/change-password', { preHandler: authenticate }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = changePasswordSchema.parse(request.body)
@@ -73,8 +91,20 @@ export async function accountRoutes(fastify: FastifyInstance) {
   })
 
   // Setup MFA - generate secret and QR code
-  fastify.post('/mfa/setup', { preHandler: authenticate }, async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/mfa/setup', { preHandler: [authenticate, mfaSetupLimiter] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = setupMfaSchema.parse(request.body)
     const ctx = request.ctx.user!
+
+    // Require password re-entry before starting MFA setup (recent auth)
+    const user = await userRepository.findByIdWithPassword(ctx.userId)
+    if (!user) {
+      return reply.status(404).send({ error: 'User not found' })
+    }
+
+    const isValidPassword = await userRepository.verifyPassword(user, body.password)
+    if (!isValidPassword) {
+      return reply.status(400).send({ error: 'Incorrect password' })
+    }
 
     // Check if MFA is already enabled
     const mfaData = await userRepository.getMfaData(ctx.userId)
@@ -100,7 +130,7 @@ export async function accountRoutes(fastify: FastifyInstance) {
   })
 
   // Verify MFA code and enable MFA
-  fastify.post('/mfa/verify', { preHandler: authenticate }, async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/mfa/verify', { preHandler: [authenticate, mfaVerifyLimiter] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = verifyMfaSchema.parse(request.body)
     const ctx = request.ctx.user!
 

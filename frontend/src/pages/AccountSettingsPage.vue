@@ -24,6 +24,7 @@ const mfaSetupCode = ref('')
 const mfaSetupLoading = ref(false)
 const mfaSetupError = ref<string | null>(null)
 const mfaBackupCodes = ref<string[] | null>(null)
+const mfaSetupPassword = ref('')
 
 // MFA Disable state
 const showDisableMfa = ref(false)
@@ -81,15 +82,25 @@ async function handleChangePassword() {
 }
 
 async function startMfaSetup() {
-  mfaSetupLoading.value = true
   mfaSetupError.value = null
   mfaSetupData.value = null
   mfaBackupCodes.value = null
   mfaSetupCode.value = ''
+  mfaSetupPassword.value = ''
+  showMfaSetup.value = true
+}
+
+async function beginMfaSetup() {
+  if (!mfaSetupPassword.value) {
+    mfaSetupError.value = 'Password is required'
+    return
+  }
+
+  mfaSetupLoading.value = true
+  mfaSetupError.value = null
 
   try {
-    mfaSetupData.value = await accountService.setupMfa()
-    showMfaSetup.value = true
+    mfaSetupData.value = await accountService.setupMfa(mfaSetupPassword.value)
   } catch (error: unknown) {
     const err = error as { response?: { data?: { error?: string } } }
     mfaSetupError.value = err.response?.data?.error || 'Failed to start MFA setup'
@@ -124,6 +135,7 @@ function closeMfaSetup() {
   mfaSetupData.value = null
   mfaBackupCodes.value = null
   mfaSetupCode.value = ''
+  mfaSetupPassword.value = ''
   mfaSetupError.value = null
 }
 
@@ -320,45 +332,75 @@ onMounted(() => {
             <button v-if="!mfaBackupCodes" class="modal-close" @click="closeMfaSetup">&times;</button>
           </div>
           <div class="modal-body">
-            <!-- Step 1: QR Code -->
-            <div v-if="!mfaBackupCodes && mfaSetupData">
-              <Alert v-if="mfaSetupError" variant="danger" class="mb-3" dismissible @dismiss="mfaSetupError = null">
-                {{ mfaSetupError }}
-              </Alert>
+            <div v-if="!mfaBackupCodes">
+              <!-- Step 0: Confirm password (recent auth) -->
+              <div v-if="!mfaSetupData">
+                <Alert v-if="mfaSetupError" variant="danger" class="mb-3" dismissible @dismiss="mfaSetupError = null">
+                  {{ mfaSetupError }}
+                </Alert>
 
-              <p class="mb-3">Scan this QR code with your authenticator app:</p>
+                <p class="mb-3">Enter your password to start MFA setup:</p>
 
-              <div class="qr-code-container">
-                <img :src="mfaSetupData.qrCode" alt="MFA QR Code" class="qr-code" />
-              </div>
-
-              <details class="manual-entry mb-3">
-                <summary>Can't scan? Enter manually</summary>
-                <div class="manual-code">
-                  <code>{{ mfaSetupData.secret }}</code>
+                <div class="form-group">
+                  <label for="mfaSetupPassword">Password</label>
+                  <input
+                    id="mfaSetupPassword"
+                    v-model="mfaSetupPassword"
+                    type="password"
+                    class="form-control"
+                    required
+                    autocomplete="current-password"
+                  />
                 </div>
-              </details>
 
-              <div class="form-group">
-                <label for="mfaCode">Enter the 6-digit code from your app</label>
-                <input
-                  id="mfaCode"
-                  v-model="mfaSetupCode"
-                  type="text"
-                  class="form-control"
-                  placeholder="000000"
-                  maxlength="6"
-                  pattern="[0-9]*"
-                  inputmode="numeric"
-                  autocomplete="one-time-code"
-                />
+                <div class="modal-actions">
+                  <Button variant="outline" @click="closeMfaSetup">Cancel</Button>
+                  <Button variant="primary" :loading="mfaSetupLoading" @click="beginMfaSetup">
+                    Continue
+                  </Button>
+                </div>
               </div>
 
-              <div class="modal-actions">
-                <Button variant="outline" @click="closeMfaSetup">Cancel</Button>
-                <Button variant="primary" :loading="mfaSetupLoading" @click="verifyMfaSetup">
-                  Verify & Enable
-                </Button>
+              <!-- Step 1: QR Code -->
+              <div v-else>
+                <Alert v-if="mfaSetupError" variant="danger" class="mb-3" dismissible @dismiss="mfaSetupError = null">
+                  {{ mfaSetupError }}
+                </Alert>
+
+                <p class="mb-3">Scan this QR code with your authenticator app:</p>
+
+                <div class="qr-code-container">
+                  <img :src="mfaSetupData.qrCode" alt="MFA QR Code" class="qr-code" />
+                </div>
+
+                <details class="manual-entry mb-3">
+                  <summary>Can't scan? Enter manually</summary>
+                  <div class="manual-code">
+                    <code>{{ mfaSetupData.secret }}</code>
+                  </div>
+                </details>
+
+                <div class="form-group">
+                  <label for="mfaCode">Enter the 6-digit code from your app</label>
+                  <input
+                    id="mfaCode"
+                    v-model="mfaSetupCode"
+                    type="text"
+                    class="form-control"
+                    placeholder="000000"
+                    maxlength="6"
+                    pattern="[0-9]*"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                  />
+                </div>
+
+                <div class="modal-actions">
+                  <Button variant="outline" @click="closeMfaSetup">Cancel</Button>
+                  <Button variant="primary" :loading="mfaSetupLoading" @click="verifyMfaSetup">
+                    Verify & Enable
+                  </Button>
+                </div>
               </div>
             </div>
 

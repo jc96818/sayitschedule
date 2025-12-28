@@ -91,7 +91,8 @@ resource "aws_iam_role_policy" "ecs_ssm" {
         Resource = [
           aws_ssm_parameter.database_url.arn,
           aws_ssm_parameter.jwt_secret.arn,
-          aws_ssm_parameter.ai_api_key.arn
+          aws_ssm_parameter.ai_api_key.arn,
+          aws_ssm_parameter.mfa_encryption_key.arn
         ]
       }
     ]
@@ -200,7 +201,9 @@ resource "aws_ecs_task_definition" "app" {
         { name = "PORT", value = "3000" },
         { name = "AWS_REGION", value = var.aws_region },
         { name = "DEFAULT_TRANSCRIPTION_PROVIDER", value = var.transcription_provider },
-        { name = "DEFAULT_MEDICAL_SPECIALTY", value = var.transcription_medical_specialty }
+        { name = "DEFAULT_MEDICAL_SPECIALTY", value = var.transcription_medical_specialty },
+        { name = "JWT_EXPIRES_IN", value = var.jwt_expires_in },
+        { name = "BCRYPT_COST", value = tostring(var.bcrypt_cost) }
       ]
 
       secrets = [
@@ -215,6 +218,10 @@ resource "aws_ecs_task_definition" "app" {
         {
           name      = "OPENAI_API_KEY"
           valueFrom = aws_ssm_parameter.ai_api_key.arn
+        },
+        {
+          name      = "MFA_ENCRYPTION_KEY"
+          valueFrom = aws_ssm_parameter.mfa_encryption_key.arn
         }
       ]
 

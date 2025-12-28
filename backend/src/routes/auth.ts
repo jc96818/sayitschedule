@@ -1,10 +1,17 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { authenticate } from '../middleware/auth.js'
+import { getClientIp, rateLimit } from '../middleware/rateLimit.js'
 import { userRepository } from '../repositories/users.js'
 import { organizationRepository } from '../repositories/organizations.js'
 import { logAudit } from '../repositories/audit.js'
 import { mfaService } from '../services/mfa.js'
+import {
+  getAuthLoginMaxPerIp,
+  getAuthLoginMaxPerIpEmail,
+  getAuthRateLimitWindowMs,
+  getAuthVerifyMfaMaxPerIp
+} from '../config/security.js'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -17,8 +24,29 @@ const verifyMfaSchema = z.object({
 })
 
 export async function authRoutes(fastify: FastifyInstance) {
+  const windowMs = getAuthRateLimitWindowMs()
+  const loginLimiterPerIp = rateLimit({
+    windowMs,
+    max: getAuthLoginMaxPerIp(),
+    key: (request) => getClientIp(request)
+  })
+  const loginLimiterPerIpEmail = rateLimit({
+    windowMs,
+    max: getAuthLoginMaxPerIpEmail(),
+    key: (request) => {
+      const body = request.body as { email?: string } | undefined
+      const email = body?.email?.toLowerCase() || ''
+      return `${getClientIp(request)}:${email}`
+    }
+  })
+  const verifyMfaLimiterPerIp = rateLimit({
+    windowMs,
+    max: getAuthVerifyMfaMaxPerIp(),
+    key: (request) => getClientIp(request)
+  })
+
   // Login
-  fastify.post('/login', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/login', { preHandler: [loginLimiterPerIp, loginLimiterPerIpEmail] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = loginSchema.parse(request.body)
 
     // Look up user from database
@@ -103,7 +131,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   })
 
   // Verify MFA code to complete login
-  fastify.post('/verify-mfa', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/verify-mfa', { preHandler: verifyMfaLimiterPerIp }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = verifyMfaSchema.parse(request.body)
 
     // Verify and decode the MFA token
@@ -134,7 +162,8 @@ export async function authRoutes(fastify: FastifyInstance) {
     let isValid = mfaService.verifyToken(secret, body.code)
 
     // If TOTP fails, try backup code
-    if (!isValid && body.code.includes('-')) {
+    const looksLikeBackupCode = /^[a-zA-Z0-9]{4}-?[a-zA-Z0-9]{4}$/.test(body.code)
+    if (!isValid && looksLikeBackupCode) {
       const result = await mfaService.verifyBackupCode(mfaData.mfaBackupCodes, body.code)
       if (result.valid) {
         isValid = true

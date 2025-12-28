@@ -5,6 +5,8 @@ export interface JWTPayload {
   email: string
   role: UserRole
   organizationId: string | null
+  iat?: number
+  exp?: number
 }
 
 export type UserRole = 'super_admin' | 'admin' | 'admin_assistant' | 'staff'
