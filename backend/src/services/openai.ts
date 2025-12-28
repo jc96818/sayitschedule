@@ -63,6 +63,45 @@ export interface ScheduleGenerationResult {
   warnings: string[]
 }
 
+// Rule Analysis types
+export interface RuleConflict {
+  ruleIds: string[]
+  description: string
+  severity: 'high' | 'medium' | 'low'
+  suggestion: string
+}
+
+export interface RuleDuplicate {
+  ruleIds: string[]
+  description: string
+  recommendation: string
+}
+
+export interface RuleEnhancement {
+  relatedRuleIds: string[]
+  suggestion: string
+  rationale: string
+  priority: 'high' | 'medium' | 'low'
+}
+
+export interface RuleAnalysisResult {
+  conflicts: RuleConflict[]
+  duplicates: RuleDuplicate[]
+  enhancements: RuleEnhancement[]
+  summary: {
+    totalRulesAnalyzed: number
+    conflictsFound: number
+    duplicatesFound: number
+    enhancementsSuggested: number
+  }
+}
+
+export interface EntityNamesContext {
+  staffNames: string[]
+  patientNames: string[]
+  roomNames: string[]
+}
+
 function formatStaffForPrompt(staff: StaffForScheduling[]): string {
   return staff.map(s => {
     const hours = Object.entries(s.defaultHours || {})
@@ -215,6 +254,150 @@ Ensure:
     // Ensure warnings array exists
     if (!Array.isArray(result.warnings)) {
       result.warnings = []
+    }
+
+    return result
+  } catch (error) {
+    if (error instanceof OpenAI.APIError) {
+      console.error('OpenAI API Error:', error.message)
+      throw new Error(`AI service error: ${error.message}`)
+    }
+    throw error
+  }
+}
+
+function formatRulesForAnalysis(rules: RuleForScheduling[]): string {
+  return rules.map((r, i) => {
+    return `Rule ${i + 1}:
+  - ID: ${r.id}
+  - Category: ${r.category}
+  - Description: ${r.description}
+  - Priority: ${r.priority}`
+  }).join('\n\n')
+}
+
+export async function analyzeRulesWithAI(
+  rules: RuleForScheduling[],
+  context: EntityNamesContext
+): Promise<RuleAnalysisResult> {
+  if (rules.length === 0) {
+    return {
+      conflicts: [],
+      duplicates: [],
+      enhancements: [],
+      summary: {
+        totalRulesAnalyzed: 0,
+        conflictsFound: 0,
+        duplicatesFound: 0,
+        enhancementsSuggested: 0
+      }
+    }
+  }
+
+  const systemPrompt = `You are an expert scheduling rules analyst. Your task is to analyze scheduling rules for a therapy scheduling system and identify:
+
+1. CONFLICTS: Rules that contradict each other or create impossible scheduling scenarios
+2. DUPLICATES: Rules that are functionally identical or redundant
+3. ENHANCEMENTS: Suggestions for improving rule coverage or effectiveness
+
+When analyzing rules, consider:
+- Gender pairing rules and their interactions
+- Availability constraints and overlaps
+- Specific pairing requirements vs general rules
+- Certification requirements
+- Session timing and frequency rules
+
+You must return ONLY a valid JSON object with no additional text.`
+
+  const contextSection = `
+CONTEXT - Entity names in the system:
+- Staff/Therapists: ${context.staffNames.length > 0 ? context.staffNames.join(', ') : 'None defined'}
+- Patients: ${context.patientNames.length > 0 ? context.patientNames.join(', ') : 'None defined'}
+- Rooms: ${context.roomNames.length > 0 ? context.roomNames.join(', ') : 'None defined'}`
+
+  const userPrompt = `Analyze the following ${rules.length} scheduling rules for conflicts, duplicates, and potential enhancements.
+${contextSection}
+
+RULES TO ANALYZE:
+${formatRulesForAnalysis(rules)}
+
+Return a JSON object with this exact structure:
+{
+  "conflicts": [
+    {
+      "ruleIds": ["<rule ID 1>", "<rule ID 2>"],
+      "description": "Clear explanation of the conflict",
+      "severity": "high" | "medium" | "low",
+      "suggestion": "How to resolve the conflict"
+    }
+  ],
+  "duplicates": [
+    {
+      "ruleIds": ["<rule ID 1>", "<rule ID 2>"],
+      "description": "Explanation of why these rules are duplicates",
+      "recommendation": "Which rule to keep or how to consolidate"
+    }
+  ],
+  "enhancements": [
+    {
+      "relatedRuleIds": ["<optional related rule IDs>"],
+      "suggestion": "The suggested improvement or new rule",
+      "rationale": "Why this enhancement would help",
+      "priority": "high" | "medium" | "low"
+    }
+  ],
+  "summary": {
+    "totalRulesAnalyzed": ${rules.length},
+    "conflictsFound": <number>,
+    "duplicatesFound": <number>,
+    "enhancementsSuggested": <number>
+  }
+}
+
+Severity/Priority guidelines:
+- HIGH: Critical issues that will cause scheduling failures or major problems
+- MEDIUM: Issues that may cause suboptimal schedules or occasional problems
+- LOW: Minor issues or nice-to-have improvements
+
+Be thorough but practical. Only report genuine issues, not hypothetical edge cases.`
+
+  try {
+    const response = await getOpenAI().chat.completions.create({
+      model: 'gpt-5.1',
+      reasoning_effort: 'low',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      response_format: { type: 'json_object' },
+      max_completion_tokens: 4096,
+      store: false
+    })
+
+    const content = response.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('No response content from OpenAI')
+    }
+
+    const result = JSON.parse(content) as RuleAnalysisResult
+
+    // Validate and ensure arrays exist
+    if (!Array.isArray(result.conflicts)) {
+      result.conflicts = []
+    }
+    if (!Array.isArray(result.duplicates)) {
+      result.duplicates = []
+    }
+    if (!Array.isArray(result.enhancements)) {
+      result.enhancements = []
+    }
+    if (!result.summary) {
+      result.summary = {
+        totalRulesAnalyzed: rules.length,
+        conflictsFound: result.conflicts.length,
+        duplicatesFound: result.duplicates.length,
+        enhancementsSuggested: result.enhancements.length
+      }
     }
 
     return result

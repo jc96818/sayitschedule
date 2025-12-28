@@ -2,7 +2,11 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { authenticate, requireAdminOrAssistant } from '../middleware/auth.js'
 import { ruleRepository } from '../repositories/rules.js'
+import { staffRepository } from '../repositories/staff.js'
+import { patientRepository } from '../repositories/patients.js'
+import { roomRepository } from '../repositories/rooms.js'
 import { logAudit } from '../repositories/audit.js'
+import { analyzeRulesWithAI } from '../services/openai.js'
 
 const createRuleSchema = z.object({
   category: z.enum(['gender_pairing', 'session', 'availability', 'specific_pairing', 'certification']),
@@ -141,6 +145,60 @@ export async function ruleRoutes(fastify: FastifyInstance) {
     await logAudit(ctx.userId, 'delete', 'rule', id, organizationId)
 
     return reply.status(204).send()
+  })
+
+  // Analyze rules with AI
+  fastify.post('/analyze', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const organizationId = request.ctx.organizationId
+
+    if (!organizationId) {
+      return reply.status(400).send({ error: 'Organization context required' })
+    }
+
+    // Fetch active rules
+    const activeRules = await ruleRepository.findActiveByOrganization(organizationId)
+
+    if (activeRules.length === 0) {
+      return {
+        data: {
+          conflicts: [],
+          duplicates: [],
+          enhancements: [],
+          summary: {
+            totalRulesAnalyzed: 0,
+            conflictsFound: 0,
+            duplicatesFound: 0,
+            enhancementsSuggested: 0
+          }
+        }
+      }
+    }
+
+    // Fetch entity names for context
+    const [staff, patients, rooms] = await Promise.all([
+      staffRepository.findByOrganization(organizationId, 'active'),
+      patientRepository.findByOrganization(organizationId, 'active'),
+      roomRepository.findByOrganization(organizationId, 'active')
+    ])
+
+    const context = {
+      staffNames: staff.map(s => s.name),
+      patientNames: patients.map(p => p.name),
+      roomNames: rooms.map(r => r.name)
+    }
+
+    // Format rules for AI analysis
+    const rulesForAnalysis = activeRules.map(rule => ({
+      id: rule.id,
+      category: rule.category,
+      description: rule.description,
+      ruleLogic: rule.ruleLogic as Record<string, unknown>,
+      priority: rule.priority
+    }))
+
+    const result = await analyzeRulesWithAI(rulesForAnalysis, context)
+
+    return { data: result }
   })
 
   // Parse voice input for rule creation

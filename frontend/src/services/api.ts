@@ -15,7 +15,8 @@ import type {
   MfaSetupResponse,
   MfaVerifyResponse,
   MfaStatusResponse,
-  ParsedMultiRuleResponse
+  ParsedMultiRuleResponse,
+  RuleAnalysisResult
 } from '@/types'
 
 // Transcription settings types
@@ -207,6 +208,11 @@ export const rulesService = {
 
   async parseVoice(transcript: string): Promise<ApiResponse<{ rule: Partial<Rule>; confidence: number }>> {
     const { data } = await api.post('/rules/parse-voice', { transcript })
+    return data
+  },
+
+  async analyze(): Promise<ApiResponse<RuleAnalysisResult>> {
+    const { data } = await api.post('/rules/analyze')
     return data
   }
 }

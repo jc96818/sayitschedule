@@ -253,3 +253,38 @@ export interface MfaStatusResponse {
   enabled: boolean
   backupCodesRemaining: number
 }
+
+// Rule Analysis
+export interface RuleConflict {
+  ruleIds: string[]
+  description: string
+  severity: 'high' | 'medium' | 'low'
+  suggestion: string
+}
+
+export interface RuleDuplicate {
+  ruleIds: string[]
+  description: string
+  recommendation: string
+}
+
+export interface RuleEnhancement {
+  relatedRuleIds: string[]
+  suggestion: string
+  rationale: string
+  priority: 'high' | 'medium' | 'low'
+}
+
+export interface RuleAnalysisSummary {
+  totalRulesAnalyzed: number
+  conflictsFound: number
+  duplicatesFound: number
+  enhancementsSuggested: number
+}
+
+export interface RuleAnalysisResult {
+  conflicts: RuleConflict[]
+  duplicates: RuleDuplicate[]
+  enhancements: RuleEnhancement[]
+  summary: RuleAnalysisSummary
+}

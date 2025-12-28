@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Rule, RuleCategory, ParsedRuleItem, ParsedMultiRuleResponse } from '@/types'
+import type { Rule, RuleCategory, ParsedRuleItem, ParsedMultiRuleResponse, RuleAnalysisResult } from '@/types'
 import { rulesService, voiceService } from '@/services/api'
 
 // Simple ID generator
@@ -19,6 +19,10 @@ export const useRulesStore = defineStore('rules', () => {
   const originalTranscript = ref<string>('')
   const globalWarnings = ref<string[]>([])
   const parsing = ref(false)
+
+  // Rule analysis state
+  const analysisResult = ref<RuleAnalysisResult | null>(null)
+  const analyzing = ref(false)
 
   // Computed properties for existing rules
   const activeRules = computed(() => rules.value.filter((r) => r.isActive))
@@ -283,6 +287,29 @@ export const useRulesStore = defineStore('rules', () => {
     globalWarnings.value = []
   }
 
+  // Analyze rules with AI
+  async function analyzeRules(): Promise<RuleAnalysisResult> {
+    analyzing.value = true
+    error.value = null
+    analysisResult.value = null
+
+    try {
+      const response = await rulesService.analyze()
+      analysisResult.value = response.data
+      return response.data
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to analyze rules'
+      throw e
+    } finally {
+      analyzing.value = false
+    }
+  }
+
+  // Clear analysis result
+  function clearAnalysisResult() {
+    analysisResult.value = null
+  }
+
   // DEPRECATED: Backward compatibility wrappers
   async function confirmPendingRule() {
     if (pendingRules.value.length === 1) {
@@ -331,6 +358,12 @@ export const useRulesStore = defineStore('rules', () => {
     rejectAllPendingRules,
     createConfirmedRules,
     clearPendingRules,
+
+    // Rule analysis
+    analysisResult,
+    analyzing,
+    analyzeRules,
+    clearAnalysisResult,
 
     // DEPRECATED: Backward compatibility
     pendingRule,
