@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useOrganizationsStore } from '@/stores/organizations'
 import { useAuthStore } from '@/stores/auth'
 import { Modal, Alert, Badge, Button, StatCard } from '@/components/ui'
+import { buildSubdomainUrl } from '@/utils/subdomain'
 import type { Organization } from '@/types'
 
 const router = useRouter()
@@ -78,9 +79,17 @@ function resetForm() {
 async function handleEnterOrg(org: Organization) {
   try {
     await organizationsStore.switchContext(org.id)
-    // Also update the auth store so sidebar and other components see the org context
-    authStore.setOrganizationContext(org)
-    router.push('/')
+    // Redirect superadmin to the organization's subdomain
+    // This ensures the backend receives the correct Host header for org context
+    const token = authStore.token
+    if (token && org.subdomain) {
+      const redirectUrl = buildSubdomainUrl(org.subdomain, '/', token)
+      window.location.href = redirectUrl
+    } else {
+      // Fallback for development (no subdomain routing)
+      authStore.setOrganizationContext(org)
+      router.push('/')
+    }
   } catch (error) {
     console.error('Failed to switch organization context:', error)
   }
