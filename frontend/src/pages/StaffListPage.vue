@@ -11,7 +11,7 @@ const staffStore = useStaffStore()
 const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
 
 const searchQuery = ref('')
-const statusFilter = ref('')
+const statusFilter = ref('active')
 const genderFilter = ref('')
 
 // Add staff modal
