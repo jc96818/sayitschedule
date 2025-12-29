@@ -233,6 +233,17 @@ Ensure:
 - Each patient gets approximately their required sessions per week
 - No time conflicts for any therapist${hasRooms ? ', patient, or room' : ' or patient'}`
 
+  const debugAI = process.env.DEBUG_AI_REQUESTS === 'true'
+
+  if (debugAI) {
+    console.log('\n========== AI SCHEDULE GENERATION REQUEST (OpenAI) ==========')
+    console.log('SYSTEM PROMPT:')
+    console.log(systemPrompt)
+    console.log('\nUSER PROMPT:')
+    console.log(userPrompt)
+    console.log('==============================================================\n')
+  }
+
   try {
     const response = await getOpenAI().chat.completions.create({
       model: 'gpt-5.1',
@@ -249,6 +260,12 @@ Ensure:
     const content = response.choices[0]?.message?.content
     if (!content) {
       throw new Error('No response content from OpenAI')
+    }
+
+    if (debugAI) {
+      console.log('\n========== AI SCHEDULE GENERATION RESPONSE (OpenAI) ==========')
+      console.log(content)
+      console.log('===============================================================\n')
     }
 
     const result = JSON.parse(content) as ScheduleGenerationResult

@@ -5,7 +5,7 @@ import {
   type ContentBlock,
 } from '@aws-sdk/client-bedrock-runtime'
 
-const MODEL_ID = 'us.amazon.nova-lite-v1:0'
+const MODEL_ID = 'us.amazon.nova-2-lite-v1:0'
 
 let bedrockClient: BedrockRuntimeClient | null = null
 
@@ -294,6 +294,17 @@ Ensure:
 - Each patient gets approximately their required sessions per week
 - No time conflicts for any therapist${hasRooms ? ', patient, or room' : ' or patient'}`
 
+  const debugAI = process.env.DEBUG_AI_REQUESTS === 'true'
+
+  if (debugAI) {
+    console.log('\n========== AI SCHEDULE GENERATION REQUEST ==========')
+    console.log('SYSTEM PROMPT:')
+    console.log(systemPrompt)
+    console.log('\nUSER PROMPT:')
+    console.log(userPrompt)
+    console.log('====================================================\n')
+  }
+
   try {
     const content = await invokeNova({
       systemPrompt,
@@ -301,6 +312,12 @@ Ensure:
       maxTokens: 8192,
       jsonOutput: true
     })
+
+    if (debugAI) {
+      console.log('\n========== AI SCHEDULE GENERATION RESPONSE ==========')
+      console.log(content)
+      console.log('=====================================================\n')
+    }
 
     const result = JSON.parse(content) as ScheduleGenerationResult
 

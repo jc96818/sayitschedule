@@ -171,12 +171,22 @@ export const patientService = {
   },
 
   async create(patient: Partial<Patient>): Promise<ApiResponse<Patient>> {
-    const { data } = await api.post('/patients', patient)
+    // Map frontend field names to API field names
+    const payload = {
+      ...patient,
+      sessionFrequency: patient.sessionsPerWeek ?? patient.sessionFrequency ?? 1
+    }
+    const { data } = await api.post('/patients', payload)
     return data
   },
 
   async update(id: string, patient: Partial<Patient>): Promise<ApiResponse<Patient>> {
-    const { data } = await api.put(`/patients/${id}`, patient)
+    // Map frontend field names to API field names
+    const payload = {
+      ...patient,
+      sessionFrequency: patient.sessionsPerWeek ?? patient.sessionFrequency
+    }
+    const { data } = await api.put(`/patients/${id}`, payload)
     return data
   },
 
