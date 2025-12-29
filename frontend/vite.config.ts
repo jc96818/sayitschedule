@@ -15,6 +15,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: false,
+        ws: true, // Enable WebSocket proxying for transcription
         // Preserve the original Host header for subdomain detection
         // The backend uses the Host header to determine organization context
         configure: (proxy) => {

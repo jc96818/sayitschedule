@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRulesStore } from '@/stores/rules'
-import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, Toggle, RuleAnalysisModal } from '@/components/ui'
+import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, Toggle, RuleAnalysisModal, SearchBox } from '@/components/ui'
 import type { Rule, ParsedRuleItem } from '@/types'
 import type { SuggestedRuleForCreate } from '@/components/ui/RuleAnalysisModal.vue'
 
@@ -33,6 +33,9 @@ const selectedCategory = ref<string>('all')
 // Status filter - defaults to 'active' to hide deactivated rules
 const statusFilter = ref<'all' | 'active' | 'inactive'>('active')
 
+// Search query
+const searchQuery = ref('')
+
 const categoryTabs = [
   { value: 'all', label: 'All Rules' },
   { value: 'gender_pairing', label: 'Gender Pairing' },
@@ -45,7 +48,7 @@ const categoryTabs = [
 // Computed: Check if we have multiple rules
 const hasMultipleRules = computed(() => rulesStore.pendingRules.length > 1)
 
-// Computed: Filtered rules by selected category and status
+// Computed: Filtered rules by selected category, status, and search query
 const filteredRules = computed(() => {
   let result = rulesStore.rules
 
@@ -59,6 +62,19 @@ const filteredRules = computed(() => {
   // Filter by category
   if (selectedCategory.value !== 'all') {
     result = result.filter(rule => rule.category === selectedCategory.value)
+  }
+
+  // Filter by search query
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase().trim()
+    result = result.filter(rule => {
+      // Search in description
+      if (rule.description.toLowerCase().includes(query)) return true
+      // Search in category label
+      const categoryLabel = getCategoryLabel(rule.category).toLowerCase()
+      if (categoryLabel.includes(query)) return true
+      return false
+    })
   }
 
   return result
@@ -106,7 +122,41 @@ function getConfidenceClass(confidence: number): string {
   return 'low'
 }
 
+// Detect if voice command is a search request
+function detectSearchIntent(transcript: string): string | null {
+  const lowerTranscript = transcript.toLowerCase().trim()
+
+  // Patterns that indicate a search intent
+  const searchPatterns = [
+    /^(?:find|search|show|look for|get|display)\s+(?:all\s+)?(?:rules?\s+)?(?:for|about|with|containing|mentioning|related to|that mention)\s+(.+)$/i,
+    /^(?:find|search|show|look for|get|display)\s+(?:all\s+)?(.+?)\s+rules?$/i,
+    /^(?:what|which)\s+rules?\s+(?:are\s+)?(?:for|about|mention|contain|have|include)\s+(.+)$/i,
+    /^rules?\s+(?:for|about|mentioning|containing|with)\s+(.+)$/i,
+    /^(?:search|find)\s+(.+)$/i,
+  ]
+
+  for (const pattern of searchPatterns) {
+    const match = lowerTranscript.match(pattern)
+    if (match && match[1]) {
+      return match[1].trim()
+    }
+  }
+
+  return null
+}
+
 async function handleVoiceResult(transcript: string) {
+  // First check if this is a search command
+  const searchTerm = detectSearchIntent(transcript)
+  if (searchTerm) {
+    searchQuery.value = searchTerm
+    // Reset other filters to show all matching rules
+    selectedCategory.value = 'all'
+    statusFilter.value = 'active'
+    return
+  }
+
+  // Otherwise, treat as a rule creation command
   try {
     await rulesStore.parseVoiceCommand(transcript)
     if (rulesStore.pendingRules.length > 0) {
@@ -513,12 +563,21 @@ onMounted(() => {
           </button>
         </div>
 
-        <!-- Status Filter -->
-        <select v-model="statusFilter" class="form-control status-filter">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="all">All Status</option>
-        </select>
+        <!-- Right side filters -->
+        <div class="filters-right">
+          <!-- Search Box -->
+          <SearchBox
+            v-model="searchQuery"
+            placeholder="Search rules..."
+          />
+
+          <!-- Status Filter -->
+          <select v-model="statusFilter" class="form-control status-filter">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="all">All Status</option>
+          </select>
+        </div>
       </div>
 
       <!-- Rules List -->
@@ -668,6 +727,12 @@ onMounted(() => {
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.filters-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .status-filter {

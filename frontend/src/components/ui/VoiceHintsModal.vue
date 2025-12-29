@@ -38,7 +38,7 @@ const markAsSeen = () => {
 const hintsData: Record<PageType, { title: string; intro: string; hints: VoiceHint[] }> = {
   rules: {
     title: 'Voice Commands for Scheduling Rules',
-    intro: 'Create scheduling rules by speaking naturally. The AI will interpret your intent and create the appropriate rule.',
+    intro: 'Create or search for scheduling rules by speaking naturally. The AI will interpret your intent.',
     hints: [
       {
         example: 'Male therapists can only work with male patients',
@@ -55,6 +55,18 @@ const hintsData: Record<PageType, { title: string; intro: string; hints: VoiceHi
       {
         example: 'No scheduling on federal holidays',
         description: 'Creates an availability rule that excludes all federal holidays from the schedule.'
+      },
+      {
+        example: 'Find all rules for Emily',
+        description: 'Searches for rules that mention "Emily" in the description.'
+      },
+      {
+        example: 'Show me gender pairing rules',
+        description: 'Searches for rules related to gender pairing.'
+      },
+      {
+        example: 'Search for certification rules',
+        description: 'Finds all rules that mention certifications.'
       }
     ]
   },
