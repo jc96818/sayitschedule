@@ -61,15 +61,6 @@ function getRuleDescription(ruleId: string): string {
   return rule?.description || `Rule ${ruleId.slice(0, 8)}...`
 }
 
-// Get short rule description for button labels
-function getShortRuleDescription(ruleId: string): string {
-  const desc = getRuleDescription(ruleId)
-  if (desc.length > 30) {
-    return desc.slice(0, 27) + '...'
-  }
-  return desc
-}
-
 function getSeverityVariant(severity: string): 'danger' | 'warning' | 'primary' {
   switch (severity) {
     case 'high': return 'danger'
