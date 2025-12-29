@@ -89,6 +89,11 @@ const routes: RouteRecordRaw[] = [
         path: 'data-management',
         name: 'data-management',
         component: () => import('@/pages/DataManagementPage.vue')
+      },
+      {
+        path: 'baa',
+        name: 'baa',
+        component: () => import('@/pages/BaaPage.vue')
       }
     ]
   },
@@ -116,6 +121,11 @@ const routes: RouteRecordRaw[] = [
         path: 'account',
         name: 'super-admin-account',
         component: () => import('@/pages/AccountSettingsPage.vue')
+      },
+      {
+        path: 'baa',
+        name: 'super-admin-baa',
+        component: () => import('@/pages/SuperAdminBaaPage.vue')
       }
     ]
   }

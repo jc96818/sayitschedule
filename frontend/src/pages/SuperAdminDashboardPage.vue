@@ -20,7 +20,8 @@ const newOrg = ref<Partial<Organization>>({
   subdomain: '',
   primaryColor: '#2563eb',
   secondaryColor: '#1e40af',
-  status: 'active'
+  status: 'active',
+  requiresHipaa: false
 })
 
 const filteredOrganizations = computed(() => {
@@ -72,7 +73,8 @@ function resetForm() {
     subdomain: '',
     primaryColor: '#2563eb',
     secondaryColor: '#1e40af',
-    status: 'active'
+    status: 'active',
+    requiresHipaa: false
   }
 }
 
@@ -193,6 +195,7 @@ onMounted(() => {
               <tr>
                 <th>Organization</th>
                 <th>Subdomain</th>
+                <th>HIPAA</th>
                 <th>Status</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -208,6 +211,10 @@ onMounted(() => {
                 </td>
                 <td>
                   <span class="subdomain">{{ org.subdomain }}.sayitschedule.com</span>
+                </td>
+                <td>
+                  <Badge v-if="org.requiresHipaa" variant="primary">Required</Badge>
+                  <span v-else class="text-muted">—</span>
                 </td>
                 <td>
                   <Badge :variant="org.status === 'active' ? 'success' : 'warning'">
@@ -294,6 +301,17 @@ onMounted(() => {
               class="form-control color-input"
             />
           </div>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input
+              v-model="newOrg.requiresHipaa"
+              type="checkbox"
+            />
+            <span>Requires HIPAA Compliance</span>
+          </label>
+          <small class="text-muted">Enable if this organization handles Protected Health Information (PHI)</small>
         </div>
 
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
@@ -384,6 +402,20 @@ onMounted(() => {
 .color-input {
   height: 48px;
   padding: 4px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.checkbox-label input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
 }
 
 @media (max-width: 768px) {

@@ -7,6 +7,7 @@ export interface OrganizationCreate {
   logoUrl?: string | null
   primaryColor?: string
   secondaryColor?: string
+  requiresHipaa?: boolean
   transcriptionProvider?: TranscriptionProvider
   medicalSpecialty?: MedicalSpecialty
 }
@@ -18,6 +19,7 @@ export interface OrganizationUpdate {
   primaryColor?: string
   secondaryColor?: string
   status?: Status
+  requiresHipaa?: boolean
   transcriptionProvider?: TranscriptionProvider
   medicalSpecialty?: MedicalSpecialty
 }
@@ -73,7 +75,8 @@ export class OrganizationRepository {
         subdomain: data.subdomain,
         logoUrl: data.logoUrl,
         primaryColor: data.primaryColor || '#2563eb',
-        secondaryColor: data.secondaryColor || '#1e40af'
+        secondaryColor: data.secondaryColor || '#1e40af',
+        requiresHipaa: data.requiresHipaa ?? false
       }
     })
   }

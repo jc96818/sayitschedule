@@ -8,9 +8,10 @@ export * from './rules.js'
 export * from './rooms.js'
 export * from './schedules.js'
 export * from './audit.js'
+export * from './baa.js'
 
 // Re-export common types from Prisma
-export type { Gender, Status, UserRole, ScheduleStatus, RuleCategory } from '@prisma/client'
+export type { Gender, Status, UserRole, ScheduleStatus, RuleCategory, BaaStatus } from '@prisma/client'
 
 // Import singleton instances
 import { organizationRepository } from './organizations.js'
@@ -21,6 +22,7 @@ import { ruleRepository } from './rules.js'
 import { roomRepository } from './rooms.js'
 import { scheduleRepository } from './schedules.js'
 import { auditRepository } from './audit.js'
+import { baaAgreementRepository } from './baa.js'
 
 // Export singleton instances as default repositories
 export const repositories = {
@@ -31,7 +33,8 @@ export const repositories = {
   rules: ruleRepository,
   rooms: roomRepository,
   schedules: scheduleRepository,
-  audit: auditRepository
+  audit: auditRepository,
+  baaAgreements: baaAgreementRepository
 }
 
 export default repositories

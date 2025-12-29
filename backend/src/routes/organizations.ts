@@ -8,11 +8,13 @@ const createOrgSchema = z.object({
   name: z.string().min(1),
   subdomain: z.string().min(1).regex(/^[a-z0-9-]+$/),
   primaryColor: z.string().optional(),
-  secondaryColor: z.string().optional()
+  secondaryColor: z.string().optional(),
+  requiresHipaa: z.boolean().optional()
 })
 
 const updateOrgSchema = createOrgSchema.partial().extend({
-  status: z.enum(['active', 'inactive']).optional()
+  status: z.enum(['active', 'inactive']).optional(),
+  requiresHipaa: z.boolean().optional()
 })
 
 export async function organizationRoutes(fastify: FastifyInstance) {

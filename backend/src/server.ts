@@ -23,6 +23,7 @@ import { transcriptionRoutes } from './routes/transcription.js'
 import { superAdminUserRoutes } from './routes/super-admin-users.js'
 import { accountRoutes } from './routes/account.js'
 import { dataManagementRoutes } from './routes/data-management.js'
+import { baaRoutes } from './routes/baa.js'
 import { organizationMiddleware } from './middleware/organization.js'
 import { checkDbHealth } from './db/index.js'
 import { getJwtExpiresIn } from './config/security.js'
@@ -82,6 +83,7 @@ async function start() {
   await server.register(superAdminUserRoutes, { prefix: '/api/super-admin/users' })
   await server.register(accountRoutes, { prefix: '/api/account' })
   await server.register(dataManagementRoutes, { prefix: '/api/data-management' })
+  await server.register(baaRoutes, { prefix: '/api/baa' })
 
   // Health check - basic (for load balancer)
   server.get('/api/health', async () => {

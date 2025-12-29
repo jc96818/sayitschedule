@@ -41,6 +41,16 @@ enum RuleCategory {
   certification
 }
 
+// BAA (Business Associate Agreement) status
+enum BaaStatus {
+  not_started
+  awaiting_org_signature
+  awaiting_vendor_signature
+  executed
+  voided
+  superseded
+}
+
 // Transcription provider options
 enum TranscriptionProvider {
   aws_medical
@@ -68,6 +78,9 @@ model Organization {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
+  // HIPAA compliance
+  requiresHipaa  Boolean  @default(false) @map("requires_hipaa")
+
   // Transcription settings
   transcriptionProvider  TranscriptionProvider @default(aws_medical) @map("transcription_provider")
   medicalSpecialty       MedicalSpecialty      @default(PRIMARYCARE) @map("medical_specialty")
@@ -80,6 +93,7 @@ model Organization {
   schedules      Schedule[]
   auditLogs      AuditLog[]
   customHolidays CustomHoliday[]
+  baaAgreements  BaaAgreement[]
 
   @@map("organizations")
 }
@@ -280,4 +294,47 @@ model CustomHoliday {
   reason         String?
 
   @@map("custom_holidays")
+}
+
+// BAA (Business Associate Agreement)
+// Tracks HIPAA Business Associate Agreements per organization
+model BaaAgreement {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  status         BaaStatus    @default(not_started)
+
+  // Template info for versioning and integrity
+  templateName    String  @map("template_name") @db.VarChar(100)
+  templateVersion String  @map("template_version") @db.VarChar(20)
+  templateSha256  String  @map("template_sha256") @db.VarChar(64)
+
+  // Executed PDF storage and integrity
+  executedPdfSha256 String? @map("executed_pdf_sha256") @db.VarChar(64)
+  executedPdfPath   String? @map("executed_pdf_path") @db.VarChar(500)
+
+  // Organization signature (covered entity)
+  orgSignedAt       DateTime? @map("org_signed_at")
+  orgSignerUserId   String?   @map("org_signer_user_id")
+  orgSignerName     String?   @map("org_signer_name") @db.VarChar(255)
+  orgSignerTitle    String?   @map("org_signer_title") @db.VarChar(255)
+  orgSignerEmail    String?   @map("org_signer_email") @db.VarChar(255)
+  orgSignerIp       String?   @map("org_signer_ip") @db.VarChar(45)
+  orgSignerUserAgent String?  @map("org_signer_user_agent") @db.VarChar(500)
+
+  // Vendor signature (business associate - Say It Schedule)
+  vendorSignedAt     DateTime? @map("vendor_signed_at")
+  vendorSignerUserId String?   @map("vendor_signer_user_id")
+  vendorSignerName   String?   @map("vendor_signer_name") @db.VarChar(255)
+  vendorSignerTitle  String?   @map("vendor_signer_title") @db.VarChar(255)
+
+  // E-sign provider integration (for future use with DocuSign, etc.)
+  esignProvider    String? @map("esign_provider") @db.VarChar(50)
+  esignEnvelopeId  String? @map("esign_envelope_id") @db.VarChar(100)
+  esignStatus      String? @map("esign_status") @db.VarChar(50)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("baa_agreements")
 }

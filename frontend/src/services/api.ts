@@ -447,6 +447,90 @@ export const mfaAuthService = {
   }
 }
 
+// BAA (Business Associate Agreement) Types
+export type BaaStatus = 'not_started' | 'awaiting_org_signature' | 'awaiting_vendor_signature' | 'executed' | 'voided' | 'superseded'
+
+export interface BaaStatusInfo {
+  label: string
+  description: string
+  color: string
+}
+
+export interface BaaAgreement {
+  id: string
+  organizationId: string
+  status: BaaStatus
+  templateName: string
+  templateVersion: string
+  templateSha256: string
+  executedPdfSha256?: string
+  executedPdfPath?: string
+  orgSignedAt?: string
+  orgSignerUserId?: string
+  orgSignerName?: string
+  orgSignerTitle?: string
+  orgSignerEmail?: string
+  orgSignerIp?: string
+  orgSignerUserAgent?: string
+  vendorSignedAt?: string
+  vendorSignerUserId?: string
+  vendorSignerName?: string
+  vendorSignerTitle?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BaaAgreementWithOrg extends BaaAgreement {
+  organization: {
+    id: string
+    name: string
+    subdomain: string
+    status: string
+  }
+}
+
+export interface BaaStatusResponse {
+  hasAgreement: boolean
+  agreement: BaaAgreement | null
+  statusInfo: BaaStatusInfo | null
+  templateVersion: string
+  canSign: boolean
+  canCountersign: boolean
+  templateConfig: {
+    name: string
+    version: string
+    vendor: {
+      legalName: string
+      address: string
+      contactName: string
+      contactEmail: string
+      contactPhone: string
+    }
+  }
+}
+
+export interface BaaSignRequest {
+  signerName: string
+  signerTitle: string
+  signerEmail: string
+  consent: boolean
+  organizationAddress?: string
+}
+
+export interface BaaCountersignRequest {
+  signerName: string
+  signerTitle: string
+}
+
+export interface BaaStats {
+  total: number
+  executed: number
+  awaitingOrgSignature: number
+  awaitingVendorSignature: number
+  notStarted: number
+  statusOptions: Array<{ value: string; label: string; description: string; color: string }>
+}
+
 // Data Management Types
 export type ExportEntityType = 'staff' | 'patients' | 'rooms' | 'rules'
 export type ExportFormat = 'json' | 'csv'
@@ -498,6 +582,75 @@ export const dataManagementService = {
       entityType,
       records
     })
+    return data
+  }
+}
+
+// BAA Service (Business Associate Agreement)
+export const baaService = {
+  // Organization-scoped endpoints
+  async getStatus(): Promise<ApiResponse<BaaStatusResponse>> {
+    const { data } = await api.get('/baa/current')
+    return data
+  },
+
+  async getPreview(): Promise<ApiResponse<{ content: string; templateVersion: string; contentType: string }>> {
+    const { data } = await api.get('/baa/current/preview')
+    return data
+  },
+
+  async initialize(): Promise<ApiResponse<BaaAgreement & { statusInfo: BaaStatusInfo }>> {
+    const { data } = await api.post('/baa/current/initialize')
+    return data
+  },
+
+  async sign(request: BaaSignRequest): Promise<ApiResponse<BaaAgreement & { statusInfo: BaaStatusInfo }, { message: string }>> {
+    const { data } = await api.post('/baa/current/sign', request)
+    return data
+  },
+
+  async download(): Promise<Blob> {
+    const { data } = await api.get('/baa/current/download', { responseType: 'blob' })
+    return data
+  },
+
+  async getHistory(): Promise<ApiResponse<Array<BaaAgreement & { statusInfo: BaaStatusInfo }>>> {
+    const { data } = await api.get('/baa/current/history')
+    return data
+  },
+
+  // Superadmin endpoints
+  async adminList(params?: { page?: number; limit?: number; search?: string; status?: BaaStatus }): Promise<PaginatedResponse<BaaAgreementWithOrg & { statusInfo: BaaStatusInfo }>> {
+    const { data } = await api.get('/baa/admin/list', { params })
+    return data
+  },
+
+  async adminGetStats(): Promise<ApiResponse<BaaStats>> {
+    const { data } = await api.get('/baa/admin/stats')
+    return data
+  },
+
+  async adminGetOrgBaa(organizationId: string): Promise<ApiResponse<{
+    current: BaaAgreement & { statusInfo: BaaStatusInfo }
+    history: Array<BaaAgreement & { statusInfo: BaaStatusInfo }>
+    canCountersign: boolean
+  }>> {
+    const { data } = await api.get(`/baa/admin/${organizationId}`)
+    return data
+  },
+
+  async adminCountersign(organizationId: string, request: BaaCountersignRequest): Promise<ApiResponse<BaaAgreement & { statusInfo: BaaStatusInfo }, { message: string }>> {
+    const { data } = await api.post(`/baa/admin/${organizationId}/countersign`, request)
+    return data
+  },
+
+  async adminVoid(organizationId: string, reason: string): Promise<ApiResponse<BaaAgreement & { statusInfo: BaaStatusInfo }, { message: string }>> {
+    const { data } = await api.post(`/baa/admin/${organizationId}/void`, { reason })
+    return data
+  },
+
+  async adminDownload(baaId: string): Promise<Blob> {
+    const { data } = await api.get(`/baa/admin/${baaId}/download`, { responseType: 'blob' })
     return data
   }
 }

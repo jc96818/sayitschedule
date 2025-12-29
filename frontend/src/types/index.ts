@@ -7,6 +7,7 @@ export interface Organization {
   primaryColor: string
   secondaryColor: string
   status: 'active' | 'inactive'
+  requiresHipaa: boolean
   createdAt: string
   updatedAt: string
 }

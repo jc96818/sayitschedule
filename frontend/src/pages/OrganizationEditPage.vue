@@ -135,6 +135,17 @@ onMounted(async () => {
                 <option value="inactive">Inactive</option>
               </select>
             </div>
+
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input
+                  v-model="formData.requiresHipaa"
+                  type="checkbox"
+                />
+                <span>Requires HIPAA Compliance</span>
+              </label>
+              <small class="text-muted">Enable if this organization handles Protected Health Information (PHI). When enabled, a Business Associate Agreement must be signed.</small>
+            </div>
           </div>
         </div>
 
@@ -291,6 +302,20 @@ onMounted(async () => {
 .color-text {
   flex: 1;
   font-family: monospace;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.checkbox-label input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
 }
 
 .logo-upload {
