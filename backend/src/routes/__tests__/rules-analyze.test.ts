@@ -3,6 +3,7 @@ import Fastify, { FastifyInstance } from 'fastify'
 import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
 import type { JWTPayload } from '../../types/index.js'
+import { RuleCategory } from '@prisma/client'
 
 // Mock the auth middleware
 vi.mock('../../middleware/auth.js', () => ({
@@ -123,7 +124,7 @@ describe('Rules Analyze Route', () => {
         {
           id: 'rule-1',
           organizationId: 'test-org-id',
-          category: 'gender_pairing',
+          category: RuleCategory.gender_pairing,
           description: 'Male therapists can only see male patients',
           ruleLogic: {},
           priority: 10,
@@ -135,7 +136,7 @@ describe('Rules Analyze Route', () => {
         {
           id: 'rule-2',
           organizationId: 'test-org-id',
-          category: 'gender_pairing',
+          category: RuleCategory.gender_pairing,
           description: 'Female therapists can see any patient',
           ruleLogic: {},
           priority: 5,
@@ -216,7 +217,7 @@ describe('Rules Analyze Route', () => {
         {
           id: 'rule-1',
           organizationId: 'test-org-id',
-          category: 'specific_pairing',
+          category: RuleCategory.specific_pairing,
           description: 'Always pair John with Patient A',
           ruleLogic: {},
           priority: 10,
@@ -228,7 +229,7 @@ describe('Rules Analyze Route', () => {
         {
           id: 'rule-2',
           organizationId: 'test-org-id',
-          category: 'specific_pairing',
+          category: RuleCategory.specific_pairing,
           description: 'Never pair John with Patient A',
           ruleLogic: {},
           priority: 10,
@@ -296,7 +297,7 @@ describe('Rules Analyze Route', () => {
         {
           id: 'rule-1',
           organizationId: 'test-org-id',
-          category: 'session',
+          category: RuleCategory.session,
           description: 'Some rule',
           ruleLogic: {},
           priority: 5,
@@ -326,7 +327,7 @@ describe('Rules Analyze Route', () => {
         {
           id: 'rule-1',
           organizationId: 'test-org-id',
-          category: 'session',
+          category: RuleCategory.session,
           description: 'Each therapist has max 2 sessions per day',
           ruleLogic: {},
           priority: 5,
@@ -338,7 +339,7 @@ describe('Rules Analyze Route', () => {
         {
           id: 'rule-2',
           organizationId: 'test-org-id',
-          category: 'session',
+          category: RuleCategory.session,
           description: 'Therapists can have maximum of 2 sessions each day',
           ruleLogic: {},
           priority: 5,
