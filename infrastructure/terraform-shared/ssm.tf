@@ -24,13 +24,14 @@ resource "aws_ssm_parameter" "jwt_secret" {
 }
 
 resource "aws_ssm_parameter" "ai_api_key" {
-  name        = "/${local.app_name}/demo/AI_API_KEY"
-  description = "OpenAI API key"
+  count       = var.ai_provider == "openai" ? 1 : 0
+  name        = "/${local.app_name}/demo/OPENAI_API_KEY"
+  description = "OpenAI API key (only used when ai_provider is 'openai')"
   type        = "SecureString"
   value       = var.ai_api_key
 
   tags = {
-    Name = "${local.app_name}-ai-api-key"
+    Name = "${local.app_name}-openai-api-key"
   }
 }
 

@@ -33,9 +33,21 @@ variable "jwt_secret" {
 }
 
 variable "ai_api_key" {
-  description = "OpenAI API key for voice processing"
+  description = "OpenAI API key for voice processing (only needed if ai_provider is 'openai')"
   type        = string
   sensitive   = true
+  default     = ""
+}
+
+variable "ai_provider" {
+  description = "AI provider to use: 'nova' (AWS Bedrock) or 'openai'"
+  type        = string
+  default     = "nova"
+
+  validation {
+    condition     = contains(["nova", "openai"], var.ai_provider)
+    error_message = "ai_provider must be either 'nova' or 'openai'."
+  }
 }
 
 variable "mfa_encryption_key" {

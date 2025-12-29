@@ -88,12 +88,14 @@ resource "aws_iam_role_policy" "ecs_ssm" {
           "ssm:GetParameters",
           "ssm:GetParameter"
         ]
-        Resource = [
-          aws_ssm_parameter.database_url.arn,
-          aws_ssm_parameter.jwt_secret.arn,
-          aws_ssm_parameter.ai_api_key.arn,
-          aws_ssm_parameter.mfa_encryption_key.arn
-        ]
+        Resource = concat(
+          [
+            aws_ssm_parameter.database_url.arn,
+            aws_ssm_parameter.jwt_secret.arn,
+            aws_ssm_parameter.mfa_encryption_key.arn
+          ],
+          var.ai_provider == "openai" ? [aws_ssm_parameter.ai_api_key[0].arn] : []
+        )
       }
     ]
   })
@@ -132,6 +134,26 @@ resource "aws_iam_role_policy" "ecs_transcribe" {
           "transcribe:StartMedicalStreamTranscription"
         ]
         Resource = "*"
+      }
+    ]
+  })
+}
+
+# IAM policy for AWS Bedrock Nova (AI Provider)
+resource "aws_iam_role_policy" "ecs_bedrock" {
+  name = "${local.app_name}-ecs-bedrock-demo"
+  role = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
+        ]
+        Resource = "arn:aws:bedrock:*::foundation-model/amazon.nova-*"
       }
     ]
   })
@@ -200,30 +222,35 @@ resource "aws_ecs_task_definition" "app" {
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = "3000" },
         { name = "AWS_REGION", value = var.aws_region },
+        { name = "AI_PROVIDER", value = var.ai_provider },
         { name = "DEFAULT_TRANSCRIPTION_PROVIDER", value = var.transcription_provider },
         { name = "DEFAULT_MEDICAL_SPECIALTY", value = var.transcription_medical_specialty },
         { name = "JWT_EXPIRES_IN", value = var.jwt_expires_in },
         { name = "BCRYPT_COST", value = tostring(var.bcrypt_cost) }
       ]
 
-      secrets = [
-        {
-          name      = "DATABASE_URL"
-          valueFrom = aws_ssm_parameter.database_url.arn
-        },
-        {
-          name      = "JWT_SECRET"
-          valueFrom = aws_ssm_parameter.jwt_secret.arn
-        },
-        {
-          name      = "OPENAI_API_KEY"
-          valueFrom = aws_ssm_parameter.ai_api_key.arn
-        },
-        {
-          name      = "MFA_ENCRYPTION_KEY"
-          valueFrom = aws_ssm_parameter.mfa_encryption_key.arn
-        }
-      ]
+      secrets = concat(
+        [
+          {
+            name      = "DATABASE_URL"
+            valueFrom = aws_ssm_parameter.database_url.arn
+          },
+          {
+            name      = "JWT_SECRET"
+            valueFrom = aws_ssm_parameter.jwt_secret.arn
+          },
+          {
+            name      = "MFA_ENCRYPTION_KEY"
+            valueFrom = aws_ssm_parameter.mfa_encryption_key.arn
+          }
+        ],
+        var.ai_provider == "openai" ? [
+          {
+            name      = "OPENAI_API_KEY"
+            valueFrom = aws_ssm_parameter.ai_api_key[0].arn
+          }
+        ] : []
+      )
 
       logConfiguration = {
         logDriver = "awslogs"
