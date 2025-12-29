@@ -20,6 +20,7 @@ const editingExistingRule = ref<Rule | null>(null)
 const newRule = ref<Partial<Rule>>({
   category: 'scheduling',
   description: '',
+  ruleLogic: {},
   isActive: true,
   priority: 50
 })
@@ -307,6 +308,7 @@ function resetForm() {
   newRule.value = {
     category: 'scheduling',
     description: '',
+    ruleLogic: {},
     isActive: true,
     priority: 50
   }

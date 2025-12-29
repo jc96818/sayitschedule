@@ -9,7 +9,7 @@ import {
   type RuleForScheduling,
   type RoomForScheduling,
   type GeneratedSession
-} from './openai.js'
+} from './aiProvider.js'
 
 export interface SessionCreate {
   scheduleId: string

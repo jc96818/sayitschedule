@@ -1,18 +1,7 @@
-import OpenAI from 'openai'
+import { chatCompletion, isProviderConfigured, getActiveProvider } from './aiProvider.js'
 
-let openaiClient: OpenAI | null = null
-
-function getOpenAI(): OpenAI {
-  if (!openaiClient) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY environment variable is not set')
-    }
-    openaiClient = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    })
-  }
-  return openaiClient
-}
+// Re-export for route-level checks
+export { isProviderConfigured, getActiveProvider }
 
 export type VoiceCommandType =
   | 'create_patient'
@@ -346,22 +335,11 @@ export async function parseVoiceCommand(
   const userPrompt = getUserPrompt(transcript, context)
 
   try {
-    const response = await getOpenAI().chat.completions.create({
-      model: 'gpt-5.1',
-      reasoning_effort: 'low',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      response_format: { type: 'json_object' },
-      max_completion_tokens: 1024,
-      store: false
+    const content = await chatCompletion({
+      systemPrompt,
+      userPrompt,
+      maxTokens: 1024
     })
-
-    const content = response.choices[0]?.message?.content
-    if (!content) {
-      throw new Error('No response content from OpenAI')
-    }
 
     const parsed = JSON.parse(content) as Omit<ParsedVoiceCommand, 'originalTranscript'>
 
@@ -384,8 +362,8 @@ export async function parseVoiceCommand(
       originalTranscript: transcript
     }
   } catch (error) {
-    if (error instanceof OpenAI.APIError) {
-      console.error('OpenAI API Error:', error.message)
+    if (error instanceof Error) {
+      console.error('AI API Error:', error.message)
       throw new Error(`Voice parsing service error: ${error.message}`)
     }
     throw error
@@ -413,22 +391,11 @@ export async function parseMultipleRulesCommand(transcript: string): Promise<Par
   const userPrompt = getUserPrompt(transcript, 'rule')
 
   try {
-    const response = await getOpenAI().chat.completions.create({
-      model: 'gpt-5.1',
-      reasoning_effort: 'low',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      response_format: { type: 'json_object' },
-      max_completion_tokens: 2048, // Increased for multiple rules
-      store: false
+    const content = await chatCompletion({
+      systemPrompt,
+      userPrompt,
+      maxTokens: 2048 // Increased for multiple rules
     })
-
-    const content = response.choices[0]?.message?.content
-    if (!content) {
-      throw new Error('No response content from OpenAI')
-    }
 
     const parsed = JSON.parse(content) as Partial<ParsedMultiRuleResponse>
 
@@ -472,8 +439,8 @@ export async function parseMultipleRulesCommand(transcript: string): Promise<Par
       globalWarnings: parsed.globalWarnings
     }
   } catch (error) {
-    if (error instanceof OpenAI.APIError) {
-      console.error('OpenAI API Error:', error.message)
+    if (error instanceof Error) {
+      console.error('AI API Error:', error.message)
       throw new Error(`Voice parsing service error: ${error.message}`)
     }
     throw error

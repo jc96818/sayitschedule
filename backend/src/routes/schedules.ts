@@ -13,6 +13,7 @@ import {
   getDateForDayOfWeek
 } from '../services/sessionLookup.js'
 import { validateSessionEntities } from '../services/sessionValidation.js'
+import { isProviderConfigured, getActiveProvider } from '../services/aiProvider.js'
 
 const generateScheduleSchema = z.object({
   weekStartDate: z.string()
@@ -104,10 +105,14 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
 
     const weekStartDate = new Date(body.weekStartDate)
 
-    // Check if OPENAI_API_KEY is configured
-    if (!process.env.OPENAI_API_KEY) {
+    // Check if AI provider is configured
+    if (!isProviderConfigured()) {
+      const provider = getActiveProvider()
+      const configHint = provider === 'openai'
+        ? 'Please set OPENAI_API_KEY.'
+        : 'Please configure AWS credentials.'
       return reply.status(503).send({
-        error: 'AI scheduling service not configured. Please set OPENAI_API_KEY.'
+        error: `AI scheduling service not configured. ${configHint}`
       })
     }
 

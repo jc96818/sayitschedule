@@ -221,28 +221,29 @@ function handleDismissEnhancement(index: number) {
               </Badge>
             </div>
             <p class="item-description">{{ conflict.description }}</p>
-            <div class="affected-rules">
-              <span class="affected-label">Affected rules:</span>
-              <span v-for="ruleId in conflict.ruleIds" :key="ruleId" class="rule-chip">
-                {{ getRuleDescription(ruleId) }}
-              </span>
-            </div>
             <div class="suggestion-box">
               <strong>Suggestion:</strong> {{ conflict.suggestion }}
             </div>
-            <div class="item-actions">
-              <span class="action-label">Resolve by deactivating:</span>
-              <Button
+            <div class="conflict-rules-list">
+              <span class="conflict-rules-label">Conflicting rules - choose which to deactivate:</span>
+              <div
                 v-for="ruleId in conflict.ruleIds"
                 :key="ruleId"
-                variant="outline"
-                size="sm"
-                :loading="processingRuleId === ruleId"
-                :disabled="processingRuleId !== null"
-                @click="handleDeactivateRule(ruleId)"
+                class="conflict-rule-option"
               >
-                {{ getShortRuleDescription(ruleId) }}
-              </Button>
+                <div class="conflict-rule-text">
+                  {{ getRuleDescription(ruleId) }}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :loading="processingRuleId === ruleId"
+                  :disabled="processingRuleId !== null"
+                  @click="handleDeactivateRule(ruleId)"
+                >
+                  Deactivate
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -747,6 +748,45 @@ function handleDismissEnhancement(index: number) {
   font-size: 13px;
   color: var(--text-primary);
   line-height: 1.4;
+}
+
+/* Conflict Rules UI */
+.conflict-rules-list {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--danger-light, #fee2e2);
+  border-radius: var(--radius-md);
+}
+
+.conflict-rules-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger-color, #dc2626);
+  margin-bottom: 10px;
+}
+
+.conflict-rule-option {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  background: var(--card-background);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.conflict-rule-option:last-child {
+  margin-bottom: 0;
+}
+
+.conflict-rule-text {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
 }
 
 /* Duplicate Rules UI */

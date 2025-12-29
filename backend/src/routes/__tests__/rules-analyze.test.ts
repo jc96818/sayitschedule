@@ -43,8 +43,8 @@ vi.mock('../../repositories/audit.js', () => ({
   logAudit: vi.fn()
 }))
 
-// Mock the OpenAI service
-vi.mock('../../services/openai.js', () => ({
+// Mock the AI provider service
+vi.mock('../../services/aiProvider.js', () => ({
   analyzeRulesWithAI: vi.fn()
 }))
 
@@ -53,7 +53,7 @@ import { ruleRepository } from '../../repositories/rules.js'
 import { staffRepository } from '../../repositories/staff.js'
 import { patientRepository } from '../../repositories/patients.js'
 import { roomRepository } from '../../repositories/rooms.js'
-import { analyzeRulesWithAI } from '../../services/openai.js'
+import { analyzeRulesWithAI } from '../../services/aiProvider.js'
 
 // Default mock user for testing
 const defaultMockUser: JWTPayload = {

@@ -11,6 +11,8 @@ import {
   parseScheduleCommand,
   parseScheduleModifyCommand,
   parseScheduleGenerateCommand,
+  isProviderConfigured,
+  getActiveProvider,
   type VoiceContext,
   type ParsedVoiceCommand
 } from '../services/voiceParser.js'
@@ -29,10 +31,14 @@ export async function voiceRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    // Check if OPENAI_API_KEY is configured
-    if (!process.env.OPENAI_API_KEY) {
+    // Check if AI provider is configured
+    if (!isProviderConfigured()) {
+      const provider = getActiveProvider()
+      const configHint = provider === 'openai'
+        ? 'Please set OPENAI_API_KEY.'
+        : 'Please configure AWS credentials.'
       return reply.status(503).send({
-        error: 'Voice parsing service not configured. Please set OPENAI_API_KEY.'
+        error: `Voice parsing service not configured. ${configHint}`
       })
     }
 
@@ -99,7 +105,7 @@ export async function voiceRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!isProviderConfigured()) {
       return reply.status(503).send({
         error: 'Voice parsing service not configured.'
       })
@@ -124,7 +130,7 @@ export async function voiceRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!isProviderConfigured()) {
       return reply.status(503).send({
         error: 'Voice parsing service not configured.'
       })
@@ -149,7 +155,7 @@ export async function voiceRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!isProviderConfigured()) {
       return reply.status(503).send({
         error: 'Voice parsing service not configured.'
       })
@@ -180,7 +186,7 @@ export async function voiceRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!isProviderConfigured()) {
       return reply.status(503).send({
         error: 'Voice parsing service not configured.'
       })
@@ -205,7 +211,7 @@ export async function voiceRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!isProviderConfigured()) {
       return reply.status(503).send({
         error: 'Voice parsing service not configured.'
       })
@@ -230,7 +236,7 @@ export async function voiceRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!isProviderConfigured()) {
       return reply.status(503).send({
         error: 'Voice parsing service not configured.'
       })

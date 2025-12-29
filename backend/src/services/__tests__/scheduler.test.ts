@@ -5,7 +5,7 @@ import {
   getDayOfWeek,
   validateSessions
 } from '../scheduler.js'
-import type { StaffForScheduling, PatientForScheduling, GeneratedSession } from '../openai.js'
+import type { StaffForScheduling, PatientForScheduling, GeneratedSession } from '../aiProvider.js'
 
 describe('Scheduler Helper Functions', () => {
   describe('timeToMinutes', () => {

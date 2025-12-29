@@ -6,7 +6,7 @@ import { staffRepository } from '../repositories/staff.js'
 import { patientRepository } from '../repositories/patients.js'
 import { roomRepository } from '../repositories/rooms.js'
 import { logAudit } from '../repositories/audit.js'
-import { analyzeRulesWithAI } from '../services/openai.js'
+import { analyzeRulesWithAI } from '../services/aiProvider.js'
 
 const createRuleSchema = z.object({
   category: z.enum(['gender_pairing', 'session', 'availability', 'specific_pairing', 'certification']),

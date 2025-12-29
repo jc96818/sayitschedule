@@ -61,11 +61,17 @@ vi.mock('../../services/sessionValidation.js', () => ({
   validateSessionEntities: vi.fn()
 }))
 
+vi.mock('../../services/aiProvider.js', () => ({
+  isProviderConfigured: vi.fn(() => true),
+  getActiveProvider: vi.fn(() => 'openai')
+}))
+
 // Import mocked modules
 import { scheduleRepository, sessionRepository } from '../../repositories/schedules.js'
 import { generateSchedule } from '../../services/scheduler.js'
 import { findMatchingSessions, checkForConflicts } from '../../services/sessionLookup.js'
 import { validateSessionEntities } from '../../services/sessionValidation.js'
+import { isProviderConfigured } from '../../services/aiProvider.js'
 
 describe('Schedule Routes', () => {
   let app: FastifyInstance
@@ -220,9 +226,8 @@ describe('Schedule Routes', () => {
       expect(body.meta.stats.totalSessions).toBe(1)
     })
 
-    it('returns 503 when OpenAI API key is not configured', async () => {
-      const originalEnv = process.env.OPENAI_API_KEY
-      delete process.env.OPENAI_API_KEY
+    it('returns 503 when AI provider is not configured', async () => {
+      vi.mocked(isProviderConfigured).mockReturnValueOnce(false)
 
       const response = await app.inject({
         method: 'POST',
@@ -230,11 +235,9 @@ describe('Schedule Routes', () => {
         payload: { weekStartDate: '2025-01-06' }
       })
 
-      process.env.OPENAI_API_KEY = originalEnv
-
       expect(response.statusCode).toBe(503)
       const body = JSON.parse(response.payload)
-      expect(body.error).toContain('OPENAI_API_KEY')
+      expect(body.error).toContain('not configured')
     })
 
     it('returns 400 when no active staff', async () => {

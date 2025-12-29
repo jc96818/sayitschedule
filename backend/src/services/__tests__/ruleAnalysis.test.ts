@@ -21,7 +21,7 @@ vi.mock('openai', () => {
 })
 
 import OpenAI from 'openai'
-import { analyzeRulesWithAI, type RuleForScheduling, type EntityNamesContext } from '../openai.js'
+import { analyzeRulesWithAI, type RuleForScheduling, type EntityNamesContext } from '../openaiProvider.js'
 
 describe('analyzeRulesWithAI', () => {
   const mockCreate = vi.fn()

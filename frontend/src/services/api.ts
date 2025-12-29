@@ -188,7 +188,8 @@ export const patientService = {
 // Rules Service
 export const rulesService = {
   async list(): Promise<PaginatedResponse<Rule>> {
-    const { data } = await api.get('/rules')
+    // Fetch all rules (use high limit since rules are managed on a single page)
+    const { data } = await api.get('/rules', { params: { limit: 1000 } })
     return data
   },
 

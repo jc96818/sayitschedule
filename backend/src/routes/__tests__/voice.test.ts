@@ -20,7 +20,9 @@ vi.mock('../../services/voiceParser.js', () => ({
   parseMultipleRulesCommand: vi.fn(),
   parseScheduleCommand: vi.fn(),
   parseScheduleModifyCommand: vi.fn(),
-  parseScheduleGenerateCommand: vi.fn()
+  parseScheduleGenerateCommand: vi.fn(),
+  isProviderConfigured: vi.fn(() => true),
+  getActiveProvider: vi.fn(() => 'openai')
 }))
 
 // Import mocked modules
@@ -31,7 +33,8 @@ import {
   parseRuleCommand,
   parseMultipleRulesCommand,
   parseScheduleModifyCommand,
-  parseScheduleGenerateCommand
+  parseScheduleGenerateCommand,
+  isProviderConfigured
 } from '../../services/voiceParser.js'
 
 describe('Voice Routes', () => {
@@ -178,9 +181,8 @@ describe('Voice Routes', () => {
       expect(parseRuleCommand).toHaveBeenCalled()
     })
 
-    it('returns 503 when OpenAI API key is not configured', async () => {
-      const originalEnv = process.env.OPENAI_API_KEY
-      delete process.env.OPENAI_API_KEY
+    it('returns 503 when AI provider is not configured', async () => {
+      vi.mocked(isProviderConfigured).mockReturnValueOnce(false)
 
       const response = await app.inject({
         method: 'POST',
@@ -190,8 +192,6 @@ describe('Voice Routes', () => {
           context: 'general'
         }
       })
-
-      process.env.OPENAI_API_KEY = originalEnv
 
       expect(response.statusCode).toBe(503)
       const body = JSON.parse(response.payload)
@@ -487,9 +487,8 @@ describe('Voice Routes', () => {
       expect(body.data.rules[1].warnings).toContain('ABA certification inferred from context')
     })
 
-    it('returns 503 when OpenAI API key is not configured', async () => {
-      const originalEnv = process.env.OPENAI_API_KEY
-      delete process.env.OPENAI_API_KEY
+    it('returns 503 when AI provider is not configured', async () => {
+      vi.mocked(isProviderConfigured).mockReturnValueOnce(false)
 
       const response = await app.inject({
         method: 'POST',
@@ -498,8 +497,6 @@ describe('Voice Routes', () => {
           transcript: 'Some rule'
         }
       })
-
-      process.env.OPENAI_API_KEY = originalEnv
 
       expect(response.statusCode).toBe(503)
       const body = JSON.parse(response.payload)
@@ -691,9 +688,8 @@ describe('Voice Routes', () => {
       expect(body.data.warnings).toContain('Inferred Monday of the week containing January 13th')
     })
 
-    it('returns 503 when OpenAI API key is not configured', async () => {
-      const originalEnv = process.env.OPENAI_API_KEY
-      delete process.env.OPENAI_API_KEY
+    it('returns 503 when AI provider is not configured', async () => {
+      vi.mocked(isProviderConfigured).mockReturnValueOnce(false)
 
       const response = await app.inject({
         method: 'POST',
@@ -702,8 +698,6 @@ describe('Voice Routes', () => {
           transcript: 'Generate a schedule for next week'
         }
       })
-
-      process.env.OPENAI_API_KEY = originalEnv
 
       expect(response.statusCode).toBe(503)
       const body = JSON.parse(response.payload)

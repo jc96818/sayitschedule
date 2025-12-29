@@ -434,3 +434,51 @@ For enhancements (only if truly necessary):
     throw error
   }
 }
+
+// Check if OpenAI provider is properly configured
+export function isConfigured(): boolean {
+  return !!process.env.OPENAI_API_KEY
+}
+
+// Voice parsing support
+
+interface ChatCompletionOptions {
+  systemPrompt: string
+  userPrompt: string
+  maxTokens: number
+}
+
+/**
+ * Generic chat completion function for voice parsing
+ * This matches the interface expected by voiceParser.ts
+ */
+export async function chatCompletion(options: ChatCompletionOptions): Promise<string> {
+  const { systemPrompt, userPrompt, maxTokens } = options
+
+  try {
+    const response = await getOpenAI().chat.completions.create({
+      model: 'gpt-5.1',
+      reasoning_effort: 'low',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      response_format: { type: 'json_object' },
+      max_completion_tokens: maxTokens,
+      store: false
+    })
+
+    const content = response.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('No response content from OpenAI')
+    }
+
+    return content
+  } catch (error) {
+    if (error instanceof OpenAI.APIError) {
+      console.error('OpenAI API Error:', error.message)
+      throw new Error(`Voice parsing service error: ${error.message}`)
+    }
+    throw error
+  }
+}
