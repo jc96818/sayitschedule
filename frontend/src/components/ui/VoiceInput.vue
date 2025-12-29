@@ -183,47 +183,52 @@ onUnmounted(() => {
 
 <template>
   <div class="voice-interface">
-    <h3>{{ props.title }}</h3>
-    <p class="voice-description">{{ props.description }}</p>
+    <div class="voice-header">
+      <div class="voice-header-text">
+        <h3>{{ props.title }}</h3>
+        <p class="voice-description">{{ props.description }}</p>
+      </div>
 
-    <div v-if="props.enableTextInput" class="voice-mode-toggle">
-      <button
-        type="button"
-        class="voice-mode-button"
-        :class="{ active: inputMode === 'voice' }"
-        @click="setInputMode('voice')"
-      >
-        Speak
-      </button>
-      <button
-        type="button"
-        class="voice-mode-button"
-        :class="{ active: inputMode === 'text' }"
-        @click="setInputMode('text')"
-      >
-        Type
-      </button>
+      <div v-if="props.enableTextInput" class="voice-mode-toggle">
+        <button
+          type="button"
+          class="voice-mode-button"
+          :class="{ active: inputMode === 'voice' }"
+          @click="setInputMode('voice')"
+        >
+          Speak
+        </button>
+        <button
+          type="button"
+          class="voice-mode-button"
+          :class="{ active: inputMode === 'text' }"
+          @click="setInputMode('text')"
+        >
+          Type
+        </button>
+      </div>
     </div>
 
-    <template v-if="inputMode === 'voice'">
-      <button class="mic-button" :class="{ recording: isRecording }" @click="toggleRecording">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="32" height="32">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-        </svg>
-      </button>
+    <div :class="['voice-body', { 'voice-body-voice': inputMode === 'voice' }]">
+      <template v-if="inputMode === 'voice'">
+        <button class="mic-button" :class="{ recording: isRecording }" @click="toggleRecording">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="26" height="26">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+          </svg>
+        </button>
 
-      <p class="voice-status">{{ status }}</p>
-
-      <div v-if="transcript || interimTranscript" class="transcription-box">
-        <div class="label">Heard:</div>
-        <div>
-          <span>{{ transcript }}</span>
-          <span v-if="interimTranscript" class="interim-transcript">{{ interimTranscript }}</span>
+        <div class="voice-body-content">
+          <p class="voice-status">{{ status }}</p>
+          <button v-if="showHintsLink" class="hints-link" @click="emit('showHints')">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            View command examples
+          </button>
         </div>
-      </div>
-    </template>
+      </template>
 
-    <template v-else>
+      <template v-else>
       <div class="voice-textbox">
         <textarea
           v-model="typedText"
@@ -238,14 +243,23 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
-    </template>
 
-    <button v-if="showHintsLink" class="hints-link" @click="emit('showHints')">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      View command examples
-    </button>
+        <button v-if="showHintsLink" class="hints-link" @click="emit('showHints')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          View command examples
+        </button>
+      </template>
+    </div>
+
+    <div v-if="inputMode === 'voice' && (transcript || interimTranscript)" class="transcription-box">
+      <div class="label">Heard:</div>
+      <div>
+        <span>{{ transcript }}</span>
+        <span v-if="interimTranscript" class="interim-transcript">{{ interimTranscript }}</span>
+      </div>
+    </div>
   </div>
 </template>
 

@@ -542,7 +542,7 @@ onMounted(() => {
         <!-- Voice Generation Interface -->
         <VoiceInput
           title="Generate Schedule"
-          description="Speak or type a week (e.g. “next week” or a date)."
+          description="Say it or type it: which week (e.g. “next week” or a date)."
           :show-hints-link="true"
           @result="handleGenerateVoiceResult"
           @show-hints="voiceGenerateHintsModal?.openModal()"
@@ -617,7 +617,7 @@ onMounted(() => {
         <VoiceInput
           v-if="currentSchedule.status === 'draft'"
           title="Edit Schedule"
-          description="Speak or type changes (move, cancel, reschedule)."
+          description="Say it or type it: changes (move, cancel, reschedule)."
           :show-hints-link="true"
           @result="handleVoiceResult"
           @show-hints="voiceHintsModal?.openModal()"

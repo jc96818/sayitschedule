@@ -179,7 +179,7 @@ const capabilitySuggestions = [
       <!-- Voice Interface -->
       <VoiceInput
         title="Add Rooms"
-        description="Speak or type to add a room."
+        description="Say it or type it to add a room."
         :show-hints-link="true"
         @result="handleVoiceResult"
         @show-hints="voiceHintsModal?.openModal()"

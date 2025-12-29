@@ -354,7 +354,7 @@ onMounted(() => {
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          Add Rule Manually
+          Add Rule
         </Button>
       </div>
     </header>
@@ -369,7 +369,7 @@ onMounted(() => {
       <!-- Voice Interface -->
       <VoiceInput
         title="Add Rules"
-        description="Speak or type your scheduling rules (multiple at once)."
+        description="Say it or type it—add scheduling rules (multiple at once)."
         :show-hints-link="true"
         @result="handleVoiceResult"
         @show-hints="voiceHintsModal?.openModal()"

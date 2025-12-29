@@ -180,7 +180,7 @@ watch([statusFilter, genderFilter], () => {
       <!-- Voice Interface -->
       <VoiceInput
         title="Add Staff"
-        description="Speak or type to add a staff member."
+        description="Say it or type it to add a staff member."
         :show-hints-link="true"
         @result="handleVoiceResult"
         @show-hints="voiceHintsModal?.openModal()"

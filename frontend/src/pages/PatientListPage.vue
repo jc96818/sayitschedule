@@ -187,7 +187,7 @@ watch([statusFilter, genderFilter], () => {
       <!-- Voice Interface -->
       <VoiceInput
         title="Add Patients"
-        description="Speak or type to add a patient."
+        description="Say it or type it to add a patient."
         :show-hints-link="true"
         @result="handleVoiceResult"
         @show-hints="voiceHintsModal?.openModal()"
