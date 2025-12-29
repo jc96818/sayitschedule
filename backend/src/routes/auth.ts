@@ -124,7 +124,8 @@ export async function authRoutes(fastify: FastifyInstance) {
             logoUrl: organization.logoUrl,
             primaryColor: organization.primaryColor,
             secondaryColor: organization.secondaryColor,
-            status: organization.status
+            status: organization.status,
+            requiresHipaa: organization.requiresHipaa
           }
         : null
     }
@@ -217,7 +218,8 @@ export async function authRoutes(fastify: FastifyInstance) {
             logoUrl: organization.logoUrl,
             primaryColor: organization.primaryColor,
             secondaryColor: organization.secondaryColor,
-            status: organization.status
+            status: organization.status,
+            requiresHipaa: organization.requiresHipaa
           }
         : null
     }
@@ -261,7 +263,8 @@ export async function authRoutes(fastify: FastifyInstance) {
             logoUrl: organization.logoUrl,
             primaryColor: organization.primaryColor,
             secondaryColor: organization.secondaryColor,
-            status: organization.status
+            status: organization.status,
+            requiresHipaa: organization.requiresHipaa
           }
         : null
     }

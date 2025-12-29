@@ -51,6 +51,14 @@ async function logout() {
           >
             Super Admins
           </RouterLink>
+          <RouterLink
+            to="/super-admin/baa"
+            class="nav-item"
+            :class="{ active: route.path === '/super-admin/baa' }"
+            style="color: rgba(255,255,255,0.8);"
+          >
+            BAA Management
+          </RouterLink>
         </div>
         <div class="nav-section">
           <div class="nav-section-title" style="color: rgba(255,255,255,0.5);">Account</div>
