@@ -15,7 +15,7 @@ Say It Schedule is a multi-tenant SaaS platform for scheduling therapy sessions 
 
 ## Project Structure
 
-```
+```text
 /backend          - Fastify API server
   /src/routes     - API endpoints
   /src/services   - Business logic
@@ -110,6 +110,17 @@ Local database URL: `postgresql://postgres:postgres@localhost:5433/sayitschedule
 ## Testing
 
 Backend tests use Vitest. Run `npm run test:run` from `/backend` to execute.
+
+**Important**: When writing tests that use Prisma model fields with enum types (e.g., `RuleCategory`, `Gender`, `Status`), always import and use the enum from `@prisma/client` instead of string literals. Using string literals will cause TypeScript build errors.
+
+```typescript
+// ❌ Wrong - causes TS2345 error
+const rule = { category: 'gender_pairing', ... }
+
+// ✅ Correct - import and use the enum
+import { RuleCategory } from '@prisma/client'
+const rule = { category: RuleCategory.gender_pairing, ... }
+```
 
 ## Database Schema
 
