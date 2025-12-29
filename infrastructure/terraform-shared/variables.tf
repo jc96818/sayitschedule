@@ -148,3 +148,35 @@ variable "transcription_medical_specialty" {
     error_message = "transcription_medical_specialty must be one of: PRIMARYCARE, CARDIOLOGY, NEUROLOGY, ONCOLOGY, RADIOLOGY, UROLOGY."
   }
 }
+
+# Auth rate limiting
+variable "auth_rate_limit_window_ms" {
+  description = "Rate limit window in milliseconds"
+  type        = number
+  default     = 60000
+}
+
+variable "auth_login_max_per_ip" {
+  description = "Maximum login attempts per IP address within the rate limit window"
+  type        = number
+  default     = 20
+}
+
+variable "auth_login_max_per_ip_email" {
+  description = "Maximum login attempts per IP/email combination within the rate limit window"
+  type        = number
+  default     = 5
+}
+
+variable "auth_verify_mfa_max_per_ip" {
+  description = "Maximum MFA verification attempts per IP within the rate limit window"
+  type        = number
+  default     = 30
+}
+
+# Debug flags
+variable "debug_ai_requests" {
+  description = "Enable debug logging for AI requests"
+  type        = bool
+  default     = false
+}

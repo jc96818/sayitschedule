@@ -226,7 +226,12 @@ resource "aws_ecs_task_definition" "app" {
         { name = "DEFAULT_TRANSCRIPTION_PROVIDER", value = var.transcription_provider },
         { name = "DEFAULT_MEDICAL_SPECIALTY", value = var.transcription_medical_specialty },
         { name = "JWT_EXPIRES_IN", value = var.jwt_expires_in },
-        { name = "BCRYPT_COST", value = tostring(var.bcrypt_cost) }
+        { name = "BCRYPT_COST", value = tostring(var.bcrypt_cost) },
+        { name = "AUTH_RATE_LIMIT_WINDOW_MS", value = tostring(var.auth_rate_limit_window_ms) },
+        { name = "AUTH_LOGIN_MAX_PER_IP", value = tostring(var.auth_login_max_per_ip) },
+        { name = "AUTH_LOGIN_MAX_PER_IP_EMAIL", value = tostring(var.auth_login_max_per_ip_email) },
+        { name = "AUTH_VERIFY_MFA_MAX_PER_IP", value = tostring(var.auth_verify_mfa_max_per_ip) },
+        { name = "DEBUG_AI_REQUESTS", value = tostring(var.debug_ai_requests) }
       ]
 
       secrets = concat(
