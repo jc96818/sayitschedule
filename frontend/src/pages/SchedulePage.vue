@@ -541,8 +541,8 @@ onMounted(() => {
 
         <!-- Voice Generation Interface -->
         <VoiceInput
-          title="Generate Schedule by Voice"
-          description="Click the microphone and say which week to generate. Be sure to specify the date or week."
+          title="Generate Schedule"
+          description="Speak or type a week (e.g. “next week” or a date)."
           :show-hints-link="true"
           @result="handleGenerateVoiceResult"
           @show-hints="voiceGenerateHintsModal?.openModal()"
@@ -616,8 +616,8 @@ onMounted(() => {
         <!-- Voice Interface (only show for draft schedules) -->
         <VoiceInput
           v-if="currentSchedule.status === 'draft'"
-          title="Voice Schedule Modification"
-          description="Click the microphone to move, cancel, or reschedule sessions by voice."
+          title="Edit Schedule"
+          description="Speak or type changes (move, cancel, reschedule)."
           :show-hints-link="true"
           @result="handleVoiceResult"
           @show-hints="voiceHintsModal?.openModal()"

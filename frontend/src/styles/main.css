@@ -490,7 +490,7 @@ th {
 .voice-interface {
   background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
   border-radius: var(--radius-lg);
-  padding: 32px;
+  padding: 24px;
   text-align: center;
   color: white;
   margin-bottom: 24px;
@@ -503,7 +503,7 @@ th {
   border-radius: 999px;
   background-color: rgba(255, 255, 255, 0.15);
   width: fit-content;
-  margin: 0 auto 16px;
+  margin: 0 auto 12px;
 }
 
 .voice-mode-button {
@@ -603,12 +603,7 @@ th {
 .voice-interface h3 {
   font-size: 18px;
   font-weight: 600;
-  margin-bottom: 8px;
-}
-
-.voice-interface p {
-  opacity: 0.9;
-  margin-bottom: 24px;
+  margin-bottom: 6px;
 }
 
 .voice-status {
@@ -618,7 +613,8 @@ th {
 }
 
 .voice-description {
-  margin-bottom: 24px;
+  opacity: 0.9;
+  margin-bottom: 16px;
 }
 
 .hints-link {
@@ -632,7 +628,7 @@ th {
   cursor: pointer;
   padding: 6px 10px;
   border-radius: var(--radius-md);
-  margin-top: 8px;
+  margin-top: 10px;
   transition: background-color 0.2s, color 0.2s;
 }
 

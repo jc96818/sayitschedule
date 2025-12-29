@@ -368,8 +368,8 @@ onMounted(() => {
 
       <!-- Voice Interface -->
       <VoiceInput
-        title="Add Rules by Voice"
-        description="Click the microphone and speak your scheduling rules. You can add multiple rules at once!"
+        title="Add Rules"
+        description="Speak or type your scheduling rules (multiple at once)."
         :show-hints-link="true"
         @result="handleVoiceResult"
         @show-hints="voiceHintsModal?.openModal()"

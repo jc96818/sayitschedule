@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<Props>(), {
   description: 'Click the microphone and speak',
   showHintsLink: false,
   enableTextInput: true,
-  textPlaceholder: 'Type your command…'
+  textPlaceholder: 'Type your command… (Enter to send)'
 })
 
 const emit = defineEmits<{

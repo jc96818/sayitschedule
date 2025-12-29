@@ -179,8 +179,8 @@ watch([statusFilter, genderFilter], () => {
 
       <!-- Voice Interface -->
       <VoiceInput
-        title="Voice Staff Management"
-        description="Click the microphone and speak to add new staff members."
+        title="Add Staff"
+        description="Speak or type to add a staff member."
         :show-hints-link="true"
         @result="handleVoiceResult"
         @show-hints="voiceHintsModal?.openModal()"
