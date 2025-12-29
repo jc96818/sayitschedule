@@ -255,12 +255,6 @@ watch([statusFilter, genderFilter], () => {
       <div class="card">
         <div class="card-header">
           <h3>Therapists ({{ staffStore.totalCount }})</h3>
-          <Button variant="outline" size="sm">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            Export
-          </Button>
         </div>
 
         <div v-if="staffStore.loading" class="card-body text-center">

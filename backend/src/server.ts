@@ -5,6 +5,7 @@ import jwt from '@fastify/jwt'
 import cookie from '@fastify/cookie'
 import fastifyStatic from '@fastify/static'
 import websocket from '@fastify/websocket'
+import multipart from '@fastify/multipart'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
@@ -21,6 +22,7 @@ import { voiceRoutes } from './routes/voice.js'
 import { transcriptionRoutes } from './routes/transcription.js'
 import { superAdminUserRoutes } from './routes/super-admin-users.js'
 import { accountRoutes } from './routes/account.js'
+import { dataManagementRoutes } from './routes/data-management.js'
 import { organizationMiddleware } from './middleware/organization.js'
 import { checkDbHealth } from './db/index.js'
 import { getJwtExpiresIn } from './config/security.js'
@@ -56,6 +58,13 @@ async function start() {
   // Register WebSocket support
   await server.register(websocket)
 
+  // Register multipart for file uploads
+  await server.register(multipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024 // 10MB max
+    }
+  })
+
   // Add organization context middleware
   server.addHook('onRequest', organizationMiddleware)
 
@@ -72,6 +81,7 @@ async function start() {
   await server.register(transcriptionRoutes, { prefix: '/api/transcription' })
   await server.register(superAdminUserRoutes, { prefix: '/api/super-admin/users' })
   await server.register(accountRoutes, { prefix: '/api/account' })
+  await server.register(dataManagementRoutes, { prefix: '/api/data-management' })
 
   // Health check - basic (for load balancer)
   server.get('/api/health', async () => {

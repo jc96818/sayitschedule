@@ -436,4 +436,59 @@ export const mfaAuthService = {
   }
 }
 
+// Data Management Types
+export type ExportEntityType = 'staff' | 'patients' | 'rooms' | 'rules'
+export type ExportFormat = 'json' | 'csv'
+
+export interface ImportPreview {
+  total: number
+  toCreate: number
+  toSkip: number
+  errors: string[]
+  records: Record<string, unknown>[]
+}
+
+export interface ImportResult {
+  created: number
+  skipped: number
+  errors: string[]
+}
+
+// Data Management Service
+export const dataManagementService = {
+  async exportData(entityType: ExportEntityType, format: ExportFormat): Promise<Blob> {
+    const { data } = await api.get(`/data-management/export/${entityType}/${format}`, {
+      responseType: 'blob'
+    })
+    return data
+  },
+
+  async previewImport(
+    file: File,
+    entityType: ExportEntityType,
+    format: ExportFormat
+  ): Promise<ApiResponse<ImportPreview>> {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('entityType', entityType)
+    formData.append('format', format)
+
+    const { data } = await api.post('/data-management/import/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return data
+  },
+
+  async executeImport(
+    entityType: ExportEntityType,
+    records: Record<string, unknown>[]
+  ): Promise<ApiResponse<ImportResult>> {
+    const { data } = await api.post('/data-management/import/execute', {
+      entityType,
+      records
+    })
+    return data
+  }
+}
+
 export default api
