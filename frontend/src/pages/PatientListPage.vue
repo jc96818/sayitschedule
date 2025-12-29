@@ -196,7 +196,7 @@ watch([statusFilter, genderFilter], () => {
       <!-- Voice Loading State -->
       <div v-if="voiceLoading" class="card mb-3">
         <div class="card-body text-center">
-          <p class="text-muted">Processing voice command...</p>
+          <p class="text-muted">Processing command...</p>
         </div>
       </div>
 
@@ -209,7 +209,7 @@ watch([statusFilter, genderFilter], () => {
       <div v-if="showVoiceConfirmation" class="confirmation-card">
         <h4>AI Interpretation</h4>
         <div class="transcription-box mb-2">
-          <div class="label">You said:</div>
+          <div class="label">Your command:</div>
           <div>"{{ voiceTranscript }}"</div>
         </div>
         <div class="interpreted-rule">

@@ -378,7 +378,7 @@ onMounted(() => {
       <!-- Voice Loading State -->
       <div v-if="rulesStore.parsing" class="card mb-3">
         <div class="card-body text-center">
-          <p class="text-muted">Processing voice command...</p>
+          <p class="text-muted">Processing command...</p>
         </div>
       </div>
 
@@ -395,7 +395,7 @@ onMounted(() => {
 
         <!-- Transcript Box -->
         <div class="transcription-box mb-3">
-          <div class="label">You said:</div>
+          <div class="label">Your command:</div>
           <div>"{{ rulesStore.originalTranscript }}"</div>
         </div>
 

@@ -551,7 +551,7 @@ onMounted(() => {
         <!-- Voice Parsing Loading State -->
         <div v-if="parseGenerating" class="card mb-3">
           <div class="card-body text-center">
-            <p class="text-muted">Processing voice command...</p>
+            <p class="text-muted">Processing command...</p>
           </div>
         </div>
 
@@ -564,7 +564,7 @@ onMounted(() => {
         <div v-if="showGenerateConfirmation && parsedWeekDate" class="confirmation-card">
           <h4>Confirm Schedule Generation</h4>
           <div class="transcription-box mb-2">
-            <div class="label">You said:</div>
+            <div class="label">Your command:</div>
             <div>"{{ generateTranscript }}"</div>
           </div>
           <div class="modification-preview">
@@ -626,7 +626,7 @@ onMounted(() => {
         <!-- Voice Loading State -->
         <div v-if="schedulesStore.parsing" class="card mb-3">
           <div class="card-body text-center">
-            <p class="text-muted">Processing voice command...</p>
+            <p class="text-muted">Processing command...</p>
           </div>
         </div>
 
@@ -639,7 +639,7 @@ onMounted(() => {
         <div v-if="showVoiceConfirmation && schedulesStore.pendingModification" class="confirmation-card">
           <h4>Confirm Schedule Change</h4>
           <div class="transcription-box mb-2">
-            <div class="label">You said:</div>
+            <div class="label">Your command:</div>
             <div>"{{ voiceTranscript }}"</div>
           </div>
           <div class="modification-preview">

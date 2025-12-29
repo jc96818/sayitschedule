@@ -1,17 +1,21 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { TranscriptionStream, type TranscriptResult } from '@/services/transcription'
 
 interface Props {
   title?: string
   description?: string
   showHintsLink?: boolean
+  enableTextInput?: boolean
+  textPlaceholder?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: 'Voice Input',
   description: 'Click the microphone and speak',
-  showHintsLink: false
+  showHintsLink: false,
+  enableTextInput: true,
+  textPlaceholder: 'Type your command…'
 })
 
 const emit = defineEmits<{
@@ -21,12 +25,38 @@ const emit = defineEmits<{
   showHints: []
 }>()
 
+type InputMode = 'voice' | 'text'
+
 const isRecording = ref(false)
 const transcript = ref('')
 const interimTranscript = ref('')
 const status = ref('Click to start recording')
 
+const inputMode = ref<InputMode>('voice')
+const typedText = ref('')
+
 let transcriptionStream: TranscriptionStream | null = null
+
+const canSendTyped = computed(() => typedText.value.trim().length > 0)
+
+function setInputMode(mode: InputMode) {
+  if (!props.enableTextInput) {
+    inputMode.value = 'voice'
+    return
+  }
+
+  if (mode === 'text' && isRecording.value) {
+    transcriptionStream?.stop()
+    isRecording.value = false
+  }
+
+  inputMode.value = mode
+  try {
+    window.localStorage.setItem('sayitschedule.voiceInputMode', mode)
+  } catch {
+    // ignore
+  }
+}
 
 function handleTranscript(result: TranscriptResult) {
   if (result.isPartial) {
@@ -61,9 +91,23 @@ function handleError(error: { code: string; message: string; retryable: boolean 
 
   status.value = errorMessages[error.code] || error.message
   emit('error', error.message)
+
+  if (
+    props.enableTextInput &&
+    (error.code === 'AUDIO_CAPTURE_ERROR' || error.code === 'SERVICE_NOT_CONFIGURED' || error.code === 'FORBIDDEN')
+  ) {
+    setInputMode('text')
+  }
 }
 
 async function toggleRecording() {
+  if (!props.enableTextInput) {
+    inputMode.value = 'voice'
+  }
+  if (inputMode.value !== 'voice') {
+    setInputMode('voice')
+  }
+
   if (isRecording.value) {
     // Stop recording
     transcriptionStream?.stop()
@@ -106,6 +150,32 @@ async function toggleRecording() {
   }
 }
 
+function sendTyped() {
+  const text = typedText.value.trim()
+  if (!text) return
+  typedText.value = ''
+  emit('result', text)
+}
+
+function handleTypedKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter') return
+  if (event.shiftKey) return
+  event.preventDefault()
+  sendTyped()
+}
+
+onMounted(() => {
+  if (!props.enableTextInput) return
+  try {
+    const savedMode = window.localStorage.getItem('sayitschedule.voiceInputMode') as InputMode | null
+    if (savedMode === 'voice' || savedMode === 'text') {
+      inputMode.value = savedMode
+    }
+  } catch {
+    // ignore
+  }
+})
+
 onUnmounted(() => {
   transcriptionStream?.stop()
 })
@@ -116,28 +186,66 @@ onUnmounted(() => {
     <h3>{{ props.title }}</h3>
     <p class="voice-description">{{ props.description }}</p>
 
-    <button class="mic-button" :class="{ recording: isRecording }" @click="toggleRecording">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="32" height="32">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-      </svg>
-    </button>
+    <div v-if="props.enableTextInput" class="voice-mode-toggle">
+      <button
+        type="button"
+        class="voice-mode-button"
+        :class="{ active: inputMode === 'voice' }"
+        @click="setInputMode('voice')"
+      >
+        Speak
+      </button>
+      <button
+        type="button"
+        class="voice-mode-button"
+        :class="{ active: inputMode === 'text' }"
+        @click="setInputMode('text')"
+      >
+        Type
+      </button>
+    </div>
 
-    <p class="voice-status">{{ status }}</p>
+    <template v-if="inputMode === 'voice'">
+      <button class="mic-button" :class="{ recording: isRecording }" @click="toggleRecording">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="32" height="32">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+        </svg>
+      </button>
+
+      <p class="voice-status">{{ status }}</p>
+
+      <div v-if="transcript || interimTranscript" class="transcription-box">
+        <div class="label">Heard:</div>
+        <div>
+          <span>{{ transcript }}</span>
+          <span v-if="interimTranscript" class="interim-transcript">{{ interimTranscript }}</span>
+        </div>
+      </div>
+    </template>
+
+    <template v-else>
+      <div class="voice-textbox">
+        <textarea
+          v-model="typedText"
+          class="voice-textarea"
+          :placeholder="props.textPlaceholder"
+          rows="3"
+          @keydown="handleTypedKeydown"
+        />
+        <div class="voice-send-row">
+          <button type="button" class="voice-send" :disabled="!canSendTyped" @click="sendTyped">
+            Send
+          </button>
+        </div>
+      </div>
+    </template>
 
     <button v-if="showHintsLink" class="hints-link" @click="emit('showHints')">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-      View voice command examples
+      View command examples
     </button>
-
-    <div v-if="transcript || interimTranscript" class="transcription-box">
-      <div class="label">Heard:</div>
-      <div>
-        <span>{{ transcript }}</span>
-        <span v-if="interimTranscript" class="interim-transcript">{{ interimTranscript }}</span>
-      </div>
-    </div>
   </div>
 </template>
 
