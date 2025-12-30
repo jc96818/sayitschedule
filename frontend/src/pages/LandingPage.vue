@@ -24,86 +24,6 @@ const roleOptions = [
   { value: 'other', label: 'Other' }
 ]
 
-type BadgeVariant = 'primary' | 'success' | 'warning' | 'danger' | 'secondary'
-
-type DemoCheck = {
-  label: string
-  variant: BadgeVariant
-}
-
-type DemoResult = {
-  title: string
-  summary: string
-  removed: string[]
-  added: string[]
-  checks: DemoCheck[]
-}
-
-type DemoExample = {
-  label: string
-  command: string
-  result: DemoResult
-}
-
-const demoExamples: DemoExample[] = [
-  {
-    label: 'Move session',
-    command: 'Move Jordan’s Tuesday session to 2pm and keep Room 3.',
-    result: {
-      title: '1 change · ready to review',
-      summary: 'No conflicts detected. Rules respected.',
-      removed: ['Tue 1:00–2:00 PM · Jordan · Room 3'],
-      added: ['Tue 2:00–3:00 PM · Jordan · Room 3'],
-      checks: [
-        { label: 'Availability OK', variant: 'success' },
-        { label: 'Room OK', variant: 'success' },
-        { label: 'Rules OK', variant: 'success' }
-      ]
-    }
-  },
-  {
-    label: 'Swap appointments',
-    command: 'Swap Maria and Devon on Thursday morning.',
-    result: {
-      title: '2 changes · ready to review',
-      summary: 'No conflicts detected. Update is reversible until publish.',
-      removed: [
-        'Thu 9:00–10:00 AM · Maria · Room 2',
-        'Thu 10:00–11:00 AM · Devon · Room 2'
-      ],
-      added: [
-        'Thu 9:00–10:00 AM · Devon · Room 2',
-        'Thu 10:00–11:00 AM · Maria · Room 2'
-      ],
-      checks: [
-        { label: 'Availability OK', variant: 'success' },
-        { label: 'Room OK', variant: 'success' },
-        { label: 'Rules OK', variant: 'success' }
-      ]
-    }
-  },
-  {
-    label: 'Block time',
-    command: 'Block Friday 3–5pm for a staff meeting.',
-    result: {
-      title: 'Draft hold · ready to validate',
-      summary: 'Creates a hold and flags affected sessions for review.',
-      removed: ['Fri 3:30–4:30 PM · Open slot · Room 1'],
-      added: ['Fri 3:00–5:00 PM · Staff meeting · Room 1 (hold)'],
-      checks: [
-        { label: 'Parsed', variant: 'success' },
-        { label: 'Conflict check', variant: 'warning' },
-        { label: 'Rules validation', variant: 'secondary' }
-      ]
-    }
-  }
-]
-
-const demoSelected = ref(0)
-const demoCommand = ref(demoExamples[0].command)
-const demoRunning = ref(false)
-const demoResult = ref<DemoResult>(demoExamples[0].result)
-
 const loading = ref(false)
 const success = ref(false)
 const error = ref('')
@@ -142,34 +62,6 @@ function goToLogin() {
 
 function scrollToSection(sectionId: string) {
   document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-function selectDemoExample(index: number) {
-  demoSelected.value = index
-  demoCommand.value = demoExamples[index].command
-  demoResult.value = demoExamples[index].result
-}
-
-function runDemo() {
-  demoRunning.value = true
-  const trimmedCommand = demoCommand.value.trim()
-  const match = demoExamples.find((example) => example.command === trimmedCommand)
-
-  window.setTimeout(() => {
-    demoRunning.value = false
-    demoResult.value =
-      match?.result ?? {
-        title: 'Draft change',
-        summary: 'Proposed update ready for review.',
-        removed: ['No changes applied yet.'],
-        added: ['Run validation to see a schedule diff.'],
-        checks: [
-          { label: 'Parsed', variant: 'success' },
-          { label: 'Conflict check', variant: 'secondary' },
-          { label: 'Rules validation', variant: 'secondary' }
-        ]
-      }
-  }, 450)
 }
 </script>
 
@@ -214,116 +106,69 @@ function runDemo() {
       </div>
     </nav>
 
-    <!-- Main -->
+    <!-- Hero Section -->
     <main class="landing-main">
       <section id="top" class="hero section">
         <div class="hero-container">
           <div class="hero-grid">
             <div class="hero-copy">
-              <div class="hero-kicker">
-                <Badge variant="primary">Voice + Rules Engine</Badge>
-                <span class="hero-kicker-text">for therapy practices</span>
-              </div>
-              <h1>Voice-assisted scheduling, with a clear review step.</h1>
+              <p class="hero-eyebrow">Built for therapy practices</p>
+              <h1>Scheduling that feels calm, not chaotic.</h1>
               <p class="hero-subtitle">
-                Make schedule updates in plain language, review a proposed diff, and publish with
-                confidence—without losing control of the workflow.
+                Voice-guided scheduling with clear review steps and audit-friendly controls—so your
+                team stays consistent and confident.
               </p>
 
               <div class="hero-cta">
                 <Button variant="primary" size="lg" @click="scrollToSection('contact')">
-                  Request Demo
+                  Request a Demo
                 </Button>
-                <Button variant="outline" size="lg" @click="goToLogin">Sign In</Button>
+                <Button variant="outline" size="lg" @click="scrollToSection('how')">
+                  See How It Works
+                </Button>
               </div>
 
-              <div class="hero-foot" aria-label="Platform highlights">
-                <div class="hero-foot-item">
-                  <span class="hero-foot-dot" aria-hidden="true"></span>
-                  Multi-tenant by subdomain
-                </div>
-                <div class="hero-foot-item">
-                  <span class="hero-foot-dot" aria-hidden="true"></span>
-                  Review-first changes
-                </div>
-                <div class="hero-foot-item">
-                  <span class="hero-foot-dot" aria-hidden="true"></span>
-                  Audit-friendly workflow
-                </div>
+              <div class="hero-badges" aria-label="Trust and security highlights">
+                <Badge variant="secondary">BAA available</Badge>
+                <Badge variant="secondary">Role-based access</Badge>
+                <Badge variant="secondary">MFA support</Badge>
+                <Badge variant="secondary">Audit trails</Badge>
               </div>
             </div>
 
-            <div class="hero-demo" aria-label="Interactive command demo">
-              <div class="demo-card">
-                <div class="demo-header">
-                  <div class="demo-title">Live command demo</div>
-                  <div class="demo-status" :class="{ running: demoRunning }">
-                    <span class="status-dot" aria-hidden="true"></span>
-                    {{ demoRunning ? 'Running' : 'Ready' }}
+            <div class="hero-preview" aria-label="Product preview">
+              <div class="preview-window">
+                <div class="preview-topbar">
+                  <div class="preview-dots" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
                   </div>
+                  <div class="preview-title">Schedule assistant</div>
                 </div>
 
-                <div class="demo-examples" aria-label="Example commands">
-                  <button
-                    v-for="(example, index) in demoExamples"
-                    :key="example.label"
-                    type="button"
-                    class="example-chip"
-                    :class="{ active: index === demoSelected }"
-                    :aria-pressed="index === demoSelected"
-                    @click="selectDemoExample(index)"
-                  >
-                    {{ example.label }}
-                  </button>
-                </div>
-
-                <div class="command-bar">
-                  <span class="command-prompt" aria-hidden="true">&gt;</span>
-                  <input
-                    v-model="demoCommand"
-                    class="command-input"
-                    type="text"
-                    spellcheck="false"
-                    aria-label="Demo command"
-                  />
-                  <Button variant="primary" size="sm" :disabled="demoRunning" @click="runDemo">
-                    {{ demoRunning ? 'Running…' : 'Run' }}
-                  </Button>
-                </div>
-
-                <div class="demo-output" aria-label="Demo output">
-                  <div class="output-title">{{ demoResult.title }}</div>
-                  <div class="output-summary">{{ demoResult.summary }}</div>
-
-                  <div class="diff" aria-label="Schedule diff">
-                    <div
-                      v-for="(line, idx) in demoResult.removed"
-                      :key="`r-${idx}`"
-                      class="diff-line diff-remove"
-                    >
-                      <span class="diff-prefix">-</span>
-                      <span class="diff-text">{{ line }}</span>
-                    </div>
-                    <div
-                      v-for="(line, idx) in demoResult.added"
-                      :key="`a-${idx}`"
-                      class="diff-line diff-add"
-                    >
-                      <span class="diff-prefix">+</span>
-                      <span class="diff-text">{{ line }}</span>
+                <div class="preview-body">
+                  <div class="preview-panel">
+                    <div class="panel-label">Voice command</div>
+                    <div class="panel-content panel-command">
+                      “Move Jordan’s Tuesday session to 2pm and keep Room 3.”
                     </div>
                   </div>
 
-                  <div class="checks" aria-label="Validation checks">
-                    <Badge
-                      v-for="(check, idx) in demoResult.checks"
-                      :key="idx"
-                      :variant="check.variant"
-                      class="check-badge"
-                    >
-                      {{ check.label }}
-                    </Badge>
+                  <div class="preview-panel">
+                    <div class="panel-label">Result</div>
+                    <div class="panel-content panel-result">
+                      <div class="result-row">
+                        <span class="result-chip">Tue</span>
+                        <span class="result-text">
+                          <strong>Jordan</strong> — 2:00–3:00 PM · Room 3
+                        </span>
+                      </div>
+                      <div class="result-meta">Conflicts checked · Rules respected</div>
+                    </div>
                   </div>
+
+                  <div class="preview-footnote">Review changes before publishing.</div>
                 </div>
               </div>
             </div>
@@ -331,49 +176,40 @@ function runDemo() {
         </div>
       </section>
 
-      <section id="product" class="section platform-section">
+      <section id="product" class="section value-section">
         <div class="section-container">
           <div class="section-heading">
-            <h2>Platform highlights</h2>
-            <p>Fast to use, built to be reviewed, and designed for clinic scheduling complexity.</p>
+            <h2>Designed for real clinic workflows</h2>
+            <p>Reduce schedule churn while keeping decisions clear and reviewable.</p>
           </div>
 
-          <div class="feature-grid">
-            <div class="feature-card">
-              <div class="feature-icon" aria-hidden="true">
+          <div class="value-grid">
+            <div class="value-card">
+              <div class="value-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path
-                    d="M12 3C14.5 3 16.5 5 16.5 7.5V11C16.5 13.5 14.5 15.5 12 15.5C9.5 15.5 7.5 13.5 7.5 11V7.5C7.5 5 9.5 3 12 3Z"
+                    d="M12 6V12L16 14"
                     stroke="currentColor"
                     stroke-width="1.8"
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   />
                   <path
-                    d="M6 10.5V11C6 14.3137 8.68629 17 12 17C15.3137 17 18 14.3137 18 11V10.5"
+                    d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z"
                     stroke="currentColor"
                     stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M12 17V21"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
                   />
                 </svg>
               </div>
-              <h3>Command-first edits</h3>
-              <p>Speak or type schedule changes in plain language.</p>
+              <h3>Less time on admin</h3>
+              <p>Make common schedule updates in seconds—without losing the thread.</p>
             </div>
 
-            <div class="feature-card">
-              <div class="feature-icon" aria-hidden="true">
+            <div class="value-card">
+              <div class="value-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path
-                    d="M9 12L11 14L15 10"
+                    d="M9 11L11 13L15 9"
                     stroke="currentColor"
                     stroke-width="1.8"
                     stroke-linecap="round"
@@ -388,35 +224,12 @@ function runDemo() {
                   />
                 </svg>
               </div>
-              <h3>Rules & conflict checks</h3>
-              <p>Validate availability, rooms, and constraints before you publish.</p>
+              <h3>Rule-aware changes</h3>
+              <p>Keep consistency across staff availability, rooms, and scheduling rules.</p>
             </div>
 
-            <div class="feature-card">
-              <div class="feature-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M7 7H17M7 12H17M7 17H13"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M7 3H17C18.1046 3 19 3.89543 19 5V19C19 20.1046 18.1046 21 17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3Z"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </div>
-              <h3>Diff-first review</h3>
-              <p>See what changed, confirm it’s correct, then publish with confidence.</p>
-            </div>
-
-            <div class="feature-card">
-              <div class="feature-icon" aria-hidden="true">
+            <div class="value-card">
+              <div class="value-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
                   <path
                     d="M4 12V8C4 6.89543 4.89543 6 6 6H18C19.1046 6 20 6.89543 20 8V12"
@@ -441,57 +254,40 @@ function runDemo() {
                   />
                 </svg>
               </div>
-              <h3>Clinic-ready views</h3>
-              <p>Clear schedule views for staff, including print-ready formats.</p>
+              <h3>Clear review before publish</h3>
+              <p>See what changed, confirm it’s correct, then publish with confidence.</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="how" class="section pipeline-section">
+      <section id="how" class="section how-section">
         <div class="section-container">
           <div class="section-heading">
-            <h2>AI workflow, human control</h2>
-            <p>Every change stays reviewable until you publish.</p>
+            <h2>How it works</h2>
+            <p>A simple flow that keeps humans in control.</p>
           </div>
 
-          <ol class="pipeline" aria-label="Workflow steps">
-            <li class="pipeline-step">
-              <div class="step-badge">01</div>
-              <div>
-                <div class="step-title">Capture</div>
-                <div class="step-text">Voice or typed commands.</div>
-              </div>
-            </li>
-            <li class="pipeline-step">
-              <div class="step-badge">02</div>
-              <div>
-                <div class="step-title">Parse</div>
-                <div class="step-text">Turn intent into structured updates.</div>
-              </div>
-            </li>
-            <li class="pipeline-step">
-              <div class="step-badge">03</div>
-              <div>
-                <div class="step-title">Validate</div>
-                <div class="step-text">Check conflicts and rules.</div>
-              </div>
-            </li>
-            <li class="pipeline-step">
-              <div class="step-badge">04</div>
-              <div>
-                <div class="step-title">Preview</div>
-                <div class="step-text">Review a clear schedule diff.</div>
-              </div>
-            </li>
-            <li class="pipeline-step">
-              <div class="step-badge">05</div>
-              <div>
-                <div class="step-title">Publish</div>
-                <div class="step-text">Share schedules with staff.</div>
-              </div>
-            </li>
-          </ol>
+          <div class="steps-grid">
+            <div class="step-card">
+              <div class="step-number">1</div>
+              <h3>Speak a change</h3>
+              <p>Use natural language to describe what you want updated.</p>
+              <div class="step-example">“Swap Maria and Devon on Thursday morning.”</div>
+            </div>
+            <div class="step-card">
+              <div class="step-number">2</div>
+              <h3>Review suggestions</h3>
+              <p>Confirm the proposed update before anything is published.</p>
+              <div class="step-example">See conflicts and rule checks inline.</div>
+            </div>
+            <div class="step-card">
+              <div class="step-number">3</div>
+              <h3>Publish schedules</h3>
+              <p>Generate and distribute schedules with a clear record of changes.</p>
+              <div class="step-example">Print-ready views for staff.</div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -499,22 +295,14 @@ function runDemo() {
         <div class="section-container">
           <div class="security-grid">
             <div class="security-copy">
-              <h2>Security built in</h2>
+              <h2>Security & compliance focus</h2>
               <p>
-                Designed for multi-tenant healthcare workflows with access controls and audit-ready
-                patterns.
+                Built with multi-tenant isolation and access controls to support healthcare
+                environments.
               </p>
-
-              <div class="security-badges" aria-label="Security highlights">
-                <Badge variant="secondary">BAA available</Badge>
-                <Badge variant="secondary">Tenant isolation</Badge>
-                <Badge variant="secondary">RBAC</Badge>
-                <Badge variant="secondary">MFA</Badge>
-                <Badge variant="secondary">Audit trails</Badge>
-              </div>
             </div>
 
-            <div class="security-list" role="list" aria-label="Security details">
+            <div class="security-list" role="list" aria-label="Security highlights">
               <div class="security-item" role="listitem">
                 <span class="security-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none">
@@ -537,31 +325,6 @@ function runDemo() {
                 <div>
                   <div class="security-title">BAA available</div>
                   <div class="security-text">Support for regulated workflows and agreements.</div>
-                </div>
-              </div>
-
-              <div class="security-item" role="listitem">
-                <span class="security-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M8 7H16M8 11H16M8 15H12"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                    <path
-                      d="M6 3H18C19.1046 3 20 3.89543 20 5V19C20 20.1046 19.1046 21 18 21H6C4.89543 21 4 20.1046 4 19V5C4 3.89543 4.89543 3 6 3Z"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </span>
-                <div>
-                  <div class="security-title">Tenant isolation</div>
-                  <div class="security-text">Organization-scoped data access and separation.</div>
                 </div>
               </div>
 
@@ -642,8 +405,8 @@ function runDemo() {
                   </svg>
                 </span>
                 <div>
-                  <div class="security-title">Audit trails</div>
-                  <div class="security-text">Keep a clear record of changes and approvals.</div>
+                  <div class="security-title">Audit-friendly controls</div>
+                  <div class="security-text">Track changes and keep a consistent workflow.</div>
                 </div>
               </div>
             </div>
@@ -654,9 +417,10 @@ function runDemo() {
     <!-- Contact Form Section -->
     <section id="contact" class="contact-section">
       <div class="contact-container">
-        <h2>Request a Demo</h2>
+        <h2>Get in Touch</h2>
         <p class="contact-subtitle">
-          Tell us a bit about your practice and we’ll schedule a walkthrough.
+          Interested in simplifying your scheduling? Let us show you how Say It Schedule can
+          transform your practice.
         </p>
 
         <div class="lead-form-wrapper">
@@ -733,65 +497,13 @@ function runDemo() {
 <style scoped>
 .landing-page {
   --landing-nav-height: 76px;
-  --background-color: #f6f8fc;
-  --card-background: rgba(255, 255, 255, 0.78);
-  --border-color: rgba(15, 23, 42, 0.12);
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-
-  --primary-color: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-light: rgba(37, 99, 235, 0.16);
-
-  --secondary-color: #64748b;
-  --success-color: #10b981;
-  --success-light: rgba(16, 185, 129, 0.14);
-  --warning-color: #f59e0b;
-  --warning-light: rgba(245, 158, 11, 0.14);
-  --danger-color: #ef4444;
-  --danger-light: rgba(239, 68, 68, 0.14);
   min-height: 100vh;
-  color: var(--text-primary);
   background: var(--background-color);
-  position: relative;
-  overflow-x: hidden;
-}
-
-.landing-page :deep(.badge-secondary) {
-  background-color: rgba(255, 255, 255, 0.7);
-  color: var(--text-secondary);
-  border: 1px solid rgba(15, 23, 42, 0.1);
-}
-
-.landing-page::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(900px 520px at 18% 18%, rgba(37, 99, 235, 0.16), transparent 62%),
-    radial-gradient(760px 460px at 82% 16%, rgba(16, 185, 129, 0.08), transparent 62%),
-    radial-gradient(820px 520px at 50% 110%, rgba(99, 102, 241, 0.08), transparent 66%);
-  z-index: 0;
-}
-
-.landing-page::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image: radial-gradient(rgba(15, 23, 42, 0.1) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: radial-gradient(900px 520px at 50% 0%, rgba(0, 0, 0, 0.45), transparent 70%);
-  opacity: 0.12;
-  z-index: 0;
+  color: var(--text-primary);
 }
 
 .landing-main {
   padding-top: var(--landing-nav-height);
-  position: relative;
-  z-index: 1;
 }
 
 .section {
@@ -805,9 +517,9 @@ function runDemo() {
   left: 0;
   right: 0;
   height: var(--landing-nav-height);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(248, 250, 252, 0.8);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
   z-index: 100;
 }
 
@@ -835,9 +547,9 @@ function runDemo() {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(16, 185, 129, 0.1));
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(37, 99, 235, 0.06));
   color: var(--primary-color);
-  border: 1px solid rgba(37, 99, 235, 0.14);
+  border: 1px solid rgba(37, 99, 235, 0.18);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -879,7 +591,19 @@ function runDemo() {
 
 /* Hero */
 .hero {
-  padding: 82px 24px 56px;
+  position: relative;
+  padding: 68px 24px 64px;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(700px 380px at 18% 25%, rgba(37, 99, 235, 0.16), transparent 60%),
+    radial-gradient(520px 320px at 80% 18%, rgba(16, 185, 129, 0.08), transparent 55%);
+  pointer-events: none;
 }
 
 .hero-container {
@@ -888,6 +612,7 @@ function runDemo() {
 }
 
 .hero-grid {
+  position: relative;
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
   align-items: center;
@@ -898,42 +623,24 @@ function runDemo() {
   text-align: left;
 }
 
-.hero-kicker {
-  display: flex;
+.hero-eyebrow {
+  display: inline-flex;
   align-items: center;
   gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   margin-bottom: 14px;
 }
 
-.hero-kicker-text {
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
 .hero h1 {
-  font-size: 46px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-size: 44px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
   margin-bottom: 18px;
-  line-height: 1.08;
-  color: var(--text-primary);
-}
-
-@supports (-webkit-background-clip: text) {
-  .hero h1 {
-    background: linear-gradient(
-      90deg,
-      rgba(15, 23, 42, 0.95),
-      rgba(37, 99, 235, 0.92),
-      rgba(16, 185, 129, 0.82)
-    );
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
+  line-height: 1.15;
 }
 
 .hero-subtitle {
@@ -949,229 +656,124 @@ function runDemo() {
   flex-wrap: wrap;
 }
 
-.hero-foot {
+.hero-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 18px;
-  margin-top: 22px;
-  color: var(--text-secondary);
-  font-size: 13px;
+  gap: 10px;
+  margin-top: 20px;
 }
 
-.hero-foot-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hero-foot-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  background: rgba(37, 99, 235, 0.8);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
-}
-
-.hero-demo {
+.hero-preview {
   display: flex;
   justify-content: flex-end;
 }
 
-.demo-card {
+.preview-window {
   width: 100%;
-  max-width: 460px;
+  max-width: 420px;
   border-radius: 18px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 18px 45px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
   overflow: hidden;
 }
 
-.demo-header {
+.preview-topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
   background: rgba(248, 250, 252, 0.7);
 }
 
-.demo-title {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.demo-status {
+.preview-dots {
   display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
+  gap: 6px;
 }
 
-.status-dot {
+.preview-dots span {
   width: 8px;
   height: 8px;
   border-radius: 9999px;
-  background: rgba(16, 185, 129, 0.85);
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.16);
+  background: rgba(148, 163, 184, 0.7);
 }
 
-.demo-status.running .status-dot {
-  background: rgba(37, 99, 235, 0.85);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.16);
-}
-
-.demo-examples {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 14px 16px 0;
-}
-
-.example-chip {
-  appearance: none;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  background: rgba(248, 250, 252, 0.6);
-  color: var(--text-secondary);
-  border-radius: 9999px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
-}
-
-.example-chip:hover {
-  border-color: rgba(15, 23, 42, 0.16);
-  color: var(--text-primary);
-  transform: translateY(-1px);
-}
-
-.example-chip.active {
-  background: rgba(37, 99, 235, 0.12);
-  border-color: rgba(37, 99, 235, 0.28);
-  color: var(--text-primary);
-}
-
-.command-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 14px 16px 0;
-  padding: 10px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  background: rgba(255, 255, 255, 0.7);
-}
-
-.command-prompt {
-  color: rgba(15, 23, 42, 0.5);
-  font-weight: 700;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
-}
-
-.command-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: rgba(15, 23, 42, 0.9);
+.preview-title {
   font-size: 13px;
-  line-height: 1.4;
   font-weight: 600;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
+  color: var(--text-secondary);
 }
 
-.command-input::placeholder {
-  color: rgba(15, 23, 42, 0.45);
-}
-
-.demo-output {
+.preview-body {
   padding: 16px;
   display: grid;
+  gap: 12px;
+}
+
+.preview-panel {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 14px;
+  padding: 14px 14px 12px;
+}
+
+.panel-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.panel-content {
+  color: var(--text-primary);
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+.panel-command {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial,
+    sans-serif;
+}
+
+.result-row {
+  display: flex;
+  align-items: baseline;
   gap: 10px;
 }
 
-.output-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(15, 23, 42, 0.9);
+.result-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--primary-light);
+  color: var(--primary-color);
 }
 
-.output-summary {
+.result-text {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.result-meta {
+  margin-top: 10px;
   font-size: 13px;
   color: var(--text-secondary);
-  line-height: 1.55;
 }
 
-.diff {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  background: rgba(248, 250, 252, 0.8);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
-  font-size: 12.5px;
-}
-
-.diff-line {
-  display: grid;
-  grid-template-columns: 18px 1fr;
-  gap: 10px;
-  align-items: baseline;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-}
-
-.diff-prefix {
-  font-weight: 800;
-  opacity: 0.85;
-}
-
-.diff-text {
-  color: rgba(15, 23, 42, 0.88);
-  line-height: 1.45;
-}
-
-.diff-remove {
-  background: rgba(248, 113, 113, 0.1);
-  border-color: rgba(248, 113, 113, 0.2);
-}
-
-.diff-remove .diff-prefix {
-  color: rgba(248, 113, 113, 0.95);
-}
-
-.diff-add {
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.2);
-}
-
-.diff-add .diff-prefix {
-  color: rgba(52, 211, 153, 0.95);
-}
-
-.checks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.check-badge {
-  white-space: nowrap;
+.preview-footnote {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 2px 2px 0;
 }
 
 /* Sections */
@@ -1187,9 +789,8 @@ function runDemo() {
 
 .section-heading h2 {
   font-size: 30px;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   margin-bottom: 10px;
-  color: rgba(226, 232, 240, 0.95);
 }
 
 .section-heading p {
@@ -1198,101 +799,103 @@ function runDemo() {
   line-height: 1.6;
 }
 
-.platform-section {
-  padding: 64px 24px 40px;
+.value-section {
+  padding: 64px 24px;
 }
 
-.feature-grid {
+.value-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 
-.feature-card {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+.value-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 16px;
-  padding: 22px 20px 20px;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  padding: 22px 22px 20px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
 }
 
-.feature-icon {
+.value-icon {
   width: 40px;
   height: 40px;
   border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(37, 99, 235, 0.1);
+  background: rgba(37, 99, 235, 0.08);
   color: var(--primary-color);
-  border: 1px solid rgba(37, 99, 235, 0.14);
+  border: 1px solid rgba(37, 99, 235, 0.12);
   margin-bottom: 14px;
 }
 
-.feature-icon svg {
+.value-icon svg {
   width: 22px;
   height: 22px;
 }
 
-.feature-card h3 {
+.value-card h3 {
   font-size: 16px;
   margin-bottom: 8px;
-  color: rgba(15, 23, 42, 0.92);
 }
 
-.feature-card p {
+.value-card p {
   color: var(--text-secondary);
   line-height: 1.6;
   font-size: 14px;
 }
 
-.pipeline-section {
-  padding: 48px 24px 64px;
+.how-section {
+  padding: 64px 24px;
 }
 
-.pipeline {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.steps-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 
-.pipeline-step {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+.step-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 16px;
-  padding: 18px;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
-  display: grid;
-  gap: 12px;
+  padding: 22px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
 }
 
-.step-badge {
-  width: fit-content;
-  padding: 6px 10px;
+.step-number {
+  width: 34px;
+  height: 34px;
   border-radius: 9999px;
-  background: rgba(248, 250, 252, 0.85);
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  color: rgba(15, 23, 42, 0.62);
-  font-size: 12px;
-  font-weight: 800;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--primary-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  margin-bottom: 14px;
 }
 
-.step-title {
-  font-size: 14px;
-  font-weight: 750;
-  color: rgba(15, 23, 42, 0.92);
-  margin-bottom: 2px;
+.step-card h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
 }
 
-.step-text {
-  font-size: 13px;
+.step-card p {
   color: var(--text-secondary);
-  line-height: 1.55;
+  line-height: 1.6;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.step-example {
+  font-size: 13px;
+  color: var(--text-primary);
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
+  padding: 10px 12px;
 }
 
 .security-section {
@@ -1304,31 +907,23 @@ function runDemo() {
   grid-template-columns: 0.9fr 1.1fr;
   gap: 24px;
   align-items: start;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 18px;
   padding: 26px;
-  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
 }
 
 .security-copy h2 {
   font-size: 26px;
   letter-spacing: -0.01em;
   margin-bottom: 10px;
-  color: rgba(15, 23, 42, 0.95);
 }
 
 .security-copy p {
   color: var(--text-secondary);
   line-height: 1.7;
   font-size: 15px;
-  margin-bottom: 16px;
-}
-
-.security-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .security-list {
@@ -1341,8 +936,8 @@ function runDemo() {
   grid-template-columns: 40px 1fr;
   gap: 12px;
   align-items: start;
-  background: rgba(248, 250, 252, 0.85);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 14px;
   padding: 14px;
 }
@@ -1354,9 +949,9 @@ function runDemo() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(37, 99, 235, 0.1);
+  background: rgba(37, 99, 235, 0.08);
   color: var(--primary-color);
-  border: 1px solid rgba(37, 99, 235, 0.14);
+  border: 1px solid rgba(37, 99, 235, 0.12);
 }
 
 .security-icon svg {
@@ -1368,7 +963,6 @@ function runDemo() {
   font-weight: 650;
   font-size: 14px;
   margin-bottom: 2px;
-  color: rgba(15, 23, 42, 0.92);
 }
 
 .security-text {
@@ -1381,8 +975,6 @@ function runDemo() {
 .contact-section {
   padding: 72px 24px 84px;
   background: transparent;
-  position: relative;
-  z-index: 1;
 }
 
 .contact-container {
@@ -1394,7 +986,7 @@ function runDemo() {
 .contact-container h2 {
   font-size: 30px;
   margin-bottom: 16px;
-  color: rgba(15, 23, 42, 0.95);
+  color: var(--text-primary);
 }
 
 .contact-subtitle {
@@ -1412,30 +1004,17 @@ function runDemo() {
 }
 
 .lead-form {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.85);
   padding: 32px;
   border-radius: 18px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.12);
-  backdrop-filter: blur(18px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-}
-
-.contact-section :deep(input.form-control),
-.contact-section :deep(select.form-control),
-.contact-section :deep(textarea.form-control) {
-  background-color: rgba(255, 255, 255, 0.8);
-  border-color: rgba(15, 23, 42, 0.12);
-  color: rgba(15, 23, 42, 0.92);
-}
-
-.contact-section :deep(select.form-control) {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364758b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
 }
 
 .success-message {
@@ -1447,11 +1026,8 @@ function runDemo() {
 .landing-footer {
   padding: 28px 24px;
   text-align: center;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(16px);
-  position: relative;
-  z-index: 1;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+  background: rgba(248, 250, 252, 0.8);
 }
 
 .footer-container {
@@ -1495,21 +1071,14 @@ function runDemo() {
     justify-content: center;
   }
 
-  .hero-demo {
+  .hero-preview {
     justify-content: center;
   }
 
-  .feature-grid,
+  .value-grid,
+  .steps-grid,
   .security-grid {
     grid-template-columns: 1fr;
-  }
-
-  .pipeline {
-    grid-template-columns: 1fr;
-  }
-
-  .platform-section {
-    padding: 56px 24px 32px;
   }
 
   .security-grid {
