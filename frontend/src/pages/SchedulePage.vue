@@ -6,11 +6,13 @@ import { useRoomsStore } from '@/stores/rooms'
 import { Button, Badge, Alert, StatCard, VoiceInput, VoiceHintsModal } from '@/components/ui'
 import { voiceService } from '@/services/api'
 import { getFederalHoliday } from '@/utils/holidays'
+import { useLabels } from '@/composables/useLabels'
 import type { Session } from '@/types'
 
 const schedulesStore = useSchedulesStore()
 const staffStore = useStaffStore()
 const roomsStore = useRoomsStore()
+const { staffLabel, staffLabelSingular, patientLabel, patientLabelSingular, roomLabel, roomLabelSingular } = useLabels()
 
 // Voice hints modal ref
 const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
@@ -713,30 +715,30 @@ onMounted(() => {
                 :class="['view-tab', { active: viewMode === 'therapist' }]"
                 @click="viewMode = 'therapist'"
               >
-                By Therapist
+                By {{ staffLabelSingular }}
               </button>
               <button
                 :class="['view-tab', { active: viewMode === 'patient' }]"
                 @click="viewMode = 'patient'"
               >
-                By Patient
+                By {{ patientLabelSingular }}
               </button>
               <button
                 :class="['view-tab', { active: viewMode === 'room' }]"
                 @click="viewMode = 'room'"
               >
-                By Room
+                By {{ roomLabelSingular }}
               </button>
             </div>
             <div v-if="viewMode === 'calendar'" class="filter-dropdowns">
               <select v-model="selectedTherapist" class="form-control" style="width: auto;">
-                <option value="">All Therapists</option>
+                <option value="">All {{ staffLabel }}</option>
                 <option v-for="therapist in scheduleTherapists" :key="therapist.id" :value="therapist.id">
                   {{ therapist.name }}
                 </option>
               </select>
               <select v-model="selectedRoom" class="form-control" style="width: auto;">
-                <option value="">All Rooms</option>
+                <option value="">All {{ roomLabel }}</option>
                 <option v-for="room in scheduleRooms" :key="room.id" :value="room.id">
                   {{ room.name }}
                 </option>
@@ -755,13 +757,13 @@ onMounted(() => {
           />
           <StatCard
             :value="stats.therapistsScheduled"
-            label="Therapists Scheduled"
+            :label="`${staffLabel} Scheduled`"
             icon="users"
             color="blue"
           />
           <StatCard
             :value="stats.patientsCovered"
-            label="Patients Covered"
+            :label="`${patientLabel} Covered`"
             icon="patients"
             color="green"
           />
@@ -817,11 +819,11 @@ onMounted(() => {
               <div style="display: flex; gap: 24px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <div class="legend-box blue"></div>
-                  <span class="text-sm">Male Therapist</span>
+                  <span class="text-sm">Male {{ staffLabelSingular }}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <div class="legend-box green"></div>
-                  <span class="text-sm">Female Therapist</span>
+                  <span class="text-sm">Female {{ staffLabelSingular }}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <div class="legend-box holiday"></div>
@@ -861,8 +863,8 @@ onMounted(() => {
                     <tr>
                       <th>Day</th>
                       <th>Time</th>
-                      <th>Patient</th>
-                      <th>Room</th>
+                      <th>{{ patientLabelSingular }}</th>
+                      <th>{{ roomLabelSingular }}</th>
                       <th>Type</th>
                     </tr>
                   </thead>
@@ -912,8 +914,8 @@ onMounted(() => {
                     <tr>
                       <th>Day</th>
                       <th>Time</th>
-                      <th>Therapist</th>
-                      <th>Room</th>
+                      <th>{{ staffLabelSingular }}</th>
+                      <th>{{ roomLabelSingular }}</th>
                       <th>Type</th>
                     </tr>
                   </thead>
@@ -970,8 +972,8 @@ onMounted(() => {
                     <tr>
                       <th>Day</th>
                       <th>Time</th>
-                      <th>Therapist</th>
-                      <th>Patient</th>
+                      <th>{{ staffLabelSingular }}</th>
+                      <th>{{ patientLabelSingular }}</th>
                       <th>Type</th>
                     </tr>
                   </thead>

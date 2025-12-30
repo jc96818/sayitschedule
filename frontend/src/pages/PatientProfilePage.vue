@@ -4,12 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePatientsStore } from '@/stores/patients'
 import { useRoomsStore } from '@/stores/rooms'
 import { Modal, Alert, Badge, Button, Toggle } from '@/components/ui'
+import { useLabels } from '@/composables/useLabels'
 import type { Patient } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const patientsStore = usePatientsStore()
 const roomsStore = useRoomsStore()
+const { patientLabel, patientLabelSingular, patientLabelSingularLower, certificationLabel, roomLabelSingular } = useLabels()
 
 const patientId = route.params.id as string
 const loading = ref(true)
@@ -96,7 +98,7 @@ async function handleToggleStatus() {
 async function handleDelete() {
   if (!patient.value) return
 
-  if (confirm('Are you sure you want to delete this patient? This action cannot be undone.')) {
+  if (confirm(`Are you sure you want to delete this ${patientLabelSingularLower.value}? This action cannot be undone.`)) {
     try {
       await patientsStore.deletePatient(patient.value.id)
       router.push('/app/patients')
@@ -129,10 +131,10 @@ onMounted(async () => {
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
-          Back to Patients
+          Back to {{ patientLabel }}
         </RouterLink>
         <div class="title-row">
-          <h2>{{ patient?.name || 'Patient Profile' }}</h2>
+          <h2>{{ patient?.name || `${patientLabelSingular} Profile` }}</h2>
           <Badge v-if="patient" :variant="patient.status === 'active' ? 'success' : 'secondary'">
             {{ patient.status === 'active' ? 'Active' : 'Inactive' }}
           </Badge>
@@ -166,16 +168,16 @@ onMounted(async () => {
       <!-- Loading State -->
       <div v-if="loading" class="card">
         <div class="card-body text-center">
-          <p class="text-muted">Loading patient profile...</p>
+          <p class="text-muted">Loading {{ patientLabelSingularLower }} profile...</p>
         </div>
       </div>
 
       <!-- Not Found State -->
       <div v-else-if="!patient" class="card">
         <div class="card-body text-center">
-          <p class="text-muted">Patient not found.</p>
+          <p class="text-muted">{{ patientLabelSingular }} not found.</p>
           <RouterLink to="/app/patients" class="btn btn-primary" style="margin-top: 16px;">
-            Return to Patient List
+            Return to {{ patientLabel }} List
           </RouterLink>
         </div>
       </div>
@@ -185,7 +187,7 @@ onMounted(async () => {
         <!-- Patient Information -->
         <div class="card">
           <div class="card-header">
-            <h3>Patient Information</h3>
+            <h3>{{ patientLabelSingular }} Information</h3>
           </div>
           <div class="card-body">
             <div class="profile-avatar green">
@@ -231,13 +233,13 @@ onMounted(async () => {
           </div>
           <div class="card-body">
             <div class="requirement-section">
-              <label>Required Certifications</label>
+              <label>Required {{ certificationLabel }}</label>
               <div v-if="patient.requiredCertifications && patient.requiredCertifications.length > 0" class="badge-list">
                 <Badge v-for="cert in patient.requiredCertifications" :key="cert" variant="primary">
                   {{ cert }}
                 </Badge>
               </div>
-              <p v-else class="text-muted">No specific certifications required.</p>
+              <p v-else class="text-muted">No specific {{ certificationLabel.toLowerCase() }} required.</p>
             </div>
 
             <div class="requirement-section">
@@ -251,19 +253,19 @@ onMounted(async () => {
             </div>
 
             <div class="requirement-section">
-              <label>Preferred Room</label>
+              <label>Preferred {{ roomLabelSingular }}</label>
               <p v-if="preferredRoomName">{{ preferredRoomName }}</p>
-              <p v-else class="text-muted">No specific room preference.</p>
+              <p v-else class="text-muted">No specific {{ roomLabelSingular.toLowerCase() }} preference.</p>
             </div>
 
             <div class="requirement-section">
-              <label>Required Room Capabilities</label>
+              <label>Required {{ roomLabelSingular }} Capabilities</label>
               <div v-if="patient.requiredRoomCapabilities && patient.requiredRoomCapabilities.length > 0" class="badge-list">
                 <Badge v-for="cap in patient.requiredRoomCapabilities" :key="cap" variant="secondary">
                   {{ cap.replace(/_/g, ' ') }}
                 </Badge>
               </div>
-              <p v-else class="text-muted">No specific room capabilities required.</p>
+              <p v-else class="text-muted">No specific {{ roomLabelSingular.toLowerCase() }} capabilities required.</p>
             </div>
           </div>
         </div>
@@ -275,14 +277,14 @@ onMounted(async () => {
           </div>
           <div class="card-body">
             <p v-if="patient.notes" class="notes-text">{{ patient.notes }}</p>
-            <p v-else class="text-muted">No notes recorded for this patient.</p>
+            <p v-else class="text-muted">No notes recorded for this {{ patientLabelSingularLower }}.</p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Edit Modal -->
-    <Modal v-model="showEditModal" title="Edit Patient Profile" size="lg">
+    <Modal v-model="showEditModal" :title="`Edit ${patientLabelSingular} Profile`" size="lg">
       <form @submit.prevent="handleSave">
         <div class="form-row">
           <div class="form-group">
@@ -296,7 +298,7 @@ onMounted(async () => {
             />
           </div>
           <div class="form-group">
-            <label for="identifier">Patient ID</label>
+            <label for="identifier">{{ patientLabelSingular }} ID</label>
             <input
               id="identifier"
               v-model="formData.identifier"
@@ -337,12 +339,12 @@ onMounted(async () => {
             v-model="formData.notes"
             class="form-control"
             rows="3"
-            placeholder="Additional notes about the patient..."
+            :placeholder="`Additional notes about the ${patientLabelSingularLower}...`"
           ></textarea>
         </div>
 
         <div class="form-group">
-          <label for="preferredRoomId">Preferred Room</label>
+          <label for="preferredRoomId">Preferred {{ roomLabelSingular }}</label>
           <select id="preferredRoomId" v-model="formData.preferredRoomId" class="form-control">
             <option :value="null">No preference</option>
             <option v-for="room in availableRooms" :key="room.id" :value="room.id">
@@ -352,7 +354,7 @@ onMounted(async () => {
         </div>
 
         <div class="form-group">
-          <label>Required Room Capabilities</label>
+          <label>Required {{ roomLabelSingular }} Capabilities</label>
           <div class="capability-input">
             <input
               v-model="newCapability"

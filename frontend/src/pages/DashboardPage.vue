@@ -8,9 +8,11 @@ import { useSchedulesStore } from '@/stores/schedules'
 import { useAvailabilityStore } from '@/stores/availability'
 import { StatCard, Badge, Button, Alert } from '@/components/ui'
 import { PendingRequestsPanel } from '@/components/availability'
+import { useLabels } from '@/composables/useLabels'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { staffLabel, staffLabelSingular, patientLabel, patientLabelSingular } = useLabels()
 const staffStore = useStaffStore()
 const patientsStore = usePatientsStore()
 const schedulesStore = useSchedulesStore()
@@ -121,13 +123,13 @@ onMounted(async () => {
       <div class="stats-grid">
         <StatCard
           :value="stats.activeTherapists"
-          label="Active Therapists"
+          :label="`Active ${staffLabel}`"
           icon="users"
           color="blue"
         />
         <StatCard
           :value="stats.activePatients"
-          label="Active Patients"
+          :label="`Active ${patientLabel}`"
           icon="patients"
           color="green"
         />
@@ -184,11 +186,11 @@ onMounted(async () => {
                   <strong>{{ currentWeekSchedule.sessions?.length || 0 }}</strong>
                 </div>
                 <div class="summary-row">
-                  <span>Therapists</span>
+                  <span>{{ staffLabel }}</span>
                   <strong>{{ stats.activeTherapists }}</strong>
                 </div>
                 <div class="summary-row">
-                  <span>Patients</span>
+                  <span>{{ patientLabel }}</span>
                   <strong>{{ stats.activePatients }}</strong>
                 </div>
               </div>
@@ -222,13 +224,13 @@ onMounted(async () => {
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                 </svg>
-                Add New Staff
+                Add New {{ staffLabelSingular }}
               </RouterLink>
               <RouterLink to="/app/patients" class="btn btn-outline quick-action-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                 </svg>
-                Add New Patient
+                Add New {{ patientLabelSingular }}
               </RouterLink>
             </div>
           </div>

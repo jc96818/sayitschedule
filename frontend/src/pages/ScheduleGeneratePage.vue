@@ -6,8 +6,10 @@ import { useStaffStore } from '@/stores/staff'
 import { usePatientsStore } from '@/stores/patients'
 import { useRulesStore } from '@/stores/rules'
 import { Button, Alert, Badge, StatCard } from '@/components/ui'
+import { useLabels } from '@/composables/useLabels'
 
 const router = useRouter()
+const { staffLabel, patientLabel, patientLabelSingular, staffLabelSingular } = useLabels()
 const schedulesStore = useSchedulesStore()
 const staffStore = useStaffStore()
 const patientsStore = usePatientsStore()
@@ -226,7 +228,7 @@ onMounted(() => {
               </div>
               <div>
                 <div class="summary-value">{{ staffStore.totalCount || '...' }}</div>
-                <div class="summary-label">Active Therapists</div>
+                <div class="summary-label">Active {{ staffLabel }}</div>
               </div>
             </div>
 
@@ -238,7 +240,7 @@ onMounted(() => {
               </div>
               <div>
                 <div class="summary-value">{{ patientsStore.totalCount || '...' }}</div>
-                <div class="summary-label">Active Patients</div>
+                <div class="summary-label">Active {{ patientLabel }}</div>
               </div>
             </div>
 
@@ -318,13 +320,13 @@ onMounted(() => {
               />
               <StatCard
                 :value="generationStats?.patientsScheduled || 0"
-                label="Patients Scheduled"
+                :label="`${patientLabel} Scheduled`"
                 icon="patients"
                 color="green"
               />
               <StatCard
                 :value="generationStats?.therapistsUsed || 0"
-                label="Therapists Assigned"
+                :label="`${staffLabel} Assigned`"
                 icon="staff"
                 color="yellow"
               />
@@ -357,8 +359,8 @@ onMounted(() => {
                       :key="session.id"
                       :class="['calendar-event', getTherapistColor(session)]"
                     >
-                      <div class="therapist">{{ session.therapistName || 'Therapist' }}</div>
-                      <div class="patient">{{ session.patientName || 'Patient' }}</div>
+                      <div class="therapist">{{ session.therapistName || staffLabelSingular }}</div>
+                      <div class="patient">{{ session.patientName || patientLabelSingular }}</div>
                     </div>
                   </div>
                 </template>

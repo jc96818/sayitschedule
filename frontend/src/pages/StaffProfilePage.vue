@@ -5,9 +5,11 @@ import { useStaffStore } from '@/stores/staff'
 import { useAvailabilityStore } from '@/stores/availability'
 import { Modal, Alert, Badge, Button, Toggle } from '@/components/ui'
 import { AvailabilityCalendar, TimeOffRequestModal } from '@/components/availability'
+import { useLabels } from '@/composables/useLabels'
 import type { Staff, DefaultHours, StaffAvailability } from '@/types'
 
 const route = useRoute()
+const { staffLabel, staffLabelSingular, staffLabelSingularLower, certificationLabel } = useLabels()
 const router = useRouter()
 const staffStore = useStaffStore()
 const availabilityStore = useAvailabilityStore()
@@ -138,7 +140,7 @@ async function handleToggleStatus() {
 async function handleDelete() {
   if (!staff.value) return
 
-  if (confirm('Are you sure you want to delete this staff member? This action cannot be undone.')) {
+  if (confirm(`Are you sure you want to delete this ${staffLabelSingularLower.value}? This action cannot be undone.`)) {
     try {
       await staffStore.deleteStaff(staff.value.id)
       router.push('/app/staff')
@@ -186,10 +188,10 @@ onMounted(async () => {
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
-          Back to Staff
+          Back to {{ staffLabel }}
         </RouterLink>
         <div class="title-row">
-          <h2>{{ staff?.name || 'Staff Profile' }}</h2>
+          <h2>{{ staff?.name || `${staffLabelSingular} Profile` }}</h2>
           <Badge v-if="staff" :variant="staff.status === 'active' ? 'success' : 'secondary'">
             {{ staff.status === 'active' ? 'Active' : 'Inactive' }}
           </Badge>
@@ -220,16 +222,16 @@ onMounted(async () => {
       <!-- Loading State -->
       <div v-if="loading" class="card">
         <div class="card-body text-center">
-          <p class="text-muted">Loading staff profile...</p>
+          <p class="text-muted">Loading {{ staffLabelSingularLower }} profile...</p>
         </div>
       </div>
 
       <!-- Not Found State -->
       <div v-else-if="!staff" class="card">
         <div class="card-body text-center">
-          <p class="text-muted">Staff member not found.</p>
+          <p class="text-muted">{{ staffLabelSingular }} not found.</p>
           <RouterLink to="/app/staff" class="btn btn-primary" style="margin-top: 16px;">
-            Return to Staff List
+            Return to {{ staffLabel }} List
           </RouterLink>
         </div>
       </div>
@@ -281,7 +283,7 @@ onMounted(async () => {
         <!-- Certifications -->
         <div class="card">
           <div class="card-header">
-            <h3>Certifications</h3>
+            <h3>{{ certificationLabel }}</h3>
           </div>
           <div class="card-body">
             <div v-if="staff.certifications && staff.certifications.length > 0" class="cert-list">
@@ -338,7 +340,7 @@ onMounted(async () => {
     </div>
 
     <!-- Edit Modal -->
-    <Modal v-model="showEditModal" title="Edit Staff Profile" size="lg">
+    <Modal v-model="showEditModal" :title="`Edit ${staffLabelSingular} Profile`" size="lg">
       <form @submit.prevent="handleSave">
         <div class="form-row">
           <div class="form-group">

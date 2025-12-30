@@ -3,11 +3,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoomsStore } from '@/stores/rooms'
 import { Modal, Alert, Badge, Button, Toggle } from '@/components/ui'
+import { useLabels } from '@/composables/useLabels'
 import type { Room } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const roomsStore = useRoomsStore()
+const { roomLabel, roomLabelSingular, roomLabelSingularLower, equipmentLabel } = useLabels()
 
 const roomId = route.params.id as string
 const loading = ref(true)
@@ -71,7 +73,7 @@ async function handleToggleStatus() {
 async function handleDelete() {
   if (!room.value) return
 
-  if (confirm('Are you sure you want to delete this room? This action cannot be undone.')) {
+  if (confirm(`Are you sure you want to delete this ${roomLabelSingularLower.value}? This action cannot be undone.`)) {
     try {
       await roomsStore.deleteRoom(room.value.id)
       router.push('/app/rooms')
@@ -113,10 +115,10 @@ const capabilitySuggestions = [
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
-          Back to Rooms
+          Back to {{ roomLabel }}
         </RouterLink>
         <div class="title-row">
-          <h2>{{ room?.name || 'Room Profile' }}</h2>
+          <h2>{{ room?.name || `${roomLabelSingular} Profile` }}</h2>
           <Badge v-if="room" :variant="room.status === 'active' ? 'success' : 'secondary'">
             {{ room.status === 'active' ? 'Active' : 'Inactive' }}
           </Badge>
@@ -127,7 +129,7 @@ const capabilitySuggestions = [
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
-          Edit Room
+          Edit {{ roomLabelSingular }}
         </Button>
         <Button variant="danger" @click="handleDelete">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
@@ -147,16 +149,16 @@ const capabilitySuggestions = [
       <!-- Loading State -->
       <div v-if="loading" class="card">
         <div class="card-body text-center">
-          <p class="text-muted">Loading room details...</p>
+          <p class="text-muted">Loading {{ roomLabelSingularLower }} details...</p>
         </div>
       </div>
 
       <!-- Not Found State -->
       <div v-else-if="!room" class="card">
         <div class="card-body text-center">
-          <p class="text-muted">Room not found.</p>
+          <p class="text-muted">{{ roomLabelSingular }} not found.</p>
           <RouterLink to="/app/rooms" class="btn btn-primary" style="margin-top: 16px;">
-            Return to Room List
+            Return to {{ roomLabel }} List
           </RouterLink>
         </div>
       </div>
@@ -166,7 +168,7 @@ const capabilitySuggestions = [
         <!-- Room Information -->
         <div class="card">
           <div class="card-header">
-            <h3>Room Information</h3>
+            <h3>{{ roomLabelSingular }} Information</h3>
           </div>
           <div class="card-body">
             <div class="room-icon-large">
@@ -177,7 +179,7 @@ const capabilitySuggestions = [
 
             <div class="info-grid">
               <div class="info-item">
-                <label>Room Name</label>
+                <label>{{ roomLabelSingular }} Name</label>
                 <p>{{ room.name }}</p>
               </div>
               <div class="info-item">
@@ -206,7 +208,7 @@ const capabilitySuggestions = [
         <!-- Capabilities -->
         <div class="card">
           <div class="card-header">
-            <h3>Capabilities & Equipment</h3>
+            <h3>Capabilities & {{ equipmentLabel }}</h3>
           </div>
           <div class="card-body">
             <div v-if="room.capabilities && room.capabilities.length > 0" class="capability-list">
@@ -217,17 +219,17 @@ const capabilitySuggestions = [
                 {{ cap.replace(/_/g, ' ') }}
               </div>
             </div>
-            <p v-else class="text-muted">No capabilities configured for this room.</p>
+            <p v-else class="text-muted">No capabilities configured for this {{ roomLabelSingularLower }}.</p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Edit Modal -->
-    <Modal v-model="showEditModal" title="Edit Room" size="md">
+    <Modal v-model="showEditModal" :title="`Edit ${roomLabelSingular}`" size="md">
       <form @submit.prevent="handleSave">
         <div class="form-group">
-          <label for="name">Room Name</label>
+          <label for="name">{{ roomLabelSingular }} Name</label>
           <input
             id="name"
             v-model="formData.name"
