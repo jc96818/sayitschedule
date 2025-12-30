@@ -12,7 +12,6 @@ import {
   parseVoiceCommand,
   parsePatientCommand,
   parseStaffCommand,
-  parseRuleCommand,
   parseRoomCommand,
   parseMultipleRulesCommand,
   type OrganizationLabels
