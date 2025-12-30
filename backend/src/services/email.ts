@@ -71,6 +71,17 @@ interface UserInvitationData {
   invitedByName: string
 }
 
+interface LeadNotificationData {
+  id: string
+  name: string
+  email: string
+  company?: string | null
+  phone?: string | null
+  role?: string | null
+  message?: string | null
+  createdAt: Date
+}
+
 /**
  * Send an email using AWS SES
  */
@@ -499,10 +510,94 @@ If you have questions, please contact your administrator.
   return sendEmail(user.email, subject, htmlBody, textBody)
 }
 
+/**
+ * Send notification to sales team when a new lead is submitted
+ */
+export async function sendLeadNotification(
+  lead: LeadNotificationData
+): Promise<boolean> {
+  const SALES_EMAIL = process.env.SALES_EMAIL || 'sales@sayitschedule.com'
+  const subject = `New Lead: ${lead.name}${lead.company ? ` from ${lead.company}` : ''}`
+
+  const createdAt = formatDate(lead.createdAt)
+
+  const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #2563eb; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background-color: #f9fafb; }
+    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
+    .detail-row { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+    .detail-row:last-child { border-bottom: none; }
+    .label { font-weight: bold; color: #6b7280; display: inline-block; width: 100px; }
+    .message-box { background-color: white; padding: 16px; border-radius: 8px; margin-top: 16px; border-left: 4px solid #2563eb; }
+    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>New Lead Received</h1>
+    </div>
+    <div class="content">
+      <p>A new lead has been submitted from the landing page.</p>
+      <div class="details">
+        <div class="detail-row">
+          <span class="label">Name:</span> ${lead.name}
+        </div>
+        <div class="detail-row">
+          <span class="label">Email:</span> <a href="mailto:${lead.email}">${lead.email}</a>
+        </div>
+        ${lead.company ? `<div class="detail-row"><span class="label">Company:</span> ${lead.company}</div>` : ''}
+        ${lead.phone ? `<div class="detail-row"><span class="label">Phone:</span> <a href="tel:${lead.phone}">${lead.phone}</a></div>` : ''}
+        ${lead.role ? `<div class="detail-row"><span class="label">Role:</span> ${lead.role}</div>` : ''}
+        <div class="detail-row">
+          <span class="label">Submitted:</span> ${createdAt}
+        </div>
+      </div>
+      ${lead.message ? `<div class="message-box"><strong>Message:</strong><br>${lead.message}</div>` : ''}
+    </div>
+    <div class="footer">
+      <p>This lead was captured from Say It Schedule landing page.</p>
+      <p>Lead ID: ${lead.id}</p>
+    </div>
+  </div>
+</body>
+</html>
+`
+
+  const textBody = `
+New Lead Received
+
+A new lead has been submitted from the landing page.
+
+Details:
+- Name: ${lead.name}
+- Email: ${lead.email}
+${lead.company ? `- Company: ${lead.company}` : ''}
+${lead.phone ? `- Phone: ${lead.phone}` : ''}
+${lead.role ? `- Role: ${lead.role}` : ''}
+- Submitted: ${createdAt}
+${lead.message ? `\nMessage:\n${lead.message}` : ''}
+
+---
+This lead was captured from Say It Schedule landing page.
+Lead ID: ${lead.id}
+`
+
+  return sendEmail(SALES_EMAIL, subject, htmlBody, textBody)
+}
+
 export const emailService = {
   sendSchedulePublishedNotification,
   sendTimeOffRequestSubmitted,
   sendTimeOffReviewed,
   sendUserInvitation,
+  sendLeadNotification,
   sendEmail
 }

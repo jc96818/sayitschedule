@@ -783,4 +783,78 @@ export const baaService = {
   }
 }
 
+// Lead Types
+export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'closed'
+
+export interface Lead {
+  id: string
+  name: string
+  email: string
+  company?: string | null
+  phone?: string | null
+  role?: string | null
+  message?: string | null
+  status: LeadStatus
+  source: string
+  notes?: string | null
+  convertedAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LeadSubmission {
+  name: string
+  email: string
+  company?: string
+  phone?: string
+  role?: string
+  message?: string
+}
+
+export interface LeadStats {
+  total: number
+  byStatus: Record<LeadStatus, number>
+}
+
+// Lead Service (public - no auth required)
+export const leadService = {
+  async submit(lead: LeadSubmission): Promise<{ success: boolean; message: string }> {
+    const { data } = await api.post('/leads/submit', lead)
+    return data
+  }
+}
+
+// Super Admin Lead Service
+export const superAdminLeadService = {
+  async list(params?: {
+    page?: number
+    limit?: number
+    search?: string
+    status?: LeadStatus
+  }): Promise<PaginatedResponse<Lead>> {
+    const { data } = await api.get('/leads', { params })
+    return data
+  },
+
+  async get(id: string): Promise<ApiResponse<Lead>> {
+    const { data } = await api.get(`/leads/${id}`)
+    return data
+  },
+
+  async update(id: string, updates: { status?: LeadStatus; notes?: string | null }): Promise<ApiResponse<Lead>> {
+    const { data } = await api.put(`/leads/${id}`, updates)
+    return data
+  },
+
+  async delete(id: string): Promise<{ success: boolean }> {
+    const { data } = await api.delete(`/leads/${id}`)
+    return data
+  },
+
+  async getStats(): Promise<ApiResponse<LeadStats>> {
+    const { data } = await api.get('/leads/stats/counts')
+    return data
+  }
+}
+
 export default api

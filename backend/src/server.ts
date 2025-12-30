@@ -25,6 +25,7 @@ import { accountRoutes } from './routes/account.js'
 import { dataManagementRoutes } from './routes/data-management.js'
 import { baaRoutes } from './routes/baa.js'
 import { staffAvailabilityRoutes, availabilityAdminRoutes } from './routes/staffAvailability.js'
+import { leadRoutes } from './routes/leads.js'
 import { organizationMiddleware } from './middleware/organization.js'
 import { checkDbHealth } from './db/index.js'
 import { getJwtExpiresIn } from './config/security.js'
@@ -87,6 +88,7 @@ async function start() {
   await server.register(accountRoutes, { prefix: '/api/account' })
   await server.register(dataManagementRoutes, { prefix: '/api/data-management' })
   await server.register(baaRoutes, { prefix: '/api/baa' })
+  await server.register(leadRoutes, { prefix: '/api/leads' })
 
   // Health check - basic (for load balancer)
   server.get('/api/health', async () => {

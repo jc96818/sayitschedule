@@ -199,3 +199,9 @@ variable "app_url" {
   type        = string
   default     = "https://sayitschedule.com"
 }
+
+variable "sales_email" {
+  description = "Email address to receive lead notifications from the landing page"
+  type        = string
+  default     = "sales@sayitschedule.com"
+}

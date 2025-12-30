@@ -4,6 +4,12 @@ import { consumeAuthTokenFromUrl, getSubdomain, isAdminSubdomain, buildSubdomain
 
 const routes: RouteRecordRaw[] = [
   {
+    path: '/welcome',
+    name: 'landing',
+    component: () => import('@/pages/LandingPage.vue'),
+    meta: { requiresAuth: false, isPublic: true }
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/pages/LoginPage.vue'),
@@ -132,6 +138,11 @@ const routes: RouteRecordRaw[] = [
         path: 'baa',
         name: 'super-admin-baa',
         component: () => import('@/pages/SuperAdminBaaPage.vue')
+      },
+      {
+        path: 'leads',
+        name: 'super-admin-leads',
+        component: () => import('@/pages/SuperAdminLeadsPage.vue')
       }
     ]
   }
@@ -154,8 +165,8 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
-  // Redirect to dashboard if already logged in and going to login
-  if (to.name === 'login' && token) {
+  // Redirect to dashboard if already logged in and going to login or landing
+  if ((to.name === 'login' || to.name === 'landing') && token) {
     next({ name: 'dashboard' })
     return
   }

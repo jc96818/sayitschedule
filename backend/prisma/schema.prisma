@@ -336,6 +336,37 @@ model CustomHoliday {
   @@map("custom_holidays")
 }
 
+// Lead Status for marketing lead tracking
+enum LeadStatus {
+  new
+  contacted
+  qualified
+  converted
+  closed
+}
+
+// Leads (captured from landing page)
+model Lead {
+  id          String     @id @default(cuid())
+  name        String     @db.VarChar(255)
+  email       String     @db.VarChar(255)
+  company     String?    @db.VarChar(255)
+  phone       String?    @db.VarChar(50)
+  role        String?    @db.VarChar(100)
+  message     String?
+  status      LeadStatus @default(new)
+  source      String     @default("landing_page") @db.VarChar(50)
+  notes       String?
+  convertedAt DateTime?  @map("converted_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@map("leads")
+}
+
 // BAA (Business Associate Agreement)
 // Tracks HIPAA Business Associate Agreements per organization
 model BaaAgreement {
