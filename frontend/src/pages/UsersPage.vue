@@ -15,12 +15,14 @@ const roleFilter = ref<UserRole | ''>('')
 // Add/Edit modal
 const showModal = ref(false)
 const isEditing = ref(false)
-const formData = ref<Partial<User> & { password?: string }>({
+const formData = ref<Partial<User>>({
   name: '',
   email: '',
-  role: 'staff',
-  password: ''
+  role: 'staff'
 })
+
+// Success message for invitation sent
+const successMessage = ref<string | null>(null)
 
 // Reset password modal
 const showResetPasswordModal = ref(false)
@@ -76,8 +78,7 @@ function openAddModal() {
   formData.value = {
     name: '',
     email: '',
-    role: 'staff',
-    password: ''
+    role: 'staff'
   }
   showModal.value = true
 }
@@ -96,14 +97,51 @@ function openEditModal(user: User) {
 async function handleSubmit() {
   try {
     if (isEditing.value && formData.value.id) {
-      const { id, password, ...updateData } = formData.value
+      const { id, ...updateData } = formData.value
       await usersStore.updateUser(id, updateData)
     } else {
       await usersStore.createUser(formData.value)
+      successMessage.value = `Invitation sent to ${formData.value.email}`
+      setTimeout(() => { successMessage.value = null }, 5000)
     }
     showModal.value = false
   } catch (error) {
     console.error('Failed to save user:', error)
+  }
+}
+
+function formatInvitationExpiry(expiresAt: string | null | undefined): string {
+  if (!expiresAt) return ''
+  const expiry = new Date(expiresAt)
+  const now = new Date()
+  const diffMs = expiry.getTime() - now.getTime()
+
+  if (diffMs <= 0) return 'Expired'
+
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  if (diffHours < 1) {
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+    return `Expires in ${diffMinutes}m`
+  }
+  if (diffHours < 24) return `Expires in ${diffHours}h`
+  const diffDays = Math.floor(diffHours / 24)
+  return `Expires in ${diffDays}d`
+}
+
+function isInvitationExpired(expiresAt: string | null | undefined): boolean {
+  if (!expiresAt) return true
+  return new Date(expiresAt).getTime() <= Date.now()
+}
+
+async function handleResendInvite(user: User) {
+  if (!confirm(`Resend invitation to ${user.name}?`)) return
+
+  try {
+    await usersStore.resendInvite(user.id)
+    successMessage.value = `Invitation resent to ${user.email}`
+    setTimeout(() => { successMessage.value = null }, 5000)
+  } catch (error) {
+    console.error('Failed to resend invite:', error)
   }
 }
 
@@ -170,12 +208,17 @@ onMounted(() => {
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          Add User
+          Invite User
         </Button>
       </div>
     </header>
 
     <div class="page-content">
+      <!-- Success Alert -->
+      <Alert v-if="successMessage" variant="success" class="mb-3" dismissible @dismiss="successMessage = null">
+        {{ successMessage }}
+      </Alert>
+
       <!-- Error Alert -->
       <Alert v-if="usersStore.error" variant="danger" class="mb-3" dismissible @dismiss="usersStore.error = null">
         {{ usersStore.error }}
@@ -223,6 +266,7 @@ onMounted(() => {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Role</th>
+                <th>Status</th>
                 <th>Last Login</th>
                 <th>Actions</th>
               </tr>
@@ -246,6 +290,16 @@ onMounted(() => {
                     {{ roleLabels[user.role] }}
                   </Badge>
                 </td>
+                <td>
+                  <div class="status-cell">
+                    <Badge :variant="user.status === 'active' ? 'success' : 'warning'">
+                      {{ user.status === 'active' ? 'Active' : 'Pending' }}
+                    </Badge>
+                    <span v-if="user.status === 'pending'" class="expiry-text" :class="{ expired: isInvitationExpired(user.invitationExpiresAt) }">
+                      {{ formatInvitationExpiry(user.invitationExpiresAt) }}
+                    </span>
+                  </div>
+                </td>
                 <td>{{ formatDate(user.lastLogin) }}</td>
                 <td>
                   <div class="action-buttons">
@@ -258,7 +312,15 @@ onMounted(() => {
                       Edit
                     </Button>
                     <Button
-                      v-if="canManageUser(user)"
+                      v-if="canManageUser(user) && user.status === 'pending'"
+                      size="sm"
+                      variant="outline"
+                      @click="handleResendInvite(user)"
+                    >
+                      Resend Invite
+                    </Button>
+                    <Button
+                      v-if="canManageUser(user) && user.status === 'active'"
                       size="sm"
                       variant="outline"
                       @click="openResetPasswordModal(user.id)"
@@ -283,7 +345,7 @@ onMounted(() => {
     </div>
 
     <!-- Add/Edit User Modal -->
-    <Modal v-model="showModal" :title="isEditing ? 'Edit User' : 'Add User'" size="md">
+    <Modal v-model="showModal" :title="isEditing ? 'Edit User' : 'Invite User'" size="md">
       <form @submit.prevent="handleSubmit">
         <div class="form-group">
           <label for="name">Full Name</label>
@@ -316,17 +378,11 @@ onMounted(() => {
           </select>
         </div>
 
-        <div v-if="!isEditing" class="form-group">
-          <label for="password">Password</label>
-          <input
-            id="password"
-            v-model="formData.password"
-            type="password"
-            class="form-control"
-            minlength="8"
-            required
-          />
-          <small class="text-muted">Minimum 8 characters</small>
+        <div v-if="!isEditing" class="invite-notice">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          <span>An email will be sent with a link to set their password</span>
         </div>
 
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
@@ -334,7 +390,7 @@ onMounted(() => {
             Cancel
           </Button>
           <Button type="submit" variant="primary" :loading="usersStore.loading">
-            {{ isEditing ? 'Save Changes' : 'Create User' }}
+            {{ isEditing ? 'Save Changes' : 'Send Invitation' }}
           </Button>
         </div>
       </form>
@@ -416,5 +472,37 @@ onMounted(() => {
 .action-buttons {
   display: flex;
   gap: 8px;
+}
+
+.status-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.expiry-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.expiry-text.expired {
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.invite-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.invite-notice svg {
+  flex-shrink: 0;
+  color: var(--primary-color);
 }
 </style>

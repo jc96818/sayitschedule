@@ -141,6 +141,22 @@ export const useUsersStore = defineStore('users', () => {
     }
   }
 
+  async function resendInvite(id: string) {
+    loading.value = true
+    error.value = null
+    try {
+      await api.post(`/users/${id}/resend-invite`)
+      // Refresh the user list to get updated invitation expiry
+      await fetchUsers()
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string; error?: string } }; message?: string }
+      error.value = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to resend invitation'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   function clearCurrent() {
     currentUser.value = null
   }
@@ -163,6 +179,7 @@ export const useUsersStore = defineStore('users', () => {
     updateUser,
     deleteUser,
     resetPassword,
+    resendInvite,
     clearCurrent
   }
 })

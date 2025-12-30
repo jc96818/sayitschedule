@@ -27,13 +27,18 @@ export interface MfaUpdate {
 }
 
 export type { User }
-export type UserWithoutPassword = Omit<User, 'passwordHash' | 'mfaSecret' | 'mfaBackupCodes'>
+export type UserWithoutPassword = Omit<User, 'passwordHash' | 'mfaSecret' | 'mfaBackupCodes'> & {
+  status: 'pending' | 'active'
+}
 export type UserWithMfaStatus = UserWithoutPassword & { mfaEnabled: boolean }
 
 export class UserRepository {
   private sanitizeUser(user: User): UserWithoutPassword {
     const { passwordHash, mfaSecret, mfaBackupCodes, ...rest } = user
-    return rest
+    return {
+      ...rest,
+      status: passwordHash ? 'active' : 'pending'
+    }
   }
 
   async findAll(

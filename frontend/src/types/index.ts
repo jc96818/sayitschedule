@@ -26,6 +26,8 @@ export interface User {
   lastLogin: string | null
   mfaEnabled?: boolean
   passwordChangedAt?: string | null
+  status: 'pending' | 'active'
+  invitationExpiresAt?: string | null
 }
 
 // Staff

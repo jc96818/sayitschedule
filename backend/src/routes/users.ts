@@ -45,7 +45,26 @@ export async function userRoutes(fastify: FastifyInstance) {
       role
     })
 
-    return result
+    // For pending users, fetch invitation expiry information
+    const pendingUserIds = result.data
+      .filter(u => u.status === 'pending')
+      .map(u => u.id)
+
+    const invitationTokens = await passwordResetTokenRepository.findActiveInvitationsByUserIds(pendingUserIds)
+
+    // Create a map of userId -> expiresAt
+    const expiryMap = new Map(invitationTokens.map(t => [t.userId, t.expiresAt]))
+
+    // Merge invitation expiry into response
+    const dataWithExpiry = result.data.map(user => ({
+      ...user,
+      invitationExpiresAt: user.status === 'pending' ? expiryMap.get(user.id) || null : null
+    }))
+
+    return {
+      ...result,
+      data: dataWithExpiry
+    }
   })
 
   // Get single user

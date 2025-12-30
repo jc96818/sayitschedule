@@ -147,6 +147,32 @@ export class PasswordResetTokenRepository {
       orderBy: { createdAt: 'desc' }
     })
   }
+
+  /**
+   * Find active invitation tokens for multiple users
+   * Returns the most recent unused invitation token for each user
+   */
+  async findActiveInvitationsByUserIds(userIds: string[]): Promise<PasswordResetToken[]> {
+    if (userIds.length === 0) return []
+
+    // Get the most recent invitation token for each user that hasn't been used
+    const tokens = await prisma.passwordResetToken.findMany({
+      where: {
+        userId: { in: userIds },
+        type: 'invitation',
+        usedAt: null
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Return only the most recent token per user
+    const seenUsers = new Set<string>()
+    return tokens.filter(token => {
+      if (seenUsers.has(token.userId)) return false
+      seenUsers.add(token.userId)
+      return true
+    })
+  }
 }
 
 export const passwordResetTokenRepository = new PasswordResetTokenRepository()
