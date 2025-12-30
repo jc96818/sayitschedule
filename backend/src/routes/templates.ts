@@ -90,30 +90,50 @@ export async function templateRoutes(fastify: FastifyInstance) {
 
   // Create template (super admin only)
   fastify.post('/', { preHandler: requireSuperAdmin() }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = createTemplateSchema.parse(request.body)
-    const ctx = request.ctx.user!
+    try {
+      const body = createTemplateSchema.parse(request.body)
+      const ctx = request.ctx.user!
 
-    const template = await templateRepository.create(body)
+      const template = await templateRepository.create(body)
 
-    await logAudit(ctx.userId, 'create', 'business_type_template', template.id, null, body)
+      await logAudit(ctx.userId, 'create', 'business_type_template', template.id, null, body)
 
-    return reply.status(201).send({ data: template })
+      return reply.status(201).send({ data: template })
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          error: 'Validation failed',
+          details: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message }))
+        })
+      }
+      throw error
+    }
   })
 
   // Update template (super admin only)
   fastify.put('/:id', { preHandler: requireSuperAdmin() }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { id } = request.params as { id: string }
-    const body = updateTemplateSchema.parse(request.body)
-    const ctx = request.ctx.user!
+    try {
+      const { id } = request.params as { id: string }
+      const body = updateTemplateSchema.parse(request.body)
+      const ctx = request.ctx.user!
 
-    const template = await templateRepository.update(id, body)
-    if (!template) {
-      return reply.status(404).send({ error: 'Template not found' })
+      const template = await templateRepository.update(id, body)
+      if (!template) {
+        return reply.status(404).send({ error: 'Template not found' })
+      }
+
+      await logAudit(ctx.userId, 'update', 'business_type_template', id, null, body)
+
+      return { data: template }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          error: 'Validation failed',
+          details: error.errors.map((e) => ({ field: e.path.join('.'), message: e.message }))
+        })
+      }
+      throw error
     }
-
-    await logAudit(ctx.userId, 'update', 'business_type_template', id, null, body)
-
-    return { data: template }
   })
 
   // Delete template (soft delete - super admin only)
