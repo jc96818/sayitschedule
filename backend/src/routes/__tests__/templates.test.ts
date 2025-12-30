@@ -122,7 +122,10 @@ describe('Template Routes', () => {
     it('returns list of templates with organization counts', async () => {
       vi.mocked(templateRepository.findAll).mockResolvedValue({
         data: [mockTemplate],
-        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+        page: 1,
+        limit: 50,
+        total: 1,
+        totalPages: 1
       })
       vi.mocked(templateRepository.getOrganizationCount).mockResolvedValue(5)
 
@@ -136,13 +139,16 @@ describe('Template Routes', () => {
       expect(body.data).toHaveLength(1)
       expect(body.data[0].name).toBe('ABA Therapy')
       expect(body.data[0].organizationCount).toBe(5)
-      expect(body.pagination.total).toBe(1)
+      expect(body.total).toBe(1)
     })
 
     it('filters by isActive parameter', async () => {
       vi.mocked(templateRepository.findAll).mockResolvedValue({
         data: [mockTemplate],
-        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+        page: 1,
+        limit: 50,
+        total: 1,
+        totalPages: 1
       })
       vi.mocked(templateRepository.getOrganizationCount).mockResolvedValue(0)
 
@@ -160,7 +166,10 @@ describe('Template Routes', () => {
     it('supports search parameter', async () => {
       vi.mocked(templateRepository.findAll).mockResolvedValue({
         data: [],
-        pagination: { page: 1, limit: 50, total: 0, totalPages: 0 }
+        page: 1,
+        limit: 50,
+        total: 0,
+        totalPages: 0
       })
 
       const response = await app.inject({
@@ -193,7 +202,10 @@ describe('Template Routes', () => {
     it('returns only active templates', async () => {
       vi.mocked(templateRepository.findAll).mockResolvedValue({
         data: [mockTemplate],
-        pagination: { page: 1, limit: 100, total: 1, totalPages: 1 }
+        page: 1,
+        limit: 100,
+        total: 1,
+        totalPages: 1
       })
 
       const response = await app.inject({
