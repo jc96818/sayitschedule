@@ -122,6 +122,25 @@ import { RuleCategory } from '@prisma/client'
 const rule = { category: RuleCategory.gender_pairing, ... }
 ```
 
+**Important**: When mocking repository methods that return `PaginatedResult<T>`, use the flat structure defined in `backend/src/repositories/base.ts`. Do not nest pagination fields inside a `pagination` object.
+
+```typescript
+// ❌ Wrong - nested pagination object
+vi.mocked(repository.findAll).mockResolvedValue({
+  data: [mockItem],
+  pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+})
+
+// ✅ Correct - flat structure matching PaginatedResult<T>
+vi.mocked(repository.findAll).mockResolvedValue({
+  data: [mockItem],
+  page: 1,
+  limit: 50,
+  total: 1,
+  totalPages: 1
+})
+```
+
 ## Database Schema
 
 See `/backend/prisma/schema.prisma` for the complete data model. Key entities:
