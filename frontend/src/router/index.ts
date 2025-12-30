@@ -28,6 +28,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/mfa-setup',
+    name: 'mfa-setup',
+    component: () => import('@/pages/FirstTimeMfaSetupPage.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/app/schedule/:id/print',
     name: 'schedule-print',
     component: () => import('@/pages/SchedulePrintPage.vue'),

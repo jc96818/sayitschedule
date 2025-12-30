@@ -81,6 +81,24 @@ export interface VerifyTokenResponse {
 export interface SetupPasswordResponse {
   success: boolean
   message: string
+  token?: string  // Not present if requiresMfaSetup is true
+  requiresMfaSetup?: boolean  // True for HIPAA orgs requiring MFA
+  mfaSetupToken?: string  // Token for first-time MFA setup flow
+  user: User
+  organization: Organization | null
+}
+
+// First-time MFA setup response types (for HIPAA compliance)
+export interface FirstTimeMfaSetupResponse {
+  qrCode: string
+  secret: string
+  otpauthUrl: string
+}
+
+export interface FirstTimeMfaVerifyResponse {
+  success: boolean
+  backupCodes: string[]
+  message: string
   token: string
   user: User
   organization: Organization | null
@@ -114,6 +132,17 @@ export const authService = {
 
   async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
     const { data } = await api.post<{ success: boolean; message: string }>('/auth/request-password-reset', { email })
+    return data
+  },
+
+  // First-time MFA setup for HIPAA compliance
+  async firstTimeMfaSetup(mfaSetupToken: string): Promise<FirstTimeMfaSetupResponse> {
+    const { data } = await api.post<FirstTimeMfaSetupResponse>('/auth/mfa/first-time-setup', { mfaSetupToken })
+    return data
+  },
+
+  async firstTimeMfaVerify(mfaSetupToken: string, code: string): Promise<FirstTimeMfaVerifyResponse> {
+    const { data } = await api.post<FirstTimeMfaVerifyResponse>('/auth/mfa/first-time-verify', { mfaSetupToken, code })
     return data
   }
 }

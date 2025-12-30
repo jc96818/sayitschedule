@@ -83,6 +83,8 @@ export class PasswordResetTokenRepository {
       email: string
       name: string
       organizationId: string | null
+      mfaRequired: boolean
+      mfaEnabled: boolean
       organization: { name: string; subdomain: string } | null
     }
   }) | null> {
@@ -101,6 +103,8 @@ export class PasswordResetTokenRepository {
             email: true,
             name: true,
             organizationId: true,
+            mfaRequired: true,
+            mfaEnabled: true,
             organization: {
               select: {
                 name: true,

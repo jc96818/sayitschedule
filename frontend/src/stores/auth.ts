@@ -84,6 +84,13 @@ export const useAuthStore = defineStore('auth', () => {
     organization.value = org
   }
 
+  function setAuthState(authToken: string, authUser: User, authOrg: Organization | null) {
+    token.value = authToken
+    user.value = authUser
+    organization.value = authOrg
+    localStorage.setItem('token', authToken)
+  }
+
   return {
     user,
     organization,
@@ -102,6 +109,7 @@ export const useAuthStore = defineStore('auth', () => {
     clearMfaState,
     logout,
     fetchCurrentUser,
-    setOrganizationContext
+    setOrganizationContext,
+    setAuthState
   }
 })

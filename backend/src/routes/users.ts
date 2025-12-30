@@ -100,13 +100,18 @@ export async function userRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Email already in use' })
     }
 
+    // Check if organization requires HIPAA compliance (MFA required)
+    const organization = await organizationRepository.findById(organizationId)
+    const mfaRequired = organization?.requiresHipaa ?? false
+
     // Create user (with or without password)
     const user = await userRepository.create({
       organizationId,
       email: body.email,
       password: body.password,  // May be undefined for invite flow
       name: body.name,
-      role: body.role
+      role: body.role,
+      mfaRequired  // Auto-set for HIPAA organizations
     })
 
     await logAudit(ctx.userId, 'create', 'user', user.id, organizationId, { email: body.email, name: body.name, role: body.role })
@@ -118,14 +123,11 @@ export async function userRoutes(fastify: FastifyInstance) {
         // Create invitation token
         const tokenRecord = await passwordResetTokenRepository.create(user.id, 'invitation')
 
-        // Get organization details for email
-        const organization = await organizationRepository.findById(organizationId)
-
         // Get inviter's name
         const inviter = await userRepository.findById(ctx.userId)
         const inviterName = inviter?.name || 'An administrator'
 
-        // Send invitation email
+        // Send invitation email (organization already fetched above)
         await sendUserInvitation({
           user: { email: body.email, name: body.name },
           organization: organization ? {

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN     "mfa_required" BOOLEAN NOT NULL DEFAULT false;

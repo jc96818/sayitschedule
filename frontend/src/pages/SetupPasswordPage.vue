@@ -91,11 +91,25 @@ async function handleSubmit() {
   try {
     const response = await authService.setupPassword(token, password.value)
 
-    // Store token - auth store will load user on next page load
-    localStorage.setItem('token', response.token)
+    // Check if MFA setup is required (HIPAA compliance)
+    if (response.requiresMfaSetup && response.mfaSetupToken) {
+      // Redirect to MFA setup page with the token
+      const orgName = response.organization?.name || 'Your organization'
+      router.push({
+        path: '/mfa-setup',
+        query: {
+          token: response.mfaSetupToken,
+          org: orgName
+        }
+      })
+      return
+    }
 
-    // Redirect to dashboard
-    router.push('/app')
+    // No MFA required - proceed with normal login
+    if (response.token) {
+      localStorage.setItem('token', response.token)
+      router.push('/app')
+    }
   } catch (error: unknown) {
     const err = error as { response?: { data?: { error?: string } } }
     formError.value = err.response?.data?.error || 'Failed to set password. Please try again.'

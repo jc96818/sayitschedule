@@ -11,6 +11,7 @@ export interface UserCreate {
   password?: string  // Optional for invite flow (user sets password later)
   name: string
   role: UserRole
+  mfaRequired?: boolean  // Set to true for HIPAA organizations
 }
 
 export interface UserUpdate {
@@ -108,7 +109,8 @@ export class UserRepository {
         email: data.email.toLowerCase(),
         passwordHash,
         name: data.name,
-        role: data.role
+        role: data.role,
+        mfaRequired: data.mfaRequired ?? false
       }
     })
 

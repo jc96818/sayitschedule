@@ -181,6 +181,14 @@ export async function accountRoutes(fastify: FastifyInstance) {
       return reply.status(404).send({ error: 'User not found' })
     }
 
+    // Check if MFA is required for this user (HIPAA compliance)
+    if (user.mfaRequired) {
+      return reply.status(403).send({
+        error: 'MFA cannot be disabled for your account. Your organization requires MFA for compliance.',
+        code: 'MFA_REQUIRED'
+      })
+    }
+
     // Verify password
     const isValid = await userRepository.verifyPassword(user, body.password)
     if (!isValid) {
