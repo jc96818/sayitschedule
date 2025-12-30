@@ -1,0 +1,386 @@
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
+import type { Schedule, StaffAvailability, Staff, Organization } from '@prisma/client'
+
+// Initialize SES client
+const sesClient = new SESClient({
+  region: process.env.AWS_REGION || 'us-east-1'
+})
+
+// Email configuration
+const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@sayitschedule.com'
+const EMAIL_ENABLED = process.env.EMAIL_ENABLED === 'true'
+const APP_URL = process.env.APP_URL || 'https://sayitschedule.com'
+
+export interface EmailRecipient {
+  email: string
+  name: string
+}
+
+interface SchedulePublishedData {
+  schedule: Schedule
+  organization: Organization
+  staff: Array<{ name: string; email: string | null }>
+}
+
+interface TimeOffRequestData {
+  availability: StaffAvailability
+  staff: Staff
+  organization: Organization
+}
+
+interface TimeOffReviewedData {
+  availability: StaffAvailability
+  staff: Staff
+  organization: Organization
+  approved: boolean
+  reviewerNotes?: string | null
+}
+
+/**
+ * Send an email using AWS SES
+ */
+async function sendEmail(
+  to: string | string[],
+  subject: string,
+  htmlBody: string,
+  textBody: string
+): Promise<boolean> {
+  if (!EMAIL_ENABLED) {
+    console.log(`[Email] Skipping email (disabled): ${subject}`)
+    return true
+  }
+
+  const recipients = Array.isArray(to) ? to : [to]
+  const validRecipients = recipients.filter(email => email && email.includes('@'))
+
+  if (validRecipients.length === 0) {
+    console.log(`[Email] No valid recipients for: ${subject}`)
+    return false
+  }
+
+  try {
+    const command = new SendEmailCommand({
+      Source: EMAIL_FROM,
+      Destination: {
+        ToAddresses: validRecipients
+      },
+      Message: {
+        Subject: {
+          Data: subject,
+          Charset: 'UTF-8'
+        },
+        Body: {
+          Html: {
+            Data: htmlBody,
+            Charset: 'UTF-8'
+          },
+          Text: {
+            Data: textBody,
+            Charset: 'UTF-8'
+          }
+        }
+      }
+    })
+
+    await sesClient.send(command)
+    console.log(`[Email] Sent: ${subject} to ${validRecipients.join(', ')}`)
+    return true
+  } catch (error) {
+    console.error(`[Email] Failed to send: ${subject}`, error)
+    return false
+  }
+}
+
+/**
+ * Format a date for display
+ */
+function formatDate(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  return d.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+/**
+ * Format a week start date for display
+ */
+function formatWeekStart(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  return d.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  })
+}
+
+// ========================
+// Email Template Functions
+// ========================
+
+/**
+ * Send schedule published notification to all staff
+ */
+export async function sendSchedulePublishedNotification(
+  data: SchedulePublishedData
+): Promise<void> {
+  const { schedule, organization, staff } = data
+  const weekStart = formatWeekStart(schedule.weekStartDate)
+  const subject = `[${organization.name}] Schedule Published for Week of ${weekStart}`
+
+  const staffEmails = staff
+    .filter(s => s.email)
+    .map(s => s.email as string)
+
+  if (staffEmails.length === 0) {
+    console.log('[Email] No staff with email addresses to notify')
+    return
+  }
+
+  const scheduleUrl = `${APP_URL}/${organization.subdomain}/schedule`
+
+  const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: ${organization.primaryColor || '#2563eb'}; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background-color: #f9fafb; }
+    .button { display: inline-block; background-color: ${organization.primaryColor || '#2563eb'}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 16px; }
+    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${organization.name}</h1>
+    </div>
+    <div class="content">
+      <h2>New Schedule Published</h2>
+      <p>A new schedule has been published for the week of <strong>${weekStart}</strong>.</p>
+      <p>Please log in to view your assignments and session details.</p>
+      <a href="${scheduleUrl}" class="button">View Schedule</a>
+    </div>
+    <div class="footer">
+      <p>This is an automated message from Say It Schedule.</p>
+      <p>If you have questions about your schedule, please contact your administrator.</p>
+    </div>
+  </div>
+</body>
+</html>
+`
+
+  const textBody = `
+${organization.name} - New Schedule Published
+
+A new schedule has been published for the week of ${weekStart}.
+
+Please log in to view your assignments and session details.
+
+View Schedule: ${scheduleUrl}
+
+---
+This is an automated message from Say It Schedule.
+If you have questions about your schedule, please contact your administrator.
+`
+
+  // Send to each staff member individually for privacy
+  for (const email of staffEmails) {
+    await sendEmail(email, subject, htmlBody, textBody)
+  }
+}
+
+/**
+ * Send time-off request submitted notification to admins
+ */
+export async function sendTimeOffRequestSubmitted(
+  data: TimeOffRequestData,
+  adminEmails: string[]
+): Promise<void> {
+  const { availability, staff, organization } = data
+  const requestDate = formatDate(availability.date)
+  const subject = `[${organization.name}] New Time-Off Request from ${staff.name}`
+
+  if (adminEmails.length === 0) {
+    console.log('[Email] No admin emails to notify')
+    return
+  }
+
+  const pendingUrl = `${APP_URL}/${organization.subdomain}/availability/pending`
+
+  let timeInfo = 'Full Day'
+  if (availability.startTime && availability.endTime) {
+    timeInfo = `${availability.startTime} - ${availability.endTime}`
+  }
+
+  const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: ${organization.primaryColor || '#2563eb'}; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background-color: #f9fafb; }
+    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
+    .detail-row { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+    .detail-row:last-child { border-bottom: none; }
+    .label { font-weight: bold; color: #6b7280; }
+    .button { display: inline-block; background-color: ${organization.primaryColor || '#2563eb'}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 16px; }
+    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${organization.name}</h1>
+    </div>
+    <div class="content">
+      <h2>New Time-Off Request</h2>
+      <p>A new time-off request has been submitted and requires your review.</p>
+      <div class="details">
+        <div class="detail-row">
+          <span class="label">Staff Member:</span> ${staff.name}
+        </div>
+        <div class="detail-row">
+          <span class="label">Date:</span> ${requestDate}
+        </div>
+        <div class="detail-row">
+          <span class="label">Time:</span> ${timeInfo}
+        </div>
+        ${availability.reason ? `<div class="detail-row"><span class="label">Reason:</span> ${availability.reason}</div>` : ''}
+      </div>
+      <a href="${pendingUrl}" class="button">Review Request</a>
+    </div>
+    <div class="footer">
+      <p>This is an automated message from Say It Schedule.</p>
+    </div>
+  </div>
+</body>
+</html>
+`
+
+  const textBody = `
+${organization.name} - New Time-Off Request
+
+A new time-off request has been submitted and requires your review.
+
+Details:
+- Staff Member: ${staff.name}
+- Date: ${requestDate}
+- Time: ${timeInfo}
+${availability.reason ? `- Reason: ${availability.reason}` : ''}
+
+Review Request: ${pendingUrl}
+
+---
+This is an automated message from Say It Schedule.
+`
+
+  await sendEmail(adminEmails, subject, htmlBody, textBody)
+}
+
+/**
+ * Send time-off request approved/rejected notification to staff
+ */
+export async function sendTimeOffReviewed(
+  data: TimeOffReviewedData
+): Promise<void> {
+  const { availability, staff, organization, approved, reviewerNotes } = data
+
+  if (!staff.email) {
+    console.log('[Email] Staff member has no email address')
+    return
+  }
+
+  const requestDate = formatDate(availability.date)
+  const status = approved ? 'Approved' : 'Denied'
+  const subject = `[${organization.name}] Time-Off Request ${status}`
+
+  let timeInfo = 'Full Day'
+  if (availability.startTime && availability.endTime) {
+    timeInfo = `${availability.startTime} - ${availability.endTime}`
+  }
+
+  const statusColor = approved ? '#10b981' : '#ef4444'
+  const statusIcon = approved ? '✓' : '✗'
+
+  const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: ${organization.primaryColor || '#2563eb'}; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background-color: #f9fafb; }
+    .status { font-size: 24px; font-weight: bold; color: ${statusColor}; text-align: center; padding: 20px; }
+    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
+    .detail-row { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+    .detail-row:last-child { border-bottom: none; }
+    .label { font-weight: bold; color: #6b7280; }
+    .notes { background-color: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 16px; }
+    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${organization.name}</h1>
+    </div>
+    <div class="content">
+      <div class="status">${statusIcon} Request ${status}</div>
+      <p>Your time-off request has been reviewed.</p>
+      <div class="details">
+        <div class="detail-row">
+          <span class="label">Date:</span> ${requestDate}
+        </div>
+        <div class="detail-row">
+          <span class="label">Time:</span> ${timeInfo}
+        </div>
+        ${availability.reason ? `<div class="detail-row"><span class="label">Reason:</span> ${availability.reason}</div>` : ''}
+      </div>
+      ${reviewerNotes ? `<div class="notes"><strong>Reviewer Notes:</strong> ${reviewerNotes}</div>` : ''}
+    </div>
+    <div class="footer">
+      <p>This is an automated message from Say It Schedule.</p>
+      <p>If you have questions, please contact your administrator.</p>
+    </div>
+  </div>
+</body>
+</html>
+`
+
+  const textBody = `
+${organization.name} - Time-Off Request ${status}
+
+Your time-off request has been reviewed.
+
+Details:
+- Date: ${requestDate}
+- Time: ${timeInfo}
+${availability.reason ? `- Reason: ${availability.reason}` : ''}
+- Status: ${status}
+${reviewerNotes ? `\nReviewer Notes: ${reviewerNotes}` : ''}
+
+---
+This is an automated message from Say It Schedule.
+If you have questions, please contact your administrator.
+`
+
+  await sendEmail(staff.email, subject, htmlBody, textBody)
+}
+
+export const emailService = {
+  sendSchedulePublishedNotification,
+  sendTimeOffRequestSubmitted,
+  sendTimeOffReviewed,
+  sendEmail
+}

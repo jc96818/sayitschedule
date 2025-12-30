@@ -41,6 +41,12 @@ enum RuleCategory {
   certification
 }
 
+enum AvailabilityStatus {
+  pending
+  approved
+  rejected
+}
+
 // BAA (Business Associate Agreement) status
 enum BaaStatus {
   not_started
@@ -244,7 +250,7 @@ model Session {
   @@map("sessions")
 }
 
-// Staff Availability
+// Staff Availability (includes time-off requests with approval workflow)
 model StaffAvailability {
   id        String   @id @default(cuid())
   staffId   String   @map("staff_id")
@@ -255,6 +261,18 @@ model StaffAvailability {
   endTime   String?  @map("end_time") @db.VarChar(5)
   reason    String?
 
+  // Request workflow fields
+  status          AvailabilityStatus @default(approved)
+  requestedAt     DateTime?          @map("requested_at")
+  requestedById   String?            @map("requested_by_id")
+  reviewedAt      DateTime?          @map("reviewed_at")
+  reviewedById    String?            @map("reviewed_by_id")
+  reviewerNotes   String?            @map("reviewer_notes")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([staffId, date], name: "staff_date_unique")
   @@map("staff_availability")
 }
 

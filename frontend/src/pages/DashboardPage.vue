@@ -5,15 +5,25 @@ import { useAuthStore } from '@/stores/auth'
 import { useStaffStore } from '@/stores/staff'
 import { usePatientsStore } from '@/stores/patients'
 import { useSchedulesStore } from '@/stores/schedules'
+import { useAvailabilityStore } from '@/stores/availability'
 import { StatCard, Badge, Button, Alert } from '@/components/ui'
+import { PendingRequestsPanel } from '@/components/availability'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const staffStore = useStaffStore()
 const patientsStore = usePatientsStore()
 const schedulesStore = useSchedulesStore()
+const availabilityStore = useAvailabilityStore()
 
 const loading = ref(true)
+
+const isAdmin = computed(() => {
+  const role = authStore.user?.role
+  return role === 'admin' || role === 'admin_assistant' || role === 'super_admin'
+})
+
+const pendingRequestsCount = computed(() => availabilityStore.pendingRequests.length)
 
 const stats = computed(() => ({
   activeTherapists: staffStore.totalCount,
@@ -75,11 +85,16 @@ function handleGenerateSchedule(_weekStart: string) {
 
 onMounted(async () => {
   loading.value = true
-  await Promise.all([
+  const fetchPromises = [
     staffStore.fetchStaff(),
     patientsStore.fetchPatients(),
     schedulesStore.fetchSchedules()
-  ])
+  ]
+  // Fetch pending requests for admins
+  if (isAdmin.value) {
+    fetchPromises.push(availabilityStore.fetchPending())
+  }
+  await Promise.all(fetchPromises)
   loading.value = false
 })
 </script>
@@ -218,6 +233,11 @@ onMounted(async () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Pending Time Off Requests (Admin only) -->
+      <div v-if="isAdmin && pendingRequestsCount > 0" class="mt-3">
+        <PendingRequestsPanel compact />
       </div>
 
       <!-- Upcoming Weeks -->

@@ -1,5 +1,6 @@
 export { useAuthStore } from './auth'
 export { useStaffStore } from './staff'
+export { useAvailabilityStore } from './availability'
 export { usePatientsStore } from './patients'
 export { useRulesStore } from './rules'
 export { useSchedulesStore } from './schedules'

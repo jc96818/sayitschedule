@@ -24,6 +24,7 @@ import { superAdminUserRoutes } from './routes/super-admin-users.js'
 import { accountRoutes } from './routes/account.js'
 import { dataManagementRoutes } from './routes/data-management.js'
 import { baaRoutes } from './routes/baa.js'
+import { staffAvailabilityRoutes, availabilityAdminRoutes } from './routes/staffAvailability.js'
 import { organizationMiddleware } from './middleware/organization.js'
 import { checkDbHealth } from './db/index.js'
 import { getJwtExpiresIn } from './config/security.js'
@@ -73,6 +74,8 @@ async function start() {
   await server.register(authRoutes, { prefix: '/api/auth' })
   await server.register(organizationRoutes, { prefix: '/api/organizations' })
   await server.register(staffRoutes, { prefix: '/api/staff' })
+  await server.register(staffAvailabilityRoutes, { prefix: '/api/staff' })
+  await server.register(availabilityAdminRoutes, { prefix: '/api/availability' })
   await server.register(patientRoutes, { prefix: '/api/patients' })
   await server.register(ruleRoutes, { prefix: '/api/rules' })
   await server.register(roomRoutes, { prefix: '/api/rooms' })

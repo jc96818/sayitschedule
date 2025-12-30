@@ -159,6 +159,27 @@ resource "aws_iam_role_policy" "ecs_bedrock" {
   })
 }
 
+# IAM policy for AWS SES (Email)
+resource "aws_iam_role_policy" "ecs_ses" {
+  count = var.email_enabled ? 1 : 0
+  name  = "${local.app_name}-ecs-ses-demo"
+  role  = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # ECR Repository
 resource "aws_ecr_repository" "app" {
   name                 = "${local.app_name}-demo"
@@ -231,7 +252,10 @@ resource "aws_ecs_task_definition" "app" {
         { name = "AUTH_LOGIN_MAX_PER_IP", value = tostring(var.auth_login_max_per_ip) },
         { name = "AUTH_LOGIN_MAX_PER_IP_EMAIL", value = tostring(var.auth_login_max_per_ip_email) },
         { name = "AUTH_VERIFY_MFA_MAX_PER_IP", value = tostring(var.auth_verify_mfa_max_per_ip) },
-        { name = "DEBUG_AI_REQUESTS", value = tostring(var.debug_ai_requests) }
+        { name = "DEBUG_AI_REQUESTS", value = tostring(var.debug_ai_requests) },
+        { name = "EMAIL_ENABLED", value = tostring(var.email_enabled) },
+        { name = "EMAIL_FROM", value = var.email_from },
+        { name = "APP_URL", value = var.app_url }
       ]
 
       secrets = concat(

@@ -185,7 +185,10 @@ export interface Room {
   updatedAt: string
 }
 
-// Staff Availability
+// Staff Availability Status
+export type AvailabilityStatus = 'pending' | 'approved' | 'rejected'
+
+// Staff Availability (includes time-off requests)
 export interface StaffAvailability {
   id: string
   staffId: string
@@ -194,6 +197,24 @@ export interface StaffAvailability {
   startTime: string | null
   endTime: string | null
   reason: string | null
+  // Request workflow fields
+  status: AvailabilityStatus
+  requestedAt: string | null
+  requestedById: string | null
+  reviewedAt: string | null
+  reviewedById: string | null
+  reviewerNotes: string | null
+  createdAt: string
+  updatedAt: string
+  // Joined fields (when fetching with staff)
+  staffName?: string
+  staffEmail?: string | null
+}
+
+// Staff availability with required staff info (for admin panel)
+export interface StaffAvailabilityWithStaff extends StaffAvailability {
+  staffName: string
+  staffEmail: string | null
 }
 
 // Audit Log

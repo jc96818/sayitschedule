@@ -10,6 +10,8 @@ import type {
   Room,
   Schedule,
   Session,
+  StaffAvailability,
+  AvailabilityStatus,
   ApiResponse,
   PaginatedResponse,
   MfaSetupResponse,
@@ -155,6 +157,99 @@ export const staffService = {
 
   async delete(id: string): Promise<void> {
     await api.delete(`/staff/${id}`)
+  }
+}
+
+// Staff Availability Service
+export const availabilityService = {
+  // Get availability for a specific staff member
+  async listByStaff(
+    staffId: string,
+    params?: { startDate?: string; endDate?: string; status?: AvailabilityStatus }
+  ): Promise<ApiResponse<StaffAvailability[]>> {
+    const { data } = await api.get(`/staff/${staffId}/availability`, { params })
+    return data
+  },
+
+  // Create a new availability record / time-off request
+  async create(
+    staffId: string,
+    availability: {
+      date: string
+      available: boolean
+      startTime?: string
+      endTime?: string
+      reason?: string
+    }
+  ): Promise<ApiResponse<StaffAvailability>> {
+    const { data } = await api.post(`/staff/${staffId}/availability`, availability)
+    return data
+  },
+
+  // Update an availability record
+  async update(
+    staffId: string,
+    id: string,
+    availability: Partial<{
+      date: string
+      available: boolean
+      startTime: string | null
+      endTime: string | null
+      reason: string | null
+    }>
+  ): Promise<ApiResponse<StaffAvailability>> {
+    const { data } = await api.put(`/staff/${staffId}/availability/${id}`, availability)
+    return data
+  },
+
+  // Delete an availability record
+  async delete(staffId: string, id: string): Promise<void> {
+    await api.delete(`/staff/${staffId}/availability/${id}`)
+  },
+
+  // Approve a pending request (admin only)
+  async approve(
+    staffId: string,
+    id: string,
+    notes?: string
+  ): Promise<ApiResponse<StaffAvailability>> {
+    const { data } = await api.post(`/staff/${staffId}/availability/${id}/approve`, { notes })
+    return data
+  },
+
+  // Reject a pending request (admin only)
+  async reject(
+    staffId: string,
+    id: string,
+    notes?: string
+  ): Promise<ApiResponse<StaffAvailability>> {
+    const { data } = await api.post(`/staff/${staffId}/availability/${id}/reject`, { notes })
+    return data
+  },
+
+  // Get all pending requests for the organization (admin only)
+  async listPending(params?: {
+    page?: number
+    limit?: number
+  }): Promise<PaginatedResponse<StaffAvailability>> {
+    const { data } = await api.get('/availability/pending', { params })
+    return data
+  },
+
+  // Get count of pending requests
+  async countPending(): Promise<ApiResponse<{ pendingCount: number }>> {
+    const { data } = await api.get('/availability/count')
+    return data
+  },
+
+  // Get all availability for the organization (admin only)
+  async listAll(params?: {
+    startDate?: string
+    endDate?: string
+    status?: AvailabilityStatus
+  }): Promise<ApiResponse<StaffAvailability[]>> {
+    const { data } = await api.get('/availability', { params })
+    return data
   }
 }
 

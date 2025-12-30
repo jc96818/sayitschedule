@@ -180,3 +180,22 @@ variable "debug_ai_requests" {
   type        = bool
   default     = false
 }
+
+# Email Configuration (AWS SES)
+variable "email_enabled" {
+  description = "Enable sending emails via AWS SES"
+  type        = bool
+  default     = false
+}
+
+variable "email_from" {
+  description = "Email address to send from (must be verified in SES)"
+  type        = string
+  default     = "noreply@sayitschedule.com"
+}
+
+variable "app_url" {
+  description = "Base URL for the application (used in email links)"
+  type        = string
+  default     = "https://demo.sayitschedule.com"
+}

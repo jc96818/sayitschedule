@@ -2,6 +2,7 @@ import { staffRepository } from '../repositories/staff.js'
 import { patientRepository } from '../repositories/patients.js'
 import { ruleRepository } from '../repositories/rules.js'
 import { roomRepository } from '../repositories/rooms.js'
+import { staffAvailabilityRepository, type StaffAvailability } from '../repositories/staffAvailability.js'
 import {
   generateScheduleWithAI,
   type StaffForScheduling,
@@ -10,6 +11,9 @@ import {
   type RoomForScheduling,
   type GeneratedSession
 } from './aiProvider.js'
+
+// Map of staff ID to their unavailability records for a date range
+export type UnavailabilityMap = Map<string, StaffAvailability[]>
 
 export interface SessionCreate {
   scheduleId: string
@@ -66,7 +70,8 @@ export function validateSessions(
   sessions: GeneratedSession[],
   staff: StaffForScheduling[],
   patients: PatientForScheduling[],
-  rooms: RoomForScheduling[] = []
+  rooms: RoomForScheduling[] = [],
+  unavailabilityMap?: UnavailabilityMap
 ): { valid: SessionCreate[]; errors: ValidationError[]; warnings: string[] } {
   const valid: SessionCreate[] = []
   const errors: ValidationError[] = []
@@ -126,6 +131,39 @@ export function validateSessions(
         warnings.push(
           `${therapist.name} doesn't have scheduled hours on ${dayOfWeek}, but was assigned a session`
         )
+      }
+
+      // Check staff availability overrides (approved time-off)
+      if (unavailabilityMap) {
+        const staffUnavail = unavailabilityMap.get(session.therapistId)
+        if (staffUnavail) {
+          for (const unavail of staffUnavail) {
+            // Compare dates (normalize to YYYY-MM-DD)
+            const unavailDate = unavail.date.toISOString().split('T')[0]
+            if (unavailDate === session.date) {
+              if (!unavail.available) {
+                // Staff is completely unavailable this day
+                const reason = unavail.reason ? ` (${unavail.reason})` : ''
+                sessionErrors.push(
+                  `${therapist.name} is not available on ${session.date}${reason}`
+                )
+              } else if (unavail.startTime && unavail.endTime) {
+                // Partial availability - staff is only available during specific hours
+                // Check if session falls within their available window
+                const sessionStart = timeToMinutes(session.startTime)
+                const sessionEnd = timeToMinutes(session.endTime)
+                const availStart = timeToMinutes(unavail.startTime)
+                const availEnd = timeToMinutes(unavail.endTime)
+
+                if (sessionStart < availStart || sessionEnd > availEnd) {
+                  sessionErrors.push(
+                    `${therapist.name} is only available ${unavail.startTime}-${unavail.endTime} on ${session.date}`
+                  )
+                }
+              }
+            }
+          }
+        }
       }
 
       // Check for therapist time conflicts
@@ -261,13 +299,27 @@ export async function generateSchedule(
   organizationId: string,
   weekStartDate: Date
 ): Promise<ScheduleGenerationOutput> {
+  // Calculate week end date (7 days from start)
+  const weekEndDate = new Date(weekStartDate)
+  weekEndDate.setDate(weekEndDate.getDate() + 6)
+
   // Fetch all required data
-  const [staffResult, patientsResult, rules, roomsResult] = await Promise.all([
+  const [staffResult, patientsResult, rules, roomsResult, unavailabilityResult] = await Promise.all([
     staffRepository.findByOrganization(organizationId, 'active'),
     patientRepository.findByOrganization(organizationId, 'active'),
     ruleRepository.findActiveByOrganization(organizationId),
-    roomRepository.findByOrganization(organizationId, 'active')
+    roomRepository.findByOrganization(organizationId, 'active'),
+    staffAvailabilityRepository.getApprovedUnavailability(organizationId, weekStartDate, weekEndDate)
   ])
+
+  // Build unavailability map for quick lookup
+  const unavailabilityMap: UnavailabilityMap = new Map()
+  for (const record of unavailabilityResult) {
+    if (!unavailabilityMap.has(record.staffId)) {
+      unavailabilityMap.set(record.staffId, [])
+    }
+    unavailabilityMap.get(record.staffId)!.push(record)
+  }
 
   const staff = staffResult as StaffForScheduling[]
   const patients = patientsResult as PatientForScheduling[]
@@ -299,8 +351,8 @@ export async function generateSchedule(
   const aiResult = await generateScheduleWithAI(weekStartDate, staff, patients, rulesForAI, rooms)
   console.log(`AI generated ${aiResult.sessions.length} sessions`)
 
-  // Validate the generated sessions
-  const { valid, errors, warnings } = validateSessions(aiResult.sessions, staff, patients, rooms)
+  // Validate the generated sessions (including staff availability)
+  const { valid, errors, warnings } = validateSessions(aiResult.sessions, staff, patients, rooms, unavailabilityMap)
 
   // Log validation errors for debugging
   if (errors.length > 0) {

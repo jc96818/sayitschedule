@@ -2,19 +2,44 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStaffStore } from '@/stores/staff'
+import { useAvailabilityStore } from '@/stores/availability'
 import { Modal, Alert, Badge, Button, Toggle } from '@/components/ui'
-import type { Staff, DefaultHours } from '@/types'
+import { AvailabilityCalendar, TimeOffRequestModal } from '@/components/availability'
+import type { Staff, DefaultHours, StaffAvailability } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const staffStore = useStaffStore()
+const availabilityStore = useAvailabilityStore()
 
 const staffId = route.params.id as string
 const loading = ref(true)
 const showEditModal = ref(false)
+const showHoursModal = ref(false)
+const showTimeOffModal = ref(false)
+const selectedDate = ref<Date | undefined>(undefined)
+const selectedAvailability = ref<StaffAvailability | null>(null)
 
 // Edit form data
 const formData = ref<Partial<Staff>>({})
+
+// Working hours form data
+const hoursFormData = ref<DefaultHours>({
+  monday: null,
+  tuesday: null,
+  wednesday: null,
+  thursday: null,
+  friday: null
+})
+
+// Track which days are enabled (working days)
+const workingDays = ref({
+  monday: false,
+  tuesday: false,
+  wednesday: false,
+  thursday: false,
+  friday: false
+})
 
 const staff = computed(() => staffStore.currentStaff)
 
@@ -62,6 +87,43 @@ async function handleSave() {
   }
 }
 
+function openHoursModal() {
+  if (staff.value) {
+    const days: Array<keyof DefaultHours> = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+    days.forEach(day => {
+      const hours = staff.value?.defaultHours?.[day]
+      if (hours) {
+        hoursFormData.value[day] = { ...hours }
+        workingDays.value[day] = true
+      } else {
+        hoursFormData.value[day] = { start: '09:00', end: '17:00' }
+        workingDays.value[day] = false
+      }
+    })
+  }
+  showHoursModal.value = true
+}
+
+async function handleSaveHours() {
+  if (!staff.value) return
+
+  try {
+    // Build the defaultHours object based on which days are enabled
+    const defaultHours: DefaultHours = {
+      monday: workingDays.value.monday ? hoursFormData.value.monday : null,
+      tuesday: workingDays.value.tuesday ? hoursFormData.value.tuesday : null,
+      wednesday: workingDays.value.wednesday ? hoursFormData.value.wednesday : null,
+      thursday: workingDays.value.thursday ? hoursFormData.value.thursday : null,
+      friday: workingDays.value.friday ? hoursFormData.value.friday : null
+    }
+
+    await staffStore.updateStaff(staff.value.id, { defaultHours })
+    showHoursModal.value = false
+  } catch (error) {
+    console.error('Failed to update working hours:', error)
+  }
+}
+
 async function handleToggleStatus() {
   if (!staff.value) return
 
@@ -84,6 +146,24 @@ async function handleDelete() {
       console.error('Failed to delete staff:', error)
     }
   }
+}
+
+// Availability handlers
+function handleAddRequest(date: Date) {
+  selectedDate.value = date
+  selectedAvailability.value = null
+  showTimeOffModal.value = true
+}
+
+function handleEditRequest(availability: StaffAvailability) {
+  selectedDate.value = undefined
+  selectedAvailability.value = availability
+  showTimeOffModal.value = true
+}
+
+async function handleAvailabilitySaved() {
+  // Refresh the availability data
+  await availabilityStore.fetchByStaffId(staffId)
 }
 
 onMounted(async () => {
@@ -215,8 +295,14 @@ onMounted(async () => {
 
         <!-- Default Hours -->
         <div class="card" style="grid-column: span 2;">
-          <div class="card-header">
+          <div class="card-header card-header-with-action">
             <h3>Default Working Hours</h3>
+            <Button variant="outline" size="sm" @click="openHoursModal">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit Hours
+            </Button>
           </div>
           <div class="card-body">
             <div class="hours-grid">
@@ -231,6 +317,21 @@ onMounted(async () => {
                 </span>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Availability Calendar -->
+        <div class="card" style="grid-column: span 2;">
+          <div class="card-header">
+            <h3>Time Off & Availability</h3>
+            <p class="card-header-subtitle">Click on a date to request time off or edit existing requests</p>
+          </div>
+          <div class="card-body">
+            <AvailabilityCalendar
+              :staff-id="staff.id"
+              @add-request="handleAddRequest"
+              @edit-request="handleEditRequest"
+            />
           </div>
         </div>
       </div>
@@ -302,6 +403,74 @@ onMounted(async () => {
         </div>
       </form>
     </Modal>
+
+    <!-- Working Hours Modal -->
+    <Modal v-model="showHoursModal" title="Edit Working Hours" size="md">
+      <form @submit.prevent="handleSaveHours">
+        <p class="hours-modal-description">
+          Set the default working hours for each day. Uncheck a day to mark it as a day off.
+        </p>
+
+        <div class="hours-form">
+          <div
+            v-for="(label, day) in dayLabels"
+            :key="day"
+            class="hours-form-row"
+          >
+            <label class="day-checkbox">
+              <input
+                v-model="workingDays[day]"
+                type="checkbox"
+              />
+              <span class="day-name">{{ label }}</span>
+            </label>
+
+            <div v-if="workingDays[day]" class="time-inputs">
+              <div class="time-field">
+                <label>Start</label>
+                <input
+                  v-model="hoursFormData[day]!.start"
+                  type="time"
+                  class="form-control"
+                  required
+                />
+              </div>
+              <span class="time-separator">to</span>
+              <div class="time-field">
+                <label>End</label>
+                <input
+                  v-model="hoursFormData[day]!.end"
+                  type="time"
+                  class="form-control"
+                  required
+                />
+              </div>
+            </div>
+            <div v-else class="day-off-label">
+              Day Off
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+          <Button type="button" variant="outline" @click="showHoursModal = false">
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" :loading="staffStore.loading">
+            Save Hours
+          </Button>
+        </div>
+      </form>
+    </Modal>
+
+    <!-- Time Off Request Modal -->
+    <TimeOffRequestModal
+      v-model="showTimeOffModal"
+      :staff-id="staffId"
+      :date="selectedDate"
+      :availability="selectedAvailability"
+      @saved="handleAvailabilitySaved"
+    />
   </div>
 </template>
 
@@ -412,6 +581,91 @@ onMounted(async () => {
 
 .time-range {
   font-weight: 500;
+}
+
+.card-header-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.card-header-with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hours-modal-description {
+  margin: 0 0 20px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.hours-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hours-form-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  background: var(--background-color);
+  border-radius: var(--radius-md);
+}
+
+.day-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.day-checkbox input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.day-name {
+  font-weight: 500;
+}
+
+.time-inputs {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex: 1;
+}
+
+.time-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.time-field label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.time-field input {
+  width: 120px;
+}
+
+.time-separator {
+  color: var(--text-muted);
+  padding-bottom: 10px;
+}
+
+.day-off-label {
+  flex: 1;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .form-row {
