@@ -385,6 +385,8 @@ For production with auto-scaling and multi-AZ, use `infrastructure/terraform/`.
 | Data transfer | ~$10 |
 | **Total** | **~$130/month** |
 
+For a more detailed production model (dedicated VPC + NAT, multi-org usage, HIPAA + Nova assumptions), see `docs/aws-production-cost-analysis.md`.
+
 ---
 
 ## Health Checks
