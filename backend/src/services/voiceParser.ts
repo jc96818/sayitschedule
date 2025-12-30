@@ -3,6 +3,30 @@ import { chatCompletion, isProviderConfigured, getActiveProvider } from './aiPro
 // Re-export for route-level checks
 export { isProviderConfigured, getActiveProvider }
 
+// Organization labels for dynamic prompt customization
+export interface OrganizationLabels {
+  staffLabel: string
+  staffLabelSingular: string
+  patientLabel: string
+  patientLabelSingular: string
+  roomLabel: string
+  roomLabelSingular: string
+  certificationLabel: string
+  equipmentLabel: string
+}
+
+// Default labels (therapy-focused)
+const defaultLabels: OrganizationLabels = {
+  staffLabel: 'Staff',
+  staffLabelSingular: 'Staff Member',
+  patientLabel: 'Patients',
+  patientLabelSingular: 'Patient',
+  roomLabel: 'Rooms',
+  roomLabelSingular: 'Room',
+  certificationLabel: 'Certifications',
+  equipmentLabel: 'Equipment'
+}
+
 export type VoiceCommandType =
   | 'create_patient'
   | 'create_staff'
@@ -98,49 +122,57 @@ export interface ParsedVoiceCommand {
   originalTranscript: string
 }
 
-function getSystemPrompt(context: VoiceContext): string {
-  const basePrompt = `You are a voice command parser for a therapy scheduling application called "Say It Schedule".
+function getSystemPrompt(context: VoiceContext, labels: OrganizationLabels = defaultLabels): string {
+  const { staffLabel, staffLabelSingular, patientLabel, patientLabelSingular, roomLabel, roomLabelSingular, certificationLabel, equipmentLabel } = labels
+  const staffLower = staffLabel.toLowerCase()
+  const staffSingularLower = staffLabelSingular.toLowerCase()
+  const patientLower = patientLabel.toLowerCase()
+  const patientSingularLower = patientLabelSingular.toLowerCase()
+  const roomSingularLower = roomLabelSingular.toLowerCase()
+  // roomLabel is used directly in the prompts (e.g., roomLabel.toUpperCase())
+
+  const basePrompt = `You are a voice command parser for a scheduling application called "Say It Schedule".
 Your job is to parse spoken commands and extract structured data.
 Return ONLY valid JSON - no additional text or explanations.`
 
   const contextPrompts: Record<VoiceContext, string> = {
     patient: `${basePrompt}
 
-The user is creating or managing PATIENTS (clients who receive therapy).
-Extract patient information like:
+The user is creating or managing ${patientLabel.toUpperCase()} (${patientLower} who receive services).
+Extract ${patientSingularLower} information like:
 - name (required)
 - gender (male/female/other - can infer from name if confident)
 - sessionFrequency (sessions per week, default 2 if not specified)
-- requiredCertifications (therapy types needed: Speech, Occupational, Physical, Behavioral, ABA)
+- requiredCertifications (${certificationLabel.toLowerCase()} needed)
 - preferredTimes (morning/afternoon/specific times)
 - notes (any additional info)`,
 
     staff: `${basePrompt}
 
-The user is creating or managing STAFF (therapists who provide therapy).
-Extract staff information like:
+The user is creating or managing ${staffLabel.toUpperCase()} (${staffLower} who provide services).
+Extract ${staffSingularLower} information like:
 - name (required)
 - gender (male/female/other - can infer from name if confident)
 - email (if mentioned)
 - phone (if mentioned)
-- certifications (therapy certifications: Speech, Occupational, Physical, Behavioral, ABA)
+- certifications (${certificationLabel.toLowerCase()})
 - notes (any additional info)`,
 
     rule: `${basePrompt}
 
-The user is creating SCHEDULING RULES for the therapy center.
+The user is creating SCHEDULING RULES.
 IMPORTANT: A single voice command may contain MULTIPLE rules. Look for:
 - Conjunctions like "and", "also", "plus" connecting separate constraints
-- Multiple staff/patient names with different constraints
+- Multiple ${staffLower}/${patientLower} names with different constraints
 - Separate conditions that should be individual rules
 
 For EACH rule detected, extract:
 - category: one of [gender_pairing, session, availability, specific_pairing, certification]
-  - gender_pairing: rules about matching genders (e.g., "female patients with female therapists")
+  - gender_pairing: rules about matching genders (e.g., "female ${patientLower} with female ${staffLower}")
   - session: rules about session timing/frequency
-  - availability: rules about when staff/patients are available or unavailable
-  - specific_pairing: specific therapist-patient assignments
-  - certification: rules about certification requirements
+  - availability: rules about when ${staffLower}/${patientLower} are available or unavailable
+  - specific_pairing: specific ${staffSingularLower}-${patientSingularLower} assignments
+  - certification: rules about ${certificationLabel.toLowerCase()} requirements
 - description: clear description of the rule
 - priority: 1-10 (default 5)
 - ruleLogic: structured logic object with parsed constraints
@@ -150,7 +182,7 @@ For EACH rule detected, extract:
 EXAMPLES OF MULTIPLE RULES:
 - "Debbie is only available on Wednesdays and Amy is only available on Mondays and Fridays"
   → 2 rules: one for Debbie (availability: Wednesday), one for Amy (availability: Monday, Friday)
-- "John should only see male therapists and Sarah needs a therapist with ABA certification"
+- "John should only see male ${staffLower} and Sarah needs a ${staffSingularLower} with ABA certification"
   → 2 rules: one gender_pairing for John, one certification for Sarah
 - "Morning sessions only before 11 AM"
   → 1 rule: session timing constraint
@@ -174,32 +206,32 @@ Return JSON with this structure:
 
     room: `${basePrompt}
 
-The user is creating or managing THERAPY ROOMS for the center.
-Extract room information like:
-- name (required): the room name or identifier (e.g., "Room 101", "Sensory Room", "Therapy Suite A")
-- description: optional description of the room
-- capabilities: array of equipment/features available in the room
+The user is creating or managing ${roomLabel.toUpperCase()}.
+Extract ${roomSingularLower} information like:
+- name (required): the ${roomSingularLower} name or identifier (e.g., "${roomLabelSingular} 101", "Sensory ${roomLabelSingular}", "Suite A")
+- description: optional description of the ${roomSingularLower}
+- capabilities: array of ${equipmentLabel.toLowerCase()}/features available in the ${roomSingularLower}
   Common capabilities include:
-  - wheelchair_accessible: room is accessible to wheelchairs
-  - sensory_equipment: has sensory therapy equipment
-  - computer_station: has computers/tablets for therapy
+  - wheelchair_accessible: ${roomSingularLower} is accessible to wheelchairs
+  - sensory_equipment: has sensory ${equipmentLabel.toLowerCase()}
+  - computer_station: has computers/tablets
   - therapy_swing: has a therapy swing
   - quiet_room: soundproofed/quiet environment
-  - large_space: larger room for movement therapy
+  - large_space: larger ${roomSingularLower} for movement
   - outdoor_access: access to outdoor area
   - video_recording: has video recording capability
 
 EXAMPLES:
-- "Add room 101 with wheelchair access and sensory equipment" → name: "Room 101", capabilities: ["wheelchair_accessible", "sensory_equipment"]
-- "Create a new room called Therapy Suite A" → name: "Therapy Suite A"
-- "Add the sensory room with therapy swing and quiet room capabilities" → name: "Sensory Room", capabilities: ["therapy_swing", "quiet_room"]`,
+- "Add ${roomSingularLower.toLowerCase()} 101 with wheelchair access and sensory equipment" → name: "${roomLabelSingular} 101", capabilities: ["wheelchair_accessible", "sensory_equipment"]
+- "Create a new ${roomSingularLower.toLowerCase()} called Suite A" → name: "Suite A"
+- "Add the sensory ${roomSingularLower.toLowerCase()} with therapy swing and quiet room capabilities" → name: "Sensory ${roomLabelSingular}", capabilities: ["therapy_swing", "quiet_room"]`,
 
     schedule: `${basePrompt}
 
-The user is scheduling a therapy SESSION (assigning a therapist to a patient at a specific time).
+The user is scheduling a SESSION (assigning a ${staffSingularLower} to a ${patientSingularLower} at a specific time).
 Extract session information like:
-- therapistName (required - the staff member's name)
-- patientName (required - the patient's name)
+- therapistName (required - the ${staffSingularLower}'s name)
+- patientName (required - the ${patientSingularLower}'s name)
 - date (specific date if mentioned)
 - dayOfWeek (monday/tuesday/etc if mentioned instead of date)
 - startTime (in HH:mm format)
@@ -208,7 +240,7 @@ Extract session information like:
 
     schedule_modify: `${basePrompt}
 
-The user is MODIFYING an existing therapy schedule. They want to move, cancel, or swap sessions.
+The user is MODIFYING an existing schedule. They want to move, cancel, or swap sessions.
 Determine the action and extract the relevant information:
 
 ACTIONS:
@@ -219,8 +251,8 @@ ACTIONS:
 
 EXTRACT:
 - action (required): one of [move, cancel, swap, create]
-- therapistName: the therapist's name (to identify the session)
-- patientName: the patient's name (alternative way to identify)
+- therapistName: the ${staffSingularLower}'s name (to identify the session)
+- patientName: the ${patientSingularLower}'s name (alternative way to identify)
 - currentDayOfWeek: current day (monday/tuesday/etc) - lowercase
 - currentStartTime: current time in HH:mm format (24-hour)
 - newDayOfWeek: new day for move/swap - lowercase
@@ -269,8 +301,8 @@ IMPORTANT:
     general: `${basePrompt}
 
 Determine what type of command the user is trying to execute:
-- create_patient: Adding a new patient/client
-- create_staff: Adding a new therapist/staff member
+- create_patient: Adding a new ${patientSingularLower}
+- create_staff: Adding a new ${staffSingularLower}
 - create_rule: Creating a scheduling rule
 - schedule_session: Scheduling a specific session
 - unknown: Cannot determine intent`
@@ -329,9 +361,11 @@ Important:
 
 export async function parseVoiceCommand(
   transcript: string,
-  context: VoiceContext = 'general'
+  context: VoiceContext = 'general',
+  labels?: Partial<OrganizationLabels>
 ): Promise<ParsedVoiceCommand> {
-  const systemPrompt = getSystemPrompt(context)
+  const mergedLabels = { ...defaultLabels, ...labels }
+  const systemPrompt = getSystemPrompt(context, mergedLabels)
   const userPrompt = getUserPrompt(transcript, context)
 
   try {
@@ -371,23 +405,24 @@ export async function parseVoiceCommand(
 }
 
 // Helper function to parse patient-specific commands
-export async function parsePatientCommand(transcript: string): Promise<ParsedVoiceCommand> {
-  return parseVoiceCommand(transcript, 'patient')
+export async function parsePatientCommand(transcript: string, labels?: Partial<OrganizationLabels>): Promise<ParsedVoiceCommand> {
+  return parseVoiceCommand(transcript, 'patient', labels)
 }
 
 // Helper function to parse staff-specific commands
-export async function parseStaffCommand(transcript: string): Promise<ParsedVoiceCommand> {
-  return parseVoiceCommand(transcript, 'staff')
+export async function parseStaffCommand(transcript: string, labels?: Partial<OrganizationLabels>): Promise<ParsedVoiceCommand> {
+  return parseVoiceCommand(transcript, 'staff', labels)
 }
 
 // Helper function to parse rule-specific commands (legacy single-rule format)
-export async function parseRuleCommand(transcript: string): Promise<ParsedVoiceCommand> {
-  return parseVoiceCommand(transcript, 'rule')
+export async function parseRuleCommand(transcript: string, labels?: Partial<OrganizationLabels>): Promise<ParsedVoiceCommand> {
+  return parseVoiceCommand(transcript, 'rule', labels)
 }
 
 // Helper function to parse multiple rules from a single transcript
-export async function parseMultipleRulesCommand(transcript: string): Promise<ParsedMultiRuleResponse> {
-  const systemPrompt = getSystemPrompt('rule')
+export async function parseMultipleRulesCommand(transcript: string, labels?: Partial<OrganizationLabels>): Promise<ParsedMultiRuleResponse> {
+  const mergedLabels = { ...defaultLabels, ...labels }
+  const systemPrompt = getSystemPrompt('rule', mergedLabels)
   const userPrompt = getUserPrompt(transcript, 'rule')
 
   try {
@@ -448,21 +483,21 @@ export async function parseMultipleRulesCommand(transcript: string): Promise<Par
 }
 
 // Helper function to parse room-specific commands
-export async function parseRoomCommand(transcript: string): Promise<ParsedVoiceCommand> {
-  return parseVoiceCommand(transcript, 'room')
+export async function parseRoomCommand(transcript: string, labels?: Partial<OrganizationLabels>): Promise<ParsedVoiceCommand> {
+  return parseVoiceCommand(transcript, 'room', labels)
 }
 
 // Helper function to parse schedule-specific commands (for creating new sessions)
-export async function parseScheduleCommand(transcript: string): Promise<ParsedVoiceCommand> {
-  return parseVoiceCommand(transcript, 'schedule')
+export async function parseScheduleCommand(transcript: string, labels?: Partial<OrganizationLabels>): Promise<ParsedVoiceCommand> {
+  return parseVoiceCommand(transcript, 'schedule', labels)
 }
 
 // Helper function to parse schedule modification commands (move, cancel, swap)
-export async function parseScheduleModifyCommand(transcript: string): Promise<ParsedVoiceCommand> {
-  return parseVoiceCommand(transcript, 'schedule_modify')
+export async function parseScheduleModifyCommand(transcript: string, labels?: Partial<OrganizationLabels>): Promise<ParsedVoiceCommand> {
+  return parseVoiceCommand(transcript, 'schedule_modify', labels)
 }
 
 // Helper function to parse schedule generation commands (generate a week's schedule)
-export async function parseScheduleGenerateCommand(transcript: string): Promise<ParsedVoiceCommand> {
-  return parseVoiceCommand(transcript, 'schedule_generate')
+export async function parseScheduleGenerateCommand(transcript: string, labels?: Partial<OrganizationLabels>): Promise<ParsedVoiceCommand> {
+  return parseVoiceCommand(transcript, 'schedule_generate', labels)
 }

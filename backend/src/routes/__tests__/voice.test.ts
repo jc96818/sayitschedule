@@ -18,11 +18,19 @@ vi.mock('../../services/voiceParser.js', () => ({
   parseStaffCommand: vi.fn(),
   parseRuleCommand: vi.fn(),
   parseMultipleRulesCommand: vi.fn(),
+  parseRoomCommand: vi.fn(),
   parseScheduleCommand: vi.fn(),
   parseScheduleModifyCommand: vi.fn(),
   parseScheduleGenerateCommand: vi.fn(),
   isProviderConfigured: vi.fn(() => true),
   getActiveProvider: vi.fn(() => 'openai')
+}))
+
+// Mock the organization repository
+vi.mock('../../repositories/organizations.js', () => ({
+  organizationRepository: {
+    getLabels: vi.fn()
+  }
 }))
 
 // Import mocked modules
@@ -32,16 +40,32 @@ import {
   parseStaffCommand,
   parseRuleCommand,
   parseMultipleRulesCommand,
+  parseRoomCommand,
   parseScheduleModifyCommand,
   parseScheduleGenerateCommand,
   isProviderConfigured
 } from '../../services/voiceParser.js'
+import { organizationRepository } from '../../repositories/organizations.js'
+
+// Default mock labels for testing
+const mockLabels = {
+  staffLabel: 'Therapists',
+  staffLabelSingular: 'Therapist',
+  patientLabel: 'Clients',
+  patientLabelSingular: 'Client',
+  roomLabel: 'Treatment Rooms',
+  roomLabelSingular: 'Treatment Room',
+  certificationLabel: 'Credentials',
+  equipmentLabel: 'Facilities'
+}
 
 describe('Voice Routes', () => {
   let app: FastifyInstance
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    // Default: return custom labels
+    vi.mocked(organizationRepository.getLabels).mockResolvedValue(mockLabels)
     app = await buildTestApp()
   })
 
@@ -83,7 +107,7 @@ describe('Voice Routes', () => {
       expect(body.meta.context).toBe('general')
     })
 
-    it('uses context-specific parser for patient context', async () => {
+    it('uses context-specific parser for patient context and passes labels', async () => {
       const originalEnv = process.env.OPENAI_API_KEY
       process.env.OPENAI_API_KEY = 'test-key'
 
@@ -111,8 +135,15 @@ describe('Voice Routes', () => {
       process.env.OPENAI_API_KEY = originalEnv
 
       expect(response.statusCode).toBe(200)
+      // Verify labels were fetched
+      expect(organizationRepository.getLabels).toHaveBeenCalledWith('test-org-id')
+      // Verify labels were passed to the parser
       expect(parsePatientCommand).toHaveBeenCalledWith(
-        'New patient Michael Brown, male, needs 3 sessions per week'
+        'New patient Michael Brown, male, needs 3 sessions per week',
+        expect.objectContaining({
+          patientLabel: 'Clients',
+          patientLabelSingular: 'Client'
+        })
       )
       const body = JSON.parse(response.payload)
       expect(body.data.data.sessionFrequency).toBe(3)
@@ -284,6 +315,150 @@ describe('Voice Routes', () => {
       // Zod validation throws which results in 500 (unhandled by route)
       // In production you'd want error handling middleware to return 400
       expect(response.statusCode).toBe(500)
+    })
+  })
+
+  describe('Organization Labels', () => {
+    it('fetches and passes organization labels to parser', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      vi.mocked(parseStaffCommand).mockResolvedValue({
+        commandType: 'create_staff',
+        confidence: 0.95,
+        data: { name: 'Test Therapist' },
+        warnings: [],
+        originalTranscript: 'Add therapist Test'
+      })
+
+      await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse',
+        payload: {
+          transcript: 'Add therapist Test',
+          context: 'staff'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      // Verify organization labels were fetched
+      expect(organizationRepository.getLabels).toHaveBeenCalledWith('test-org-id')
+      // Verify labels were passed to parser
+      expect(parseStaffCommand).toHaveBeenCalledWith(
+        'Add therapist Test',
+        expect.objectContaining({
+          staffLabel: 'Therapists',
+          staffLabelSingular: 'Therapist'
+        })
+      )
+    })
+
+    it('uses empty labels when organization has no custom labels', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      // Simulate organization with no custom labels
+      vi.mocked(organizationRepository.getLabels).mockResolvedValue(null)
+
+      vi.mocked(parsePatientCommand).mockResolvedValue({
+        commandType: 'create_patient',
+        confidence: 0.95,
+        data: { name: 'Test Patient' },
+        warnings: [],
+        originalTranscript: 'Add patient Test'
+      })
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse',
+        payload: {
+          transcript: 'Add patient Test',
+          context: 'patient'
+        }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(200)
+      // Parser should be called with empty labels object (defaults will apply)
+      expect(parsePatientCommand).toHaveBeenCalledWith('Add patient Test', {})
+    })
+
+    it('passes labels to all context-specific endpoints', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      vi.mocked(parseRoomCommand).mockResolvedValue({
+        commandType: 'create_room',
+        confidence: 0.9,
+        data: { name: 'Room 101' },
+        warnings: [],
+        originalTranscript: 'Add room 101'
+      })
+
+      await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/room',
+        payload: { transcript: 'Add room 101' }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(parseRoomCommand).toHaveBeenCalledWith(
+        'Add room 101',
+        expect.objectContaining({
+          roomLabel: 'Treatment Rooms',
+          roomLabelSingular: 'Treatment Room'
+        })
+      )
+    })
+
+    it('only includes defined labels in the passed object', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      // Simulate organization with only some labels defined
+      vi.mocked(organizationRepository.getLabels).mockResolvedValue({
+        staffLabel: 'Practitioners',
+        staffLabelSingular: 'Practitioner',
+        patientLabel: undefined,
+        patientLabelSingular: undefined,
+        roomLabel: 'Spaces',
+        roomLabelSingular: undefined,
+        certificationLabel: undefined,
+        equipmentLabel: undefined
+      })
+
+      vi.mocked(parseStaffCommand).mockResolvedValue({
+        commandType: 'create_staff',
+        confidence: 0.95,
+        data: { name: 'Test' },
+        warnings: [],
+        originalTranscript: 'Add staff Test'
+      })
+
+      await app.inject({
+        method: 'POST',
+        url: '/api/voice/parse/staff',
+        payload: { transcript: 'Add staff Test' }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      // Only defined labels should be passed
+      expect(parseStaffCommand).toHaveBeenCalledWith(
+        'Add staff Test',
+        expect.objectContaining({
+          staffLabel: 'Practitioners',
+          staffLabelSingular: 'Practitioner',
+          roomLabel: 'Spaces'
+        })
+      )
+      // Undefined labels should not be in the object
+      const passedLabels = vi.mocked(parseStaffCommand).mock.calls[0][1]
+      expect(passedLabels).not.toHaveProperty('patientLabel')
+      expect(passedLabels).not.toHaveProperty('certificationLabel')
     })
   })
 

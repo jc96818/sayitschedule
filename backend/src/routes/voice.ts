@@ -14,13 +14,34 @@ import {
   isProviderConfigured,
   getActiveProvider,
   type VoiceContext,
-  type ParsedVoiceCommand
+  type ParsedVoiceCommand,
+  type OrganizationLabels
 } from '../services/voiceParser.js'
+import { organizationRepository } from '../repositories/organizations.js'
 
 const parseVoiceSchema = z.object({
   transcript: z.string().min(1, 'Transcript is required'),
   context: z.enum(['patient', 'staff', 'rule', 'room', 'schedule', 'general']).optional().default('general')
 })
+
+// Helper to fetch organization labels for voice parsing
+async function getOrganizationLabels(organizationId: string): Promise<Partial<OrganizationLabels>> {
+  const labels = await organizationRepository.getLabels(organizationId)
+  if (!labels) return {}
+
+  // Only include defined labels to let defaults apply for undefined ones
+  const result: Partial<OrganizationLabels> = {}
+  if (labels.staffLabel) result.staffLabel = labels.staffLabel
+  if (labels.staffLabelSingular) result.staffLabelSingular = labels.staffLabelSingular
+  if (labels.patientLabel) result.patientLabel = labels.patientLabel
+  if (labels.patientLabelSingular) result.patientLabelSingular = labels.patientLabelSingular
+  if (labels.roomLabel) result.roomLabel = labels.roomLabel
+  if (labels.roomLabelSingular) result.roomLabelSingular = labels.roomLabelSingular
+  if (labels.certificationLabel) result.certificationLabel = labels.certificationLabel
+  if (labels.equipmentLabel) result.equipmentLabel = labels.equipmentLabel
+
+  return result
+}
 
 export async function voiceRoutes(fastify: FastifyInstance) {
   // Parse voice command
@@ -48,27 +69,30 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     try {
       // NOTE: Do not log transcript - it contains PII (patient/staff names)
 
+      // Fetch organization-specific labels for voice parsing
+      const labels = await getOrganizationLabels(organizationId)
+
       let result: ParsedVoiceCommand
 
       // Use context-specific parsers for better results
       switch (context) {
         case 'patient':
-          result = await parsePatientCommand(transcript)
+          result = await parsePatientCommand(transcript, labels)
           break
         case 'staff':
-          result = await parseStaffCommand(transcript)
+          result = await parseStaffCommand(transcript, labels)
           break
         case 'rule':
-          result = await parseRuleCommand(transcript)
+          result = await parseRuleCommand(transcript, labels)
           break
         case 'room':
-          result = await parseRoomCommand(transcript)
+          result = await parseRoomCommand(transcript, labels)
           break
         case 'schedule':
-          result = await parseScheduleCommand(transcript)
+          result = await parseScheduleCommand(transcript, labels)
           break
         default:
-          result = await parseVoiceCommand(transcript, context as VoiceContext)
+          result = await parseVoiceCommand(transcript, context as VoiceContext, labels)
       }
 
       console.log(`Parsed result: ${result.commandType} (confidence: ${result.confidence})`)
@@ -114,7 +138,8 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     const { transcript } = z.object({ transcript: z.string().min(1) }).parse(request.body)
 
     try {
-      const result = await parsePatientCommand(transcript)
+      const labels = await getOrganizationLabels(organizationId)
+      const result = await parsePatientCommand(transcript, labels)
       return { data: result }
     } catch (error) {
       console.error('Patient voice parsing failed:', error)
@@ -139,7 +164,8 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     const { transcript } = z.object({ transcript: z.string().min(1) }).parse(request.body)
 
     try {
-      const result = await parseStaffCommand(transcript)
+      const labels = await getOrganizationLabels(organizationId)
+      const result = await parseStaffCommand(transcript, labels)
       return { data: result }
     } catch (error) {
       console.error('Staff voice parsing failed:', error)
@@ -164,7 +190,8 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     const { transcript } = z.object({ transcript: z.string().min(1) }).parse(request.body)
 
     try {
-      const result = await parseMultipleRulesCommand(transcript)
+      const labels = await getOrganizationLabels(organizationId)
+      const result = await parseMultipleRulesCommand(transcript, labels)
       console.log(`Parsed ${result.rules.length} rule(s) (overall confidence: ${result.overallConfidence})`)
       return {
         data: result,
@@ -195,7 +222,8 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     const { transcript } = z.object({ transcript: z.string().min(1) }).parse(request.body)
 
     try {
-      const result = await parseRoomCommand(transcript)
+      const labels = await getOrganizationLabels(organizationId)
+      const result = await parseRoomCommand(transcript, labels)
       return { data: result }
     } catch (error) {
       console.error('Room voice parsing failed:', error)
@@ -220,7 +248,8 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     const { transcript } = z.object({ transcript: z.string().min(1) }).parse(request.body)
 
     try {
-      const result = await parseScheduleModifyCommand(transcript)
+      const labels = await getOrganizationLabels(organizationId)
+      const result = await parseScheduleModifyCommand(transcript, labels)
       return { data: result }
     } catch (error) {
       console.error('Schedule voice parsing failed:', error)
@@ -245,7 +274,8 @@ export async function voiceRoutes(fastify: FastifyInstance) {
     const { transcript } = z.object({ transcript: z.string().min(1) }).parse(request.body)
 
     try {
-      const result = await parseScheduleGenerateCommand(transcript)
+      const labels = await getOrganizationLabels(organizationId)
+      const result = await parseScheduleGenerateCommand(transcript, labels)
       return { data: result }
     } catch (error) {
       console.error('Schedule generation voice parsing failed:', error)
