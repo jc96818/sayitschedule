@@ -195,7 +195,7 @@ variable "email_from" {
 }
 
 variable "app_url" {
-  description = "Base URL for the application (used in email links)"
+  description = "Base URL for the application without subdomain (used to construct email links with org subdomains)"
   type        = string
-  default     = "https://demo.sayitschedule.com"
+  default     = "https://sayitschedule.com"
 }

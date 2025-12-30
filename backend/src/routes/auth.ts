@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.js'
 import { getClientIp, rateLimit } from '../middleware/rateLimit.js'
 import { userRepository } from '../repositories/users.js'
 import { organizationRepository } from '../repositories/organizations.js'
+import { passwordResetTokenRepository } from '../repositories/passwordResetTokens.js'
 import { logAudit } from '../repositories/audit.js'
 import { mfaService } from '../services/mfa.js'
 import {
@@ -21,6 +22,15 @@ const loginSchema = z.object({
 const verifyMfaSchema = z.object({
   mfaToken: z.string().min(1),
   code: z.string().min(6).max(10) // 6 digits for TOTP, up to 10 for backup codes (XXXX-XXXX)
+})
+
+const verifyTokenSchema = z.object({
+  token: z.string().min(1)
+})
+
+const setupPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8)
 })
 
 export async function authRoutes(fastify: FastifyInstance) {
@@ -278,5 +288,116 @@ export async function authRoutes(fastify: FastifyInstance) {
     await logAudit(ctx.userId, 'logout', 'user', ctx.userId, ctx.organizationId)
 
     return { success: true }
+  })
+
+  // Verify invitation/password reset token (for checking if token is valid before showing form)
+  fastify.post('/verify-token', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = verifyTokenSchema.parse(request.body)
+
+    const tokenRecord = await passwordResetTokenRepository.findValidTokenWithUser(body.token)
+    if (!tokenRecord) {
+      return reply.status(400).send({
+        error: 'Invalid or expired token',
+        code: 'INVALID_TOKEN'
+      })
+    }
+
+    return {
+      valid: true,
+      type: tokenRecord.type,
+      user: {
+        email: tokenRecord.user.email,
+        name: tokenRecord.user.name
+      },
+      organization: tokenRecord.user.organization ? {
+        name: tokenRecord.user.organization.name,
+        subdomain: tokenRecord.user.organization.subdomain
+      } : null
+    }
+  })
+
+  // Set up password (for invitation or password reset)
+  fastify.post('/setup-password', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = setupPasswordSchema.parse(request.body)
+
+    // Find and validate token
+    const tokenRecord = await passwordResetTokenRepository.findValidTokenWithUser(body.token)
+    if (!tokenRecord) {
+      return reply.status(400).send({
+        error: 'Invalid or expired token. Please request a new invitation.',
+        code: 'INVALID_TOKEN'
+      })
+    }
+
+    // Update user's password
+    const success = await userRepository.updatePassword(tokenRecord.userId, body.password)
+    if (!success) {
+      return reply.status(500).send({ error: 'Failed to set password' })
+    }
+
+    // Mark token as used
+    await passwordResetTokenRepository.markAsUsed(tokenRecord.id)
+
+    // Log the action
+    await logAudit(
+      tokenRecord.userId,
+      tokenRecord.type === 'invitation' ? 'accept_invite' : 'reset_password',
+      'user',
+      tokenRecord.userId,
+      tokenRecord.user.organizationId
+    )
+
+    // Auto-login: generate JWT token
+    const user = await userRepository.findById(tokenRecord.userId)
+    if (!user) {
+      return reply.status(500).send({ error: 'User not found' })
+    }
+
+    // Get organization for response
+    let organization = null
+    if (user.organizationId) {
+      organization = await organizationRepository.findById(user.organizationId)
+    }
+
+    // Generate JWT token
+    const token = fastify.jwt.sign({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      organizationId: user.organizationId
+    })
+
+    // Update last login
+    await userRepository.updateLastLogin(user.id)
+
+    return {
+      success: true,
+      message: tokenRecord.type === 'invitation'
+        ? 'Account setup complete! You are now logged in.'
+        : 'Password reset successful! You are now logged in.',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        organizationId: user.organizationId,
+        createdAt: user.createdAt,
+        lastLogin: user.lastLogin,
+        mfaEnabled: false
+      },
+      organization: organization
+        ? {
+            id: organization.id,
+            name: organization.name,
+            subdomain: organization.subdomain,
+            logoUrl: organization.logoUrl,
+            primaryColor: organization.primaryColor,
+            secondaryColor: organization.secondaryColor,
+            status: organization.status,
+            requiresHipaa: organization.requiresHipaa
+          }
+        : null
+    }
   })
 }

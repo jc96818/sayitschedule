@@ -10,6 +10,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/setup-password',
+    name: 'setup-password',
+    component: () => import('@/pages/SetupPasswordPage.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/schedule/:id/print',
     name: 'schedule-print',
     component: () => import('@/pages/SchedulePrintPage.vue'),

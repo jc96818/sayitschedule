@@ -110,7 +110,7 @@ model User {
   organizationId String?       @map("organization_id")
   organization   Organization? @relation(fields: [organizationId], references: [id])
   email          String        @unique @db.VarChar(255)
-  passwordHash   String        @map("password_hash") @db.VarChar(255)
+  passwordHash   String?       @map("password_hash") @db.VarChar(255)
   name           String        @db.VarChar(255)
   role           UserRole
   createdAt      DateTime      @default(now()) @map("created_at")
@@ -122,10 +122,11 @@ model User {
   mfaBackupCodes    String[]  @default([]) @map("mfa_backup_codes")
   passwordChangedAt DateTime? @map("password_changed_at")
 
-  staff         Staff[]
-  rulesCreated  Rule[]
-  schedulesCreated Schedule[]
-  auditLogs     AuditLog[]
+  staff              Staff[]
+  rulesCreated       Rule[]
+  schedulesCreated   Schedule[]
+  auditLogs          AuditLog[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -274,6 +275,27 @@ model StaffAvailability {
 
   @@unique([staffId, date], name: "staff_date_unique")
   @@map("staff_availability")
+}
+
+// Password Reset / Invitation Tokens
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique @db.VarChar(64)
+  type      TokenType @default(password_reset)
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([token])
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+enum TokenType {
+  password_reset
+  invitation
 }
 
 // Audit Logs

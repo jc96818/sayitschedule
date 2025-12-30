@@ -11,6 +11,27 @@ const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@sayitschedule.com'
 const EMAIL_ENABLED = process.env.EMAIL_ENABLED === 'true'
 const APP_URL = process.env.APP_URL || 'https://sayitschedule.com'
 
+/**
+ * Build a URL with the organization's subdomain
+ * e.g., if APP_URL is https://sayitschedule.com and subdomain is 'demo',
+ * returns https://demo.sayitschedule.com/path
+ */
+function buildOrgUrl(subdomain: string | undefined, path: string): string {
+  if (!subdomain) {
+    return `${APP_URL}${path}`
+  }
+
+  try {
+    const url = new URL(APP_URL)
+    // Insert subdomain before the host
+    url.hostname = `${subdomain}.${url.hostname}`
+    return `${url.origin}${path}`
+  } catch {
+    // Fallback if URL parsing fails
+    return `${APP_URL}${path}`
+  }
+}
+
 export interface EmailRecipient {
   email: string
   name: string
@@ -34,6 +55,20 @@ interface TimeOffReviewedData {
   organization: Organization
   approved: boolean
   reviewerNotes?: string | null
+}
+
+interface UserInvitationData {
+  user: {
+    email: string
+    name: string
+  }
+  organization: {
+    name: string
+    subdomain: string
+    primaryColor?: string
+  } | null
+  token: string
+  invitedByName: string
 }
 
 /**
@@ -139,7 +174,7 @@ export async function sendSchedulePublishedNotification(
     return
   }
 
-  const scheduleUrl = `${APP_URL}/${organization.subdomain}/schedule`
+  const scheduleUrl = buildOrgUrl(organization.subdomain, '/schedule')
 
   const htmlBody = `
 <!DOCTYPE html>
@@ -211,7 +246,7 @@ export async function sendTimeOffRequestSubmitted(
     return
   }
 
-  const pendingUrl = `${APP_URL}/${organization.subdomain}/availability/pending`
+  const pendingUrl = buildOrgUrl(organization.subdomain, '/availability/pending')
 
   let timeInfo = 'Full Day'
   if (availability.startTime && availability.endTime) {
@@ -378,9 +413,96 @@ If you have questions, please contact your administrator.
   await sendEmail(staff.email, subject, htmlBody, textBody)
 }
 
+/**
+ * Send user invitation email with password setup link
+ */
+export async function sendUserInvitation(
+  data: UserInvitationData
+): Promise<boolean> {
+  const { user, organization, token, invitedByName } = data
+
+  const orgName = organization?.name || 'Say It Schedule'
+  const primaryColor = organization?.primaryColor || '#2563eb'
+
+  // Build the setup password URL with organization's subdomain
+  const setupUrl = buildOrgUrl(organization?.subdomain, `/setup-password?token=${token}`)
+
+  const subject = `You've been invited to ${orgName}`
+
+  const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: ${primaryColor}; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background-color: #f9fafb; }
+    .welcome { font-size: 18px; margin-bottom: 16px; }
+    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
+    .detail-row { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+    .detail-row:last-child { border-bottom: none; }
+    .label { font-weight: bold; color: #6b7280; }
+    .button { display: inline-block; background-color: ${primaryColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin-top: 16px; font-weight: bold; }
+    .expiry { color: #6b7280; font-size: 14px; margin-top: 16px; }
+    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${orgName}</h1>
+    </div>
+    <div class="content">
+      <p class="welcome">Welcome to ${orgName}!</p>
+      <p>${invitedByName} has invited you to join ${orgName}. To get started, please set up your password by clicking the button below.</p>
+      <div class="details">
+        <div class="detail-row">
+          <span class="label">Your Email:</span> ${user.email}
+        </div>
+        <div class="detail-row">
+          <span class="label">Your Name:</span> ${user.name}
+        </div>
+      </div>
+      <div style="text-align: center;">
+        <a href="${setupUrl}" class="button">Set Up Your Password</a>
+      </div>
+      <p class="expiry">This link will expire in 48 hours. If you didn't expect this invitation, you can safely ignore this email.</p>
+    </div>
+    <div class="footer">
+      <p>This is an automated message from Say It Schedule.</p>
+      <p>If you have questions, please contact your administrator.</p>
+    </div>
+  </div>
+</body>
+</html>
+`
+
+  const textBody = `
+Welcome to ${orgName}!
+
+${invitedByName} has invited you to join ${orgName}. To get started, please set up your password by visiting the link below.
+
+Your Email: ${user.email}
+Your Name: ${user.name}
+
+Set Up Your Password: ${setupUrl}
+
+This link will expire in 48 hours. If you didn't expect this invitation, you can safely ignore this email.
+
+---
+This is an automated message from Say It Schedule.
+If you have questions, please contact your administrator.
+`
+
+  return sendEmail(user.email, subject, htmlBody, textBody)
+}
+
 export const emailService = {
   sendSchedulePublishedNotification,
   sendTimeOffRequestSubmitted,
   sendTimeOffReviewed,
+  sendUserInvitation,
   sendEmail
 }

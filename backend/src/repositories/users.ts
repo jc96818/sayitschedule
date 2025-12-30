@@ -8,7 +8,7 @@ export type { UserRole }
 export interface UserCreate {
   organizationId?: string | null
   email: string
-  password: string
+  password?: string  // Optional for invite flow (user sets password later)
   name: string
   role: UserRole
 }
@@ -92,7 +92,10 @@ export class UserRepository {
   }
 
   async create(data: UserCreate): Promise<UserWithoutPassword> {
-    const passwordHash = await bcrypt.hash(data.password, getBcryptCost())
+    // Only hash password if provided (for invite flow, password is set later)
+    const passwordHash = data.password
+      ? await bcrypt.hash(data.password, getBcryptCost())
+      : null
 
     const user = await prisma.user.create({
       data: {
@@ -147,6 +150,10 @@ export class UserRepository {
   }
 
   async verifyPassword(user: User, password: string): Promise<boolean> {
+    // Users without a password hash (invited but not yet set up) cannot log in
+    if (!user.passwordHash) {
+      return false
+    }
     return bcrypt.compare(password, user.passwordHash)
   }
 

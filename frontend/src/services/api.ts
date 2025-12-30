@@ -63,6 +63,29 @@ api.interceptors.response.use(
   }
 )
 
+// Token verification response type
+export interface VerifyTokenResponse {
+  valid: boolean
+  type: 'invitation' | 'password_reset'
+  user: {
+    email: string
+    name: string
+  }
+  organization: {
+    name: string
+    subdomain: string
+  } | null
+}
+
+// Setup password response type
+export interface SetupPasswordResponse {
+  success: boolean
+  message: string
+  token: string
+  user: User
+  organization: Organization | null
+}
+
 // Auth Service
 export const authService = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
@@ -77,6 +100,16 @@ export const authService = {
 
   async logout(): Promise<void> {
     await api.post('/auth/logout')
+  },
+
+  async verifyToken(token: string): Promise<VerifyTokenResponse> {
+    const { data } = await api.post<VerifyTokenResponse>('/auth/verify-token', { token })
+    return data
+  },
+
+  async setupPassword(token: string, password: string): Promise<SetupPasswordResponse> {
+    const { data } = await api.post<SetupPasswordResponse>('/auth/setup-password', { token, password })
+    return data
   }
 }
 
