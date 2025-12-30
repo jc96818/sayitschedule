@@ -339,7 +339,8 @@ describe('Account Routes', () => {
     it('should disable MFA with correct password', async () => {
       mockUserRepository.findByIdWithPassword.mockResolvedValue({
         id: 'user-1',
-        passwordHash: 'hashed-password'
+        passwordHash: 'hashed-password',
+        mfaRequired: false
       })
       mockUserRepository.verifyPassword.mockResolvedValue(true)
       mockUserRepository.getMfaData.mockResolvedValue({
@@ -359,10 +360,31 @@ describe('Account Routes', () => {
       expect(body.success).toBe(true)
     })
 
+    it('should reject MFA disable for HIPAA-required users', async () => {
+      mockUserRepository.findByIdWithPassword.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: 'hashed-password',
+        mfaRequired: true // HIPAA compliance - MFA cannot be disabled
+      })
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/account/mfa/disable',
+        headers: { authorization: `Bearer ${userToken}` },
+        payload: { password: 'CorrectPassword123!' }
+      })
+
+      expect(response.statusCode).toBe(403)
+      const body = JSON.parse(response.body)
+      expect(body.error).toContain('cannot be disabled')
+      expect(body.code).toBe('MFA_REQUIRED')
+    })
+
     it('should reject incorrect password', async () => {
       mockUserRepository.findByIdWithPassword.mockResolvedValue({
         id: 'user-1',
-        passwordHash: 'hashed-password'
+        passwordHash: 'hashed-password',
+        mfaRequired: false
       })
       mockUserRepository.verifyPassword.mockResolvedValue(false)
 
@@ -381,7 +403,8 @@ describe('Account Routes', () => {
     it('should reject if MFA not enabled', async () => {
       mockUserRepository.findByIdWithPassword.mockResolvedValue({
         id: 'user-1',
-        passwordHash: 'hashed-password'
+        passwordHash: 'hashed-password',
+        mfaRequired: false
       })
       mockUserRepository.verifyPassword.mockResolvedValue(true)
       mockUserRepository.getMfaData.mockResolvedValue({
