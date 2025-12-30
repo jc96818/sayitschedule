@@ -110,6 +110,11 @@ export const authService = {
   async setupPassword(token: string, password: string): Promise<SetupPasswordResponse> {
     const { data } = await api.post<SetupPasswordResponse>('/auth/setup-password', { token, password })
     return data
+  },
+
+  async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+    const { data } = await api.post<{ success: boolean; message: string }>('/auth/request-password-reset', { email })
+    return data
   }
 }
 

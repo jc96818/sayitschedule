@@ -7,6 +7,7 @@ import { organizationRepository } from '../repositories/organizations.js'
 import { passwordResetTokenRepository } from '../repositories/passwordResetTokens.js'
 import { logAudit } from '../repositories/audit.js'
 import { mfaService } from '../services/mfa.js'
+import { sendPasswordResetEmail } from '../services/email.js'
 import {
   getAuthLoginMaxPerIp,
   getAuthLoginMaxPerIpEmail,
@@ -31,6 +32,10 @@ const verifyTokenSchema = z.object({
 const setupPasswordSchema = z.object({
   token: z.string().min(1),
   password: z.string().min(8)
+})
+
+const requestPasswordResetSchema = z.object({
+  email: z.string().email()
 })
 
 export async function authRoutes(fastify: FastifyInstance) {
@@ -288,6 +293,62 @@ export async function authRoutes(fastify: FastifyInstance) {
     await logAudit(ctx.userId, 'logout', 'user', ctx.userId, ctx.organizationId)
 
     return { success: true }
+  })
+
+  // Request password reset - rate limited to prevent abuse
+  const passwordResetLimiter = rateLimit({
+    windowMs,
+    max: 5, // 5 requests per minute per IP
+    key: (request) => getClientIp(request)
+  })
+
+  fastify.post('/request-password-reset', { preHandler: passwordResetLimiter }, async (request: FastifyRequest) => {
+    const body = requestPasswordResetSchema.parse(request.body)
+
+    // Always return success to prevent email enumeration attacks
+    // But only actually send email if user exists and has a password set
+    const user = await userRepository.findByEmail(body.email)
+
+    if (user) {
+      // Check if user has a password (is active, not pending invitation)
+      const userWithPassword = await userRepository.findByIdWithPassword(user.id)
+
+      if (userWithPassword?.passwordHash) {
+        try {
+          // Create password reset token (1 hour expiry)
+          const tokenRecord = await passwordResetTokenRepository.create(user.id, 'password_reset')
+
+          // Get organization for email branding
+          let organization = null
+          if (user.organizationId) {
+            organization = await organizationRepository.findById(user.organizationId)
+          }
+
+          // Send password reset email
+          await sendPasswordResetEmail({
+            user: { email: user.email, name: user.name },
+            organization: organization ? {
+              name: organization.name,
+              subdomain: organization.subdomain,
+              primaryColor: organization.primaryColor
+            } : null,
+            token: tokenRecord.token
+          })
+
+          // Log the request
+          await logAudit(user.id, 'request_password_reset', 'user', user.id, user.organizationId)
+        } catch (error) {
+          // Log error but don't expose to user
+          console.error('Failed to send password reset email:', error)
+        }
+      }
+    }
+
+    // Always return success message (security best practice)
+    return {
+      success: true,
+      message: 'If an account with that email exists, a password reset link has been sent.'
+    }
   })
 
   // Verify invitation/password reset token (for checking if token is valid before showing form)

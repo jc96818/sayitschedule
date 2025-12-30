@@ -71,6 +71,19 @@ interface UserInvitationData {
   invitedByName: string
 }
 
+interface PasswordResetData {
+  user: {
+    email: string
+    name: string
+  }
+  organization: {
+    name: string
+    subdomain: string
+    primaryColor?: string
+  } | null
+  token: string
+}
+
 interface LeadNotificationData {
   id: string
   name: string
@@ -511,6 +524,86 @@ If you have questions, please contact your administrator.
 }
 
 /**
+ * Send password reset email with reset link
+ */
+export async function sendPasswordResetEmail(
+  data: PasswordResetData
+): Promise<boolean> {
+  const { user, organization, token } = data
+
+  const orgName = organization?.name || 'Say It Schedule'
+  const primaryColor = organization?.primaryColor || '#2563eb'
+
+  // Build the reset password URL with organization's subdomain
+  const resetUrl = buildOrgUrl(organization?.subdomain, `/setup-password?token=${token}`)
+
+  const subject = `Reset your ${orgName} password`
+
+  const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: ${primaryColor}; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background-color: #f9fafb; }
+    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
+    .button { display: inline-block; background-color: ${primaryColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin-top: 16px; font-weight: bold; }
+    .expiry { color: #6b7280; font-size: 14px; margin-top: 16px; }
+    .warning { background-color: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 16px; font-size: 14px; }
+    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${orgName}</h1>
+    </div>
+    <div class="content">
+      <h2>Password Reset Request</h2>
+      <p>Hi ${user.name},</p>
+      <p>We received a request to reset your password for your ${orgName} account. Click the button below to create a new password.</p>
+      <div style="text-align: center;">
+        <a href="${resetUrl}" class="button">Reset Your Password</a>
+      </div>
+      <p class="expiry">This link will expire in 1 hour for security reasons.</p>
+      <div class="warning">
+        <strong>Didn't request this?</strong> If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+      </div>
+    </div>
+    <div class="footer">
+      <p>This is an automated message from Say It Schedule.</p>
+      <p>If you need help, please contact your administrator.</p>
+    </div>
+  </div>
+</body>
+</html>
+`
+
+  const textBody = `
+Password Reset Request
+
+Hi ${user.name},
+
+We received a request to reset your password for your ${orgName} account.
+
+Reset Your Password: ${resetUrl}
+
+This link will expire in 1 hour for security reasons.
+
+Didn't request this? If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+
+---
+This is an automated message from Say It Schedule.
+If you need help, please contact your administrator.
+`
+
+  return sendEmail(user.email, subject, htmlBody, textBody)
+}
+
+/**
  * Send notification to sales team when a new lead is submitted
  */
 export async function sendLeadNotification(
@@ -598,6 +691,7 @@ export const emailService = {
   sendTimeOffRequestSubmitted,
   sendTimeOffReviewed,
   sendUserInvitation,
+  sendPasswordResetEmail,
   sendLeadNotification,
   sendEmail
 }

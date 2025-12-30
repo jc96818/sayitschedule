@@ -22,6 +22,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('@/pages/ForgotPasswordPage.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/app/schedule/:id/print',
     name: 'schedule-print',
     component: () => import('@/pages/SchedulePrintPage.vue'),

@@ -132,7 +132,7 @@ function cancelMfa() {
             <input v-model="rememberMe" type="checkbox" style="width: auto;" />
             <span style="font-weight: normal;">Remember me</span>
           </label>
-          <a href="#" style="font-size: 14px;">Forgot password?</a>
+          <RouterLink to="/forgot-password" style="font-size: 14px;">Forgot password?</RouterLink>
         </div>
 
         <button type="submit" class="btn btn-primary btn-block btn-lg" :disabled="loading">
