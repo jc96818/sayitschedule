@@ -304,7 +304,7 @@ async function handleExportPdf() {
 
 function handlePrint() {
   if (currentSchedule.value) {
-    window.open(`/schedule/${currentSchedule.value.id}/print`, '_blank')
+    window.open(`/app/schedule/${currentSchedule.value.id}/print`, '_blank')
   }
 }
 
@@ -515,7 +515,7 @@ onMounted(() => {
           </svg>
           Publish Schedule
         </Button>
-        <RouterLink to="/schedule/generate" class="btn btn-primary">
+        <RouterLink to="/app/schedule/generate" class="btn btn-primary">
           Generate New
         </RouterLink>
       </div>
@@ -601,7 +601,7 @@ onMounted(() => {
             </svg>
             <h3 style="margin-bottom: 8px;">No Schedule for This Week</h3>
             <p class="text-muted" style="margin-bottom: 24px;">Generate a new schedule using voice or the button below.</p>
-            <RouterLink to="/schedule/generate" class="btn btn-primary">
+            <RouterLink to="/app/schedule/generate" class="btn btn-primary">
               Generate Schedule
             </RouterLink>
           </div>

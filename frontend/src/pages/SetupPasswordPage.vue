@@ -95,7 +95,7 @@ async function handleSubmit() {
     localStorage.setItem('token', response.token)
 
     // Redirect to dashboard
-    router.push('/')
+    router.push('/app')
   } catch (error: unknown) {
     const err = error as { response?: { data?: { error?: string } } }
     formError.value = err.response?.data?.error || 'Failed to set password. Please try again.'

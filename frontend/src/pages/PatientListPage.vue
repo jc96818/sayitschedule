@@ -326,7 +326,7 @@ watch([statusFilter, genderFilter], () => {
                   </Badge>
                 </td>
                 <td>
-                  <RouterLink :to="`/patients/${patient.id}`" class="btn btn-ghost btn-sm">
+                  <RouterLink :to="`/app/patients/${patient.id}`" class="btn btn-ghost btn-sm">
                     View
                   </RouterLink>
                 </td>

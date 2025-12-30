@@ -84,12 +84,12 @@ async function handleEnterOrg(org: Organization) {
     const { token } = await organizationsStore.switchContext(org.id)
     // Redirect superadmin to the organization's subdomain with the new token
     if (token && org.subdomain) {
-      const redirectUrl = buildSubdomainUrl(org.subdomain, '/', token)
+      const redirectUrl = buildSubdomainUrl(org.subdomain, '/app', token)
       window.location.href = redirectUrl
     } else {
       // Fallback for development (no subdomain routing)
       authStore.setOrganizationContext(org)
-      router.push('/')
+      router.push('/app')
     }
   } catch (error) {
     console.error('Failed to switch organization context:', error)

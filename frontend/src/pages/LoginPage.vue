@@ -78,7 +78,7 @@ function handlePostLoginRedirect() {
   if (authStore.isSuperAdmin) {
     router.push('/super-admin')
   } else {
-    router.push('/')
+    router.push('/app')
   }
 }
 

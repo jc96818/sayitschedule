@@ -4,7 +4,7 @@ import { consumeAuthTokenFromUrl, getSubdomain, isAdminSubdomain, buildSubdomain
 
 const routes: RouteRecordRaw[] = [
   {
-    path: '/welcome',
+    path: '/',
     name: 'landing',
     component: () => import('@/pages/LandingPage.vue'),
     meta: { requiresAuth: false, isPublic: true }
@@ -22,13 +22,13 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false }
   },
   {
-    path: '/schedule/:id/print',
+    path: '/app/schedule/:id/print',
     name: 'schedule-print',
     component: () => import('@/pages/SchedulePrintPage.vue'),
     meta: { requiresAuth: true }
   },
   {
-    path: '/',
+    path: '/app',
     component: () => import('@/layouts/AppLayout.vue'),
     meta: { requiresAuth: true },
     children: [
@@ -167,7 +167,7 @@ router.beforeEach(async (to, _from, next) => {
 
   // Redirect to dashboard if already logged in and going to login or landing
   if ((to.name === 'login' || to.name === 'landing') && token) {
-    next({ name: 'dashboard' })
+    next('/app')
     return
   }
 

@@ -317,7 +317,7 @@ const capabilitySuggestions = [
                   </Badge>
                 </td>
                 <td>
-                  <RouterLink :to="`/rooms/${room.id}`" class="btn btn-ghost btn-sm">
+                  <RouterLink :to="`/app/rooms/${room.id}`" class="btn btn-ghost btn-sm">
                     View
                   </RouterLink>
                 </td>

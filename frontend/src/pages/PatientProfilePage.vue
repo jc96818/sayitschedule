@@ -99,7 +99,7 @@ async function handleDelete() {
   if (confirm('Are you sure you want to delete this patient? This action cannot be undone.')) {
     try {
       await patientsStore.deletePatient(patient.value.id)
-      router.push('/patients')
+      router.push('/app/patients')
     } catch (error) {
       console.error('Failed to delete patient:', error)
     }
@@ -125,7 +125,7 @@ onMounted(async () => {
   <div>
     <header class="header">
       <div class="header-title">
-        <RouterLink to="/patients" class="back-link">
+        <RouterLink to="/app/patients" class="back-link">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
@@ -174,7 +174,7 @@ onMounted(async () => {
       <div v-else-if="!patient" class="card">
         <div class="card-body text-center">
           <p class="text-muted">Patient not found.</p>
-          <RouterLink to="/patients" class="btn btn-primary" style="margin-top: 16px;">
+          <RouterLink to="/app/patients" class="btn btn-primary" style="margin-top: 16px;">
             Return to Patient List
           </RouterLink>
         </div>

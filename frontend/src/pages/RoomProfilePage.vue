@@ -74,7 +74,7 @@ async function handleDelete() {
   if (confirm('Are you sure you want to delete this room? This action cannot be undone.')) {
     try {
       await roomsStore.deleteRoom(room.value.id)
-      router.push('/rooms')
+      router.push('/app/rooms')
     } catch (error) {
       console.error('Failed to delete room:', error)
     }
@@ -109,7 +109,7 @@ const capabilitySuggestions = [
   <div>
     <header class="header">
       <div class="header-title">
-        <RouterLink to="/rooms" class="back-link">
+        <RouterLink to="/app/rooms" class="back-link">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
@@ -155,7 +155,7 @@ const capabilitySuggestions = [
       <div v-else-if="!room" class="card">
         <div class="card-body text-center">
           <p class="text-muted">Room not found.</p>
-          <RouterLink to="/rooms" class="btn btn-primary" style="margin-top: 16px;">
+          <RouterLink to="/app/rooms" class="btn btn-primary" style="margin-top: 16px;">
             Return to Room List
           </RouterLink>
         </div>

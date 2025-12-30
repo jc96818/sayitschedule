@@ -62,32 +62,32 @@ const navigation = computed<NavSection[]>(() => {
     {
       title: 'Main',
       items: [
-        { name: 'Dashboard', path: '/', icon: 'home' },
-        { name: 'Schedule', path: '/schedule', icon: 'calendar' }
+        { name: 'Dashboard', path: '/app', icon: 'home' },
+        { name: 'Schedule', path: '/app/schedule', icon: 'calendar' }
       ]
     },
     {
       title: 'Management',
       items: [
-        { name: 'Rules', path: '/rules', icon: 'adjustments' },
-        { name: 'Staff', path: '/staff', icon: 'users' },
-        { name: 'Patients', path: '/patients', icon: 'user-group' },
-        { name: 'Rooms', path: '/rooms', icon: 'building' }
+        { name: 'Rules', path: '/app/rules', icon: 'adjustments' },
+        { name: 'Staff', path: '/app/staff', icon: 'users' },
+        { name: 'Patients', path: '/app/patients', icon: 'user-group' },
+        { name: 'Rooms', path: '/app/rooms', icon: 'building' }
       ]
     },
     {
       title: 'Admin',
       items: [
-        { name: 'Settings', path: '/settings', icon: 'cog', roles: ['admin', 'super_admin'] },
-        { name: 'Data Management', path: '/data-management', icon: 'database', roles: ['admin', 'super_admin'] },
-        { name: 'Users', path: '/users', icon: 'lock', roles: ['admin', 'super_admin'] },
-        { name: 'HIPAA BAA', path: '/baa', icon: 'shield', roles: ['admin', 'super_admin'], showWhen: () => organization.value?.requiresHipaa === true }
+        { name: 'Settings', path: '/app/settings', icon: 'cog', roles: ['admin', 'super_admin'] },
+        { name: 'Data Management', path: '/app/data-management', icon: 'database', roles: ['admin', 'super_admin'] },
+        { name: 'Users', path: '/app/users', icon: 'lock', roles: ['admin', 'super_admin'] },
+        { name: 'HIPAA BAA', path: '/app/baa', icon: 'shield', roles: ['admin', 'super_admin'], showWhen: () => organization.value?.requiresHipaa === true }
       ]
     },
     {
       title: 'Account',
       items: [
-        { name: 'My Account', path: '/account', icon: 'user-circle' }
+        { name: 'My Account', path: '/app/account', icon: 'user-circle' }
       ]
     }
   ]
@@ -112,8 +112,8 @@ const navigation = computed<NavSection[]>(() => {
 })
 
 function isActive(path: string): boolean {
-  if (path === '/') {
-    return route.path === '/'
+  if (path === '/app') {
+    return route.path === '/app'
   }
   return route.path.startsWith(path)
 }

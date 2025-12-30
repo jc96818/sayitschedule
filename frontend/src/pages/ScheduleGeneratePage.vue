@@ -158,7 +158,7 @@ async function handlePublish() {
 }
 
 function handleViewSchedule() {
-  router.push('/schedule')
+  router.push('/app/schedule')
 }
 
 function handleStartOver() {
@@ -183,7 +183,7 @@ onMounted(() => {
         <p>Create a new AI-powered schedule</p>
       </div>
       <div class="header-actions">
-        <RouterLink to="/schedule" class="btn btn-outline">
+        <RouterLink to="/app/schedule" class="btn btn-outline">
           Cancel
         </RouterLink>
       </div>

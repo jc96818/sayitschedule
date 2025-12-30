@@ -51,8 +51,10 @@ function handleClick(event: MouseEvent) {
     :disabled="disabled || loading"
     @click="handleClick"
   >
-    <span v-if="loading" class="btn-spinner"></span>
-    <slot />
+    <span v-if="loading" class="btn-spinner" aria-hidden="true"></span>
+    <span class="btn-content" :class="{ 'btn-content-loading': loading }">
+      <slot />
+    </span>
   </button>
 </template>
 
@@ -164,22 +166,37 @@ function handleClick(event: MouseEvent) {
 
 .btn-loading {
   position: relative;
-  color: transparent;
 }
 
 .btn-spinner {
   position: absolute;
+  top: 50%;
+  left: 50%;
   width: 16px;
   height: 16px;
+  transform: translate(-50%, -50%);
   border: 2px solid transparent;
   border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
 
+.btn-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-content-loading {
+  opacity: 0;
+}
+
 @keyframes spin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
   to {
-    transform: rotate(360deg);
+    transform: translate(-50%, -50%) rotate(360deg);
   }
 }
 </style>

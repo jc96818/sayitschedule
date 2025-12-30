@@ -141,7 +141,7 @@ async function handleDelete() {
   if (confirm('Are you sure you want to delete this staff member? This action cannot be undone.')) {
     try {
       await staffStore.deleteStaff(staff.value.id)
-      router.push('/staff')
+      router.push('/app/staff')
     } catch (error) {
       console.error('Failed to delete staff:', error)
     }
@@ -182,7 +182,7 @@ onMounted(async () => {
   <div>
     <header class="header">
       <div class="header-title">
-        <RouterLink to="/staff" class="back-link">
+        <RouterLink to="/app/staff" class="back-link">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
@@ -228,7 +228,7 @@ onMounted(async () => {
       <div v-else-if="!staff" class="card">
         <div class="card-body text-center">
           <p class="text-muted">Staff member not found.</p>
-          <RouterLink to="/staff" class="btn btn-primary" style="margin-top: 16px;">
+          <RouterLink to="/app/staff" class="btn btn-primary" style="margin-top: 16px;">
             Return to Staff List
           </RouterLink>
         </div>
