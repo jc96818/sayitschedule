@@ -3,9 +3,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { usePatientsStore } from '@/stores/patients'
 import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, SearchBox } from '@/components/ui'
 import { voiceService } from '@/services/api'
+import { useLabels } from '@/composables/useLabels'
 import type { Patient } from '@/types'
 
 const patientsStore = usePatientsStore()
+const { patientLabel, patientLabelSingular, patientLabelLower, patientLabelSingularLower, certificationLabel, staffLabelSingular } = useLabels()
 
 // Voice hints modal ref
 const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
@@ -167,15 +169,15 @@ watch([statusFilter, genderFilter], () => {
   <div>
     <header class="header">
       <div class="header-title">
-        <h2>Patient Management</h2>
-        <p>Manage patient records and scheduling preferences</p>
+        <h2>{{ patientLabel }} Management</h2>
+        <p>Manage {{ patientLabelLower }} records and scheduling preferences</p>
       </div>
       <div class="header-actions">
         <Button variant="primary" @click="showAddModal = true">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          Add Patient
+          Add {{ patientLabelSingular }}
         </Button>
       </div>
     </header>
@@ -186,8 +188,8 @@ watch([statusFilter, genderFilter], () => {
 
       <!-- Voice Interface -->
       <VoiceInput
-        title="Add Patients"
-        description="Say it or type it to add a patient."
+        :title="`Add ${patientLabel}`"
+        :description="`Say it or type it to add a ${patientLabelSingularLower}.`"
         :show-hints-link="true"
         @result="handleVoiceResult"
         @show-hints="voiceHintsModal?.openModal()"
@@ -213,7 +215,7 @@ watch([statusFilter, genderFilter], () => {
           <div>"{{ voiceTranscript }}"</div>
         </div>
         <div class="interpreted-rule">
-          <strong>Add New Patient:</strong>
+          <strong>Add New {{ patientLabelSingular }}:</strong>
           <div style="margin-top: 8px; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; text-align: left;">
             <span class="text-muted">Name:</span> <span>{{ parsedPatient?.name }}</span>
             <span class="text-muted">Gender:</span> <span>{{ parsedPatient?.gender }}</span>
@@ -225,7 +227,7 @@ watch([statusFilter, genderFilter], () => {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            Add Patient
+            Add {{ patientLabelSingular }}
           </Button>
           <Button variant="outline" @click="editVoiceParsed">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
@@ -242,7 +244,7 @@ watch([statusFilter, genderFilter], () => {
         <div class="card-body" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
           <SearchBox
             v-model="searchQuery"
-            placeholder="Search patients by name..."
+            :placeholder="`Search ${patientLabelLower} by name...`"
             style="flex: 1; min-width: 250px;"
           />
           <select v-model="statusFilter" class="form-control" style="width: auto;">
@@ -261,11 +263,11 @@ watch([statusFilter, genderFilter], () => {
       <!-- Patients Table -->
       <div class="card">
         <div class="card-header">
-          <h3>Patients ({{ patientsStore.totalCount }})</h3>
+          <h3>{{ patientLabel }} ({{ patientsStore.totalCount }})</h3>
         </div>
 
         <div v-if="patientsStore.loading" class="card-body text-center">
-          <p class="text-muted">Loading patients...</p>
+          <p class="text-muted">Loading {{ patientLabelLower }}...</p>
         </div>
 
         <div v-else-if="patientsStore.error" class="card-body">
@@ -273,7 +275,7 @@ watch([statusFilter, genderFilter], () => {
         </div>
 
         <div v-else-if="filteredPatients.length === 0" class="card-body text-center">
-          <p class="text-muted">No patients found</p>
+          <p class="text-muted">No {{ patientLabelLower }} found</p>
         </div>
 
         <div v-else class="table-container">
@@ -283,8 +285,8 @@ watch([statusFilter, genderFilter], () => {
                 <th>Name</th>
                 <th>Gender</th>
                 <th>Sessions/Week</th>
-                <th>Required Certs</th>
-                <th>Gender Pref</th>
+                <th>Required {{ certificationLabel }}</th>
+                <th>{{ staffLabelSingular }} Gender Pref</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -337,23 +339,23 @@ watch([statusFilter, genderFilter], () => {
 
         <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center;">
           <span class="text-sm text-muted">
-            Showing {{ filteredPatients.length }} of {{ patientsStore.totalCount }} patients
+            Showing {{ filteredPatients.length }} of {{ patientsStore.totalCount }} {{ patientLabelLower }}
           </span>
         </div>
       </div>
     </div>
 
     <!-- Add Patient Modal -->
-    <Modal v-model="showAddModal" title="Add Patient" size="md">
+    <Modal v-model="showAddModal" :title="`Add ${patientLabelSingular}`" size="md">
       <form @submit.prevent="handleAddPatient">
         <div class="form-group">
-          <label for="name">Patient Name</label>
+          <label for="name">{{ patientLabelSingular }} Name</label>
           <input
             id="name"
             v-model="newPatient.name"
             type="text"
             class="form-control"
-            placeholder="Enter patient name"
+            :placeholder="`Enter ${patientLabelSingularLower} name`"
             required
           />
         </div>
@@ -438,7 +440,7 @@ watch([statusFilter, genderFilter], () => {
         </div>
 
         <div class="form-group">
-          <label for="genderPref">Therapist Gender Preference</label>
+          <label for="genderPref">{{ staffLabelSingular }} Gender Preference</label>
           <select id="genderPref" v-model="newPatient.genderPreference" class="form-control">
             <option :value="null">No Preference</option>
             <option value="female">Female Only</option>
@@ -462,7 +464,7 @@ watch([statusFilter, genderFilter], () => {
             Cancel
           </Button>
           <Button type="submit" variant="primary" :loading="patientsStore.loading">
-            Add Patient
+            Add {{ patientLabelSingular }}
           </Button>
         </div>
       </form>

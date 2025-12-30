@@ -155,6 +155,11 @@ const routes: RouteRecordRaw[] = [
         path: 'leads',
         name: 'super-admin-leads',
         component: () => import('@/pages/SuperAdminLeadsPage.vue')
+      },
+      {
+        path: 'templates',
+        name: 'super-admin-templates',
+        component: () => import('@/pages/SuperAdminTemplatesPage.vue')
       }
     ]
   }

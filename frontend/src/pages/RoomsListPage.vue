@@ -3,9 +3,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoomsStore } from '@/stores/rooms'
 import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, SearchBox } from '@/components/ui'
 import { voiceService } from '@/services/api'
+import { useLabels } from '@/composables/useLabels'
 import type { Room } from '@/types'
 
 const roomsStore = useRoomsStore()
+const { roomLabel, roomLabelSingular, roomLabelLower, roomLabelSingularLower, equipmentLabel, suggestedRoomEquipment } = useLabels()
 
 // Voice hints modal ref
 const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
@@ -142,32 +144,38 @@ watch([statusFilter], () => {
   })
 })
 
-// Common capability suggestions
-const capabilitySuggestions = [
-  'wheelchair_accessible',
-  'sensory_equipment',
-  'computer_station',
-  'therapy_swing',
-  'quiet_room',
-  'large_space',
-  'outdoor_access',
-  'video_recording'
-]
+// Common capability suggestions - use organization's suggested equipment if available
+const capabilitySuggestions = computed(() => {
+  if (suggestedRoomEquipment.value && suggestedRoomEquipment.value.length > 0) {
+    return suggestedRoomEquipment.value
+  }
+  // Default suggestions
+  return [
+    'wheelchair_accessible',
+    'sensory_equipment',
+    'computer_station',
+    'therapy_swing',
+    'quiet_room',
+    'large_space',
+    'outdoor_access',
+    'video_recording'
+  ]
+})
 </script>
 
 <template>
   <div>
     <header class="header">
       <div class="header-title">
-        <h2>Room Management</h2>
-        <p>Configure therapy rooms and their capabilities</p>
+        <h2>{{ roomLabel }} Management</h2>
+        <p>Configure {{ roomLabelLower }} and their {{ equipmentLabel.toLowerCase() }}</p>
       </div>
       <div class="header-actions">
         <Button variant="primary" @click="showAddModal = true">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          Add Room
+          Add {{ roomLabelSingular }}
         </Button>
       </div>
     </header>
@@ -178,8 +186,8 @@ const capabilitySuggestions = [
 
       <!-- Voice Interface -->
       <VoiceInput
-        title="Add Rooms"
-        description="Say it or type it to add a room."
+        :title="`Add ${roomLabel}`"
+        :description="`Say it or type it to add a ${roomLabelSingularLower}.`"
         :show-hints-link="true"
         @result="handleVoiceResult"
         @show-hints="voiceHintsModal?.openModal()"
@@ -205,10 +213,10 @@ const capabilitySuggestions = [
           <div>"{{ voiceTranscript }}"</div>
         </div>
         <div class="interpreted-rule">
-          <strong>Add New Room:</strong>
+          <strong>Add New {{ roomLabelSingular }}:</strong>
           <div style="margin-top: 8px; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; text-align: left;">
             <span class="text-muted">Name:</span> <span>{{ parsedRoom?.name }}</span>
-            <span class="text-muted">Capabilities:</span>
+            <span class="text-muted">{{ equipmentLabel }}:</span>
             <span>
               <Badge v-for="cap in parsedRoom?.capabilities" :key="cap" variant="primary" style="margin-right: 4px;">
                 {{ cap }}
@@ -222,7 +230,7 @@ const capabilitySuggestions = [
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            Add Room
+            Add {{ roomLabelSingular }}
           </Button>
           <Button variant="outline" @click="editVoiceParsed">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
@@ -239,7 +247,7 @@ const capabilitySuggestions = [
         <div class="card-body" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
           <SearchBox
             v-model="searchQuery"
-            placeholder="Search rooms by name or capability..."
+            :placeholder="`Search ${roomLabelLower} by name or ${equipmentLabel.toLowerCase()}...`"
             style="flex: 1; min-width: 250px;"
           />
           <select v-model="statusFilter" class="form-control" style="width: auto;">
@@ -253,11 +261,11 @@ const capabilitySuggestions = [
       <!-- Rooms Table -->
       <div class="card">
         <div class="card-header">
-          <h3>Rooms ({{ roomsStore.totalCount }})</h3>
+          <h3>{{ roomLabel }} ({{ roomsStore.totalCount }})</h3>
         </div>
 
         <div v-if="roomsStore.loading" class="card-body text-center">
-          <p class="text-muted">Loading rooms...</p>
+          <p class="text-muted">Loading {{ roomLabelLower }}...</p>
         </div>
 
         <div v-else-if="roomsStore.error" class="card-body">
@@ -265,8 +273,8 @@ const capabilitySuggestions = [
         </div>
 
         <div v-else-if="filteredRooms.length === 0" class="card-body text-center">
-          <p class="text-muted">No rooms found</p>
-          <p class="text-sm text-muted mt-2">Add your first room to get started with room-based scheduling.</p>
+          <p class="text-muted">No {{ roomLabelLower }} found</p>
+          <p class="text-sm text-muted mt-2">Add your first {{ roomLabelSingularLower }} to get started with {{ roomLabelSingularLower }}-based scheduling.</p>
         </div>
 
         <div v-else class="table-container">
@@ -274,7 +282,7 @@ const capabilitySuggestions = [
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Capabilities</th>
+                <th>{{ equipmentLabel }}</th>
                 <th>Description</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -328,23 +336,23 @@ const capabilitySuggestions = [
 
         <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center;">
           <span class="text-sm text-muted">
-            Showing {{ filteredRooms.length }} of {{ roomsStore.totalCount }} rooms
+            Showing {{ filteredRooms.length }} of {{ roomsStore.totalCount }} {{ roomLabelLower }}
           </span>
         </div>
       </div>
     </div>
 
     <!-- Add Room Modal -->
-    <Modal v-model="showAddModal" title="Add Room" size="md">
+    <Modal v-model="showAddModal" :title="`Add ${roomLabelSingular}`" size="md">
       <form @submit.prevent="handleAddRoom">
         <div class="form-group">
-          <label for="name">Room Name</label>
+          <label for="name">{{ roomLabelSingular }} Name</label>
           <input
             id="name"
             v-model="newRoom.name"
             type="text"
             class="form-control"
-            placeholder="e.g., Room 101, Sensory Room A"
+            :placeholder="`e.g., ${roomLabelSingular} 101, Sensory ${roomLabelSingular} A`"
             required
           />
         </div>
@@ -356,18 +364,18 @@ const capabilitySuggestions = [
             v-model="newRoom.description"
             class="form-control"
             rows="2"
-            placeholder="Brief description of the room"
+            :placeholder="`Brief description of the ${roomLabelSingularLower}`"
           ></textarea>
         </div>
 
         <div class="form-group">
-          <label>Capabilities</label>
+          <label>{{ equipmentLabel }}</label>
           <div class="capability-input">
             <input
               v-model="newCapability"
               type="text"
               class="form-control"
-              placeholder="Add capability..."
+              :placeholder="`Add ${equipmentLabel.toLowerCase()}...`"
               @keydown.enter.prevent="addCapability"
             />
             <Button type="button" variant="outline" size="sm" @click="addCapability">Add</Button>
@@ -403,7 +411,7 @@ const capabilitySuggestions = [
             Cancel
           </Button>
           <Button type="submit" variant="primary" :loading="roomsStore.loading">
-            Add Room
+            Add {{ roomLabelSingular }}
           </Button>
         </div>
       </form>

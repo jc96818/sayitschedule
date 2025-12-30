@@ -9,7 +9,8 @@ const createOrgSchema = z.object({
   subdomain: z.string().min(1).regex(/^[a-z0-9-]+$/),
   primaryColor: z.string().optional(),
   secondaryColor: z.string().optional(),
-  requiresHipaa: z.boolean().optional()
+  requiresHipaa: z.boolean().optional(),
+  businessTypeTemplateId: z.string().nullable().optional()
 })
 
 const updateOrgSchema = createOrgSchema.partial().extend({
@@ -276,6 +277,101 @@ export async function organizationRoutes(fastify: FastifyInstance) {
         data: {
           transcriptionProvider: organization.transcriptionProvider,
           medicalSpecialty: organization.medicalSpecialty
+        }
+      }
+    }
+  )
+
+  // Get labels for current organization
+  fastify.get(
+    '/current/labels',
+    { preHandler: authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const ctx = request.ctx.user!
+
+      // Get organization ID from JWT or subdomain context (for super_admin on org subdomain)
+      const organizationId = ctx.organizationId || (ctx.role === 'super_admin' ? request.ctx.organizationId : null)
+      if (!organizationId) {
+        return reply.status(400).send({ error: 'Organization context required' })
+      }
+
+      const labels = await organizationRepository.getLabels(organizationId)
+      if (!labels) {
+        return reply.status(404).send({ error: 'Organization not found' })
+      }
+
+      return { data: labels }
+    }
+  )
+
+  // Update labels for current organization (admin only)
+  fastify.put(
+    '/current/labels',
+    { preHandler: authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const ctx = request.ctx.user!
+
+      // Only admins can update labels
+      if (ctx.role !== 'admin' && ctx.role !== 'super_admin') {
+        return reply.status(403).send({ error: 'Admin role required' })
+      }
+
+      const labelsSchema = z.object({
+        staffLabel: z.string().min(1).max(50).optional(),
+        staffLabelSingular: z.string().min(1).max(50).optional(),
+        patientLabel: z.string().min(1).max(50).optional(),
+        patientLabelSingular: z.string().min(1).max(50).optional(),
+        roomLabel: z.string().min(1).max(50).optional(),
+        roomLabelSingular: z.string().min(1).max(50).optional(),
+        certificationLabel: z.string().min(1).max(50).optional(),
+        equipmentLabel: z.string().min(1).max(50).optional(),
+        suggestedCertifications: z.array(z.string().max(100)).max(50).optional(),
+        suggestedRoomEquipment: z.array(z.string().max(100)).max(50).optional(),
+        organizationId: z.string().optional()
+      })
+
+      const parseResult = labelsSchema.safeParse(request.body)
+      if (!parseResult.success) {
+        return reply.status(400).send({ error: 'Invalid label data', details: parseResult.error.issues })
+      }
+      const body = parseResult.data
+
+      // Determine target organization
+      let targetOrgId: string | undefined
+      if (ctx.role === 'super_admin' && body.organizationId) {
+        targetOrgId = body.organizationId
+      } else if (ctx.organizationId) {
+        targetOrgId = ctx.organizationId
+      } else if (ctx.role === 'super_admin' && request.ctx.organizationId) {
+        targetOrgId = request.ctx.organizationId
+      }
+
+      if (!targetOrgId) {
+        return reply.status(400).send({ error: 'Organization context required' })
+      }
+
+      // Remove organizationId from the update payload
+      const { organizationId: _, ...updateData } = body
+
+      const organization = await organizationRepository.updateLabels(targetOrgId, updateData)
+      if (!organization) {
+        return reply.status(404).send({ error: 'Organization not found' })
+      }
+
+      await logAudit(ctx.userId, 'update_labels', 'organization', targetOrgId, null, updateData)
+
+      return {
+        data: {
+          staffLabel: organization.staffLabel,
+          staffLabelSingular: organization.staffLabelSingular,
+          patientLabel: organization.patientLabel,
+          patientLabelSingular: organization.patientLabelSingular,
+          roomLabel: organization.roomLabel,
+          roomLabelSingular: organization.roomLabelSingular,
+          certificationLabel: organization.certificationLabel,
+          equipmentLabel: organization.equipmentLabel,
+          suggestedCertifications: organization.suggestedCertifications,
+          suggestedRoomEquipment: organization.suggestedRoomEquipment
         }
       }
     }

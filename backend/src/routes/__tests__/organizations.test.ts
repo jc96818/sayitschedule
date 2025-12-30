@@ -155,7 +155,18 @@ describe('Organization Routes - Transcription Settings', () => {
 	        createdAt: new Date(),
 	        updatedAt: new Date(),
 	        transcriptionProvider: TranscriptionProvider.aws_standard,
-	        medicalSpecialty: MedicalSpecialty.CARDIOLOGY
+	        medicalSpecialty: MedicalSpecialty.CARDIOLOGY,
+	        businessTypeTemplateId: null,
+	        staffLabel: 'Staff',
+	        staffLabelSingular: 'Staff Member',
+	        patientLabel: 'Patients',
+	        patientLabelSingular: 'Patient',
+	        roomLabel: 'Rooms',
+	        roomLabelSingular: 'Room',
+	        certificationLabel: 'Certifications',
+	        equipmentLabel: 'Equipment',
+	        suggestedCertifications: [],
+	        suggestedRoomEquipment: []
 	      }
 
       vi.mocked(organizationRepository.update).mockResolvedValue(mockOrganization)
@@ -266,7 +277,18 @@ describe('Organization Routes - Transcription Settings', () => {
 	        createdAt: new Date(),
 	        updatedAt: new Date(),
 	        transcriptionProvider: TranscriptionProvider.aws_medical,
-	        medicalSpecialty: MedicalSpecialty.ONCOLOGY
+	        medicalSpecialty: MedicalSpecialty.ONCOLOGY,
+	        businessTypeTemplateId: null,
+	        staffLabel: 'Staff',
+	        staffLabelSingular: 'Staff Member',
+	        patientLabel: 'Patients',
+	        patientLabelSingular: 'Patient',
+	        roomLabel: 'Rooms',
+	        roomLabelSingular: 'Room',
+	        certificationLabel: 'Certifications',
+	        equipmentLabel: 'Equipment',
+	        suggestedCertifications: [],
+	        suggestedRoomEquipment: []
 	      }
 
       vi.mocked(organizationRepository.update).mockResolvedValue(mockOrganization)

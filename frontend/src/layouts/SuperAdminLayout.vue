@@ -67,6 +67,14 @@ async function logout() {
           >
             Leads
           </RouterLink>
+          <RouterLink
+            to="/super-admin/templates"
+            class="nav-item"
+            :class="{ active: route.path === '/super-admin/templates' }"
+            style="color: rgba(255,255,255,0.8);"
+          >
+            Templates
+          </RouterLink>
         </div>
         <div class="nav-section">
           <div class="nav-section-title" style="color: rgba(255,255,255,0.5);">Account</div>

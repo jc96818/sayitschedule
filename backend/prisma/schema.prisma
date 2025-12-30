@@ -72,6 +72,36 @@ enum MedicalSpecialty {
   UROLOGY
 }
 
+// Business Type Templates for organization customization
+model BusinessTypeTemplate {
+  id                      String   @id @default(cuid())
+  name                    String   @db.VarChar(100)
+  description             String?
+  isDefault               Boolean  @default(false) @map("is_default")
+  isActive                Boolean  @default(true) @map("is_active")
+
+  // Labels
+  staffLabel              String   @default("Staff") @map("staff_label") @db.VarChar(50)
+  staffLabelSingular      String   @default("Staff Member") @map("staff_label_singular") @db.VarChar(50)
+  patientLabel            String   @default("Patients") @map("patient_label") @db.VarChar(50)
+  patientLabelSingular    String   @default("Patient") @map("patient_label_singular") @db.VarChar(50)
+  roomLabel               String   @default("Rooms") @map("room_label") @db.VarChar(50)
+  roomLabelSingular       String   @default("Room") @map("room_label_singular") @db.VarChar(50)
+  certificationLabel      String   @default("Certifications") @map("certification_label") @db.VarChar(50)
+  equipmentLabel          String   @default("Equipment") @map("equipment_label") @db.VarChar(50)
+
+  // Suggested options
+  suggestedCertifications Json     @default("[]") @map("suggested_certifications")
+  suggestedRoomEquipment  Json     @default("[]") @map("suggested_room_equipment")
+
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @default(now()) @updatedAt @map("updated_at")
+
+  organizations           Organization[]
+
+  @@map("business_type_templates")
+}
+
 // Organizations
 model Organization {
   id             String   @id @default(cuid())
@@ -90,6 +120,22 @@ model Organization {
   // Transcription settings
   transcriptionProvider  TranscriptionProvider @default(aws_medical) @map("transcription_provider")
   medicalSpecialty       MedicalSpecialty      @default(PRIMARYCARE) @map("medical_specialty")
+
+  // Template reference
+  businessTypeTemplateId  String?  @map("business_type_template_id")
+  businessTypeTemplate    BusinessTypeTemplate? @relation(fields: [businessTypeTemplateId], references: [id])
+
+  // Custom labels (per-org overrides)
+  staffLabel              String   @default("Staff") @map("staff_label") @db.VarChar(50)
+  staffLabelSingular      String   @default("Staff Member") @map("staff_label_singular") @db.VarChar(50)
+  patientLabel            String   @default("Patients") @map("patient_label") @db.VarChar(50)
+  patientLabelSingular    String   @default("Patient") @map("patient_label_singular") @db.VarChar(50)
+  roomLabel               String   @default("Rooms") @map("room_label") @db.VarChar(50)
+  roomLabelSingular       String   @default("Room") @map("room_label_singular") @db.VarChar(50)
+  certificationLabel      String   @default("Certifications") @map("certification_label") @db.VarChar(50)
+  equipmentLabel          String   @default("Equipment") @map("equipment_label") @db.VarChar(50)
+  suggestedCertifications Json     @default("[]") @map("suggested_certifications")
+  suggestedRoomEquipment  Json     @default("[]") @map("suggested_room_equipment")
 
   users          User[]
   staff          Staff[]

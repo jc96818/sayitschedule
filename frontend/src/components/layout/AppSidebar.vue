@@ -3,10 +3,12 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { buildSubdomainUrl, getSubdomain } from '@/utils/subdomain'
+import { useLabels } from '@/composables/useLabels'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { staffLabel, patientLabel, roomLabel } = useLabels()
 
 const user = computed(() => authStore.user)
 const organization = computed(() => authStore.organization)
@@ -70,9 +72,9 @@ const navigation = computed<NavSection[]>(() => {
       title: 'Management',
       items: [
         { name: 'Rules', path: '/app/rules', icon: 'adjustments' },
-        { name: 'Staff', path: '/app/staff', icon: 'users' },
-        { name: 'Patients', path: '/app/patients', icon: 'user-group' },
-        { name: 'Rooms', path: '/app/rooms', icon: 'building' }
+        { name: staffLabel.value, path: '/app/staff', icon: 'users' },
+        { name: patientLabel.value, path: '/app/patients', icon: 'user-group' },
+        { name: roomLabel.value, path: '/app/rooms', icon: 'building' }
       ]
     },
     {

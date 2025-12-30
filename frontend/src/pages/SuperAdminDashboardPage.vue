@@ -5,7 +5,8 @@ import { useOrganizationsStore } from '@/stores/organizations'
 import { useAuthStore } from '@/stores/auth'
 import { Modal, Alert, Badge, Button, StatCard } from '@/components/ui'
 import { buildSubdomainUrl } from '@/utils/subdomain'
-import type { Organization } from '@/types'
+import { templateService } from '@/services/api'
+import type { Organization, BusinessTypeTemplate } from '@/types'
 
 const router = useRouter()
 const organizationsStore = useOrganizationsStore()
@@ -15,13 +16,21 @@ const showCreateModal = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref<'all' | 'active' | 'inactive'>('all')
 
-const newOrg = ref<Partial<Organization>>({
+// Template selection for new organizations
+const templates = ref<BusinessTypeTemplate[]>([])
+const selectedTemplateId = ref<string | null>(null)
+const selectedTemplate = computed(() =>
+  templates.value.find(t => t.id === selectedTemplateId.value) || null
+)
+
+const newOrg = ref<Partial<Organization & { businessTypeTemplateId?: string }>>({
   name: '',
   subdomain: '',
   primaryColor: '#2563eb',
   secondaryColor: '#1e40af',
   status: 'active',
-  requiresHipaa: false
+  requiresHipaa: false,
+  businessTypeTemplateId: undefined
 })
 
 const filteredOrganizations = computed(() => {
@@ -59,7 +68,12 @@ function formatDate(dateStr: string): string {
 
 async function handleCreateOrg() {
   try {
-    await organizationsStore.createOrganization(newOrg.value)
+    // Include template ID if selected
+    const orgData = {
+      ...newOrg.value,
+      businessTypeTemplateId: selectedTemplateId.value || undefined
+    }
+    await organizationsStore.createOrganization(orgData)
     showCreateModal.value = false
     resetForm()
   } catch (error) {
@@ -74,8 +88,10 @@ function resetForm() {
     primaryColor: '#2563eb',
     secondaryColor: '#1e40af',
     status: 'active',
-    requiresHipaa: false
+    requiresHipaa: false,
+    businessTypeTemplateId: undefined
   }
+  selectedTemplateId.value = null
 }
 
 async function handleEnterOrg(org: Organization) {
@@ -105,8 +121,23 @@ async function handleToggleStatus(org: Organization) {
   }
 }
 
+async function fetchTemplates() {
+  try {
+    const response = await templateService.listActive()
+    templates.value = response.data
+    // Pre-select the default template if available
+    const defaultTemplate = templates.value.find(t => t.isDefault)
+    if (defaultTemplate) {
+      selectedTemplateId.value = defaultTemplate.id
+    }
+  } catch (error) {
+    console.error('Failed to fetch templates:', error)
+  }
+}
+
 onMounted(() => {
   organizationsStore.fetchOrganizations()
+  fetchTemplates()
 })
 </script>
 
@@ -314,6 +345,43 @@ onMounted(() => {
           <small class="text-muted">Enable if this organization handles Protected Health Information (PHI)</small>
         </div>
 
+        <div class="form-group">
+          <label for="template">Business Type Template</label>
+          <select
+            id="template"
+            v-model="selectedTemplateId"
+            class="form-control"
+          >
+            <option :value="null">No Template (use defaults)</option>
+            <option v-for="template in templates" :key="template.id" :value="template.id">
+              {{ template.name }}{{ template.isDefault ? ' (Default)' : '' }}
+            </option>
+          </select>
+          <small class="text-muted">Templates provide pre-configured labels for Staff, Patients, Rooms, etc.</small>
+        </div>
+
+        <!-- Template Preview -->
+        <div v-if="selectedTemplate" class="template-preview">
+          <div class="template-preview-header">
+            <strong>{{ selectedTemplate.name }}</strong>
+            <span v-if="selectedTemplate.description" class="text-muted"> - {{ selectedTemplate.description }}</span>
+          </div>
+          <div class="template-labels-preview">
+            <div class="preview-item">
+              <span class="preview-label">Staff:</span>
+              <span>{{ selectedTemplate.staffLabel }} / {{ selectedTemplate.staffLabelSingular }}</span>
+            </div>
+            <div class="preview-item">
+              <span class="preview-label">Patients:</span>
+              <span>{{ selectedTemplate.patientLabel }} / {{ selectedTemplate.patientLabelSingular }}</span>
+            </div>
+            <div class="preview-item">
+              <span class="preview-label">Rooms:</span>
+              <span>{{ selectedTemplate.roomLabel }} / {{ selectedTemplate.roomLabelSingular }}</span>
+            </div>
+          </div>
+        </div>
+
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
           <Button type="button" variant="outline" @click="showCreateModal = false">
             Cancel
@@ -424,6 +492,41 @@ onMounted(() => {
   }
 
   .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.template-preview {
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.template-preview-header {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.template-labels-preview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.preview-item {
+  font-size: 13px;
+}
+
+.preview-label {
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+@media (max-width: 640px) {
+  .template-labels-preview {
     grid-template-columns: 1fr;
   }
 }

@@ -3,9 +3,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useStaffStore } from '@/stores/staff'
 import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, SearchBox } from '@/components/ui'
 import { voiceService } from '@/services/api'
+import { useLabels } from '@/composables/useLabels'
 import type { Staff } from '@/types'
 
 const staffStore = useStaffStore()
+const { staffLabel, staffLabelSingular, staffLabelLower, certificationLabel } = useLabels()
 
 // Voice hints modal ref
 const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
@@ -160,15 +162,15 @@ watch([statusFilter, genderFilter], () => {
   <div>
     <header class="header">
       <div class="header-title">
-        <h2>Staff Management</h2>
-        <p>Manage therapists and their availability</p>
+        <h2>{{ staffLabel }} Management</h2>
+        <p>Manage {{ staffLabelLower }} and their availability</p>
       </div>
       <div class="header-actions">
         <Button variant="primary" @click="showAddModal = true">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          Add Staff Member
+          Add {{ staffLabelSingular }}
         </Button>
       </div>
     </header>
@@ -179,8 +181,8 @@ watch([statusFilter, genderFilter], () => {
 
       <!-- Voice Interface -->
       <VoiceInput
-        title="Add Staff"
-        description="Say it or type it to add a staff member."
+        :title="`Add ${staffLabelSingular}`"
+        :description="`Say it or type it to add a ${staffLabelSingular.toLowerCase()}.`"
         :show-hints-link="true"
         @result="handleVoiceResult"
         @show-hints="voiceHintsModal?.openModal()"
@@ -206,7 +208,7 @@ watch([statusFilter, genderFilter], () => {
           <div>"{{ voiceTranscript }}"</div>
         </div>
         <div class="interpreted-rule">
-          <strong>Add New Staff Member:</strong>
+          <strong>Add New {{ staffLabelSingular }}:</strong>
           <div style="margin-top: 8px; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; text-align: left;">
             <span class="text-muted">Name:</span> <span>{{ parsedStaff?.name }}</span>
             <span class="text-muted">Gender:</span> <span>{{ parsedStaff?.gender }}</span>
@@ -218,7 +220,7 @@ watch([statusFilter, genderFilter], () => {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            Add Staff Member
+            Add {{ staffLabelSingular }}
           </Button>
           <Button variant="outline" @click="editVoiceParsed">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
@@ -235,7 +237,7 @@ watch([statusFilter, genderFilter], () => {
         <div class="card-body" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
           <SearchBox
             v-model="searchQuery"
-            placeholder="Search staff by name or email..."
+            :placeholder="`Search ${staffLabelLower} by name or email...`"
             style="flex: 1; min-width: 250px;"
           />
           <select v-model="statusFilter" class="form-control" style="width: auto;">
@@ -254,11 +256,11 @@ watch([statusFilter, genderFilter], () => {
       <!-- Staff Table -->
       <div class="card">
         <div class="card-header">
-          <h3>Therapists ({{ staffStore.totalCount }})</h3>
+          <h3>{{ staffLabel }} ({{ staffStore.totalCount }})</h3>
         </div>
 
         <div v-if="staffStore.loading" class="card-body text-center">
-          <p class="text-muted">Loading staff...</p>
+          <p class="text-muted">Loading {{ staffLabelLower }}...</p>
         </div>
 
         <div v-else-if="staffStore.error" class="card-body">
@@ -266,7 +268,7 @@ watch([statusFilter, genderFilter], () => {
         </div>
 
         <div v-else-if="filteredStaff.length === 0" class="card-body text-center">
-          <p class="text-muted">No staff members found</p>
+          <p class="text-muted">No {{ staffLabelLower }} found</p>
         </div>
 
         <div v-else class="table-container">
@@ -277,7 +279,7 @@ watch([statusFilter, genderFilter], () => {
                 <th>Gender</th>
                 <th>Email</th>
                 <th>Phone</th>
-                <th>Certifications</th>
+                <th>{{ certificationLabel }}</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -330,14 +332,14 @@ watch([statusFilter, genderFilter], () => {
 
         <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center;">
           <span class="text-sm text-muted">
-            Showing {{ filteredStaff.length }} of {{ staffStore.totalCount }} staff members
+            Showing {{ filteredStaff.length }} of {{ staffStore.totalCount }} {{ staffLabelLower }}
           </span>
         </div>
       </div>
     </div>
 
     <!-- Add Staff Modal -->
-    <Modal v-model="showAddModal" title="Add Staff Member" size="md">
+    <Modal v-model="showAddModal" :title="`Add ${staffLabelSingular}`" size="md">
       <form @submit.prevent="handleAddStaff">
         <div class="form-group">
           <label for="name">Full Name</label>
@@ -399,7 +401,7 @@ watch([statusFilter, genderFilter], () => {
             Cancel
           </Button>
           <Button type="submit" variant="primary" :loading="staffStore.loading">
-            Add Staff Member
+            Add {{ staffLabelSingular }}
           </Button>
         </div>
       </form>

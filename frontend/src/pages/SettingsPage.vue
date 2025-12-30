@@ -3,7 +3,8 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { organizationService, type TranscriptionProviderType, type MedicalSpecialty } from '@/services/api'
 import { applyBranding } from '@/composables/useBranding'
-import { Alert } from '@/components/ui'
+import { Alert, Badge, Button } from '@/components/ui'
+import type { OrganizationLabels } from '@/types'
 
 const authStore = useAuthStore()
 
@@ -22,6 +23,26 @@ const transcriptionLoading = ref(false)
 const transcriptionSaving = ref(false)
 const transcriptionError = ref<string | null>(null)
 const transcriptionSuccess = ref(false)
+
+// Labels settings state
+const labels = ref<OrganizationLabels>({
+  staffLabel: 'Staff',
+  staffLabelSingular: 'Staff Member',
+  patientLabel: 'Patients',
+  patientLabelSingular: 'Patient',
+  roomLabel: 'Rooms',
+  roomLabelSingular: 'Room',
+  certificationLabel: 'Certifications',
+  equipmentLabel: 'Equipment',
+  suggestedCertifications: [],
+  suggestedRoomEquipment: []
+})
+const labelsLoading = ref(false)
+const labelsSaving = ref(false)
+const labelsError = ref<string | null>(null)
+const labelsSuccess = ref(false)
+const newCertification = ref('')
+const newEquipment = ref('')
 
 // UI state
 const saving = ref(false)
@@ -136,9 +157,84 @@ async function handleSaveTranscription() {
   }
 }
 
+// Load labels settings
+async function loadLabelsSettings() {
+  labelsLoading.value = true
+  labelsError.value = null
+
+  try {
+    const response = await organizationService.getLabels()
+    labels.value = {
+      staffLabel: response.data.staffLabel || 'Staff',
+      staffLabelSingular: response.data.staffLabelSingular || 'Staff Member',
+      patientLabel: response.data.patientLabel || 'Patients',
+      patientLabelSingular: response.data.patientLabelSingular || 'Patient',
+      roomLabel: response.data.roomLabel || 'Rooms',
+      roomLabelSingular: response.data.roomLabelSingular || 'Room',
+      certificationLabel: response.data.certificationLabel || 'Certifications',
+      equipmentLabel: response.data.equipmentLabel || 'Equipment',
+      suggestedCertifications: response.data.suggestedCertifications || [],
+      suggestedRoomEquipment: response.data.suggestedRoomEquipment || []
+    }
+  } catch (e) {
+    labelsError.value = e instanceof Error ? e.message : 'Failed to load label settings'
+  } finally {
+    labelsLoading.value = false
+  }
+}
+
+// Save labels settings
+async function handleSaveLabels() {
+  labelsSaving.value = true
+  labelsError.value = null
+  labelsSuccess.value = false
+
+  try {
+    const response = await organizationService.updateLabels(labels.value)
+
+    // Update the auth store with new org data (response is full Organization)
+    if (response.data) {
+      authStore.setOrganizationContext(response.data)
+    }
+    labelsSuccess.value = true
+    setTimeout(() => {
+      labelsSuccess.value = false
+    }, 3000)
+  } catch (e) {
+    labelsError.value = e instanceof Error ? e.message : 'Failed to save label settings'
+  } finally {
+    labelsSaving.value = false
+  }
+}
+
+// Certification management
+function addCertification() {
+  if (newCertification.value.trim() && !labels.value.suggestedCertifications?.includes(newCertification.value.trim())) {
+    labels.value.suggestedCertifications = [...(labels.value.suggestedCertifications || []), newCertification.value.trim()]
+    newCertification.value = ''
+  }
+}
+
+function removeCertification(cert: string) {
+  labels.value.suggestedCertifications = (labels.value.suggestedCertifications || []).filter(c => c !== cert)
+}
+
+// Equipment management
+function addEquipment() {
+  if (newEquipment.value.trim() && !labels.value.suggestedRoomEquipment?.includes(newEquipment.value.trim())) {
+    labels.value.suggestedRoomEquipment = [...(labels.value.suggestedRoomEquipment || []), newEquipment.value.trim()]
+    newEquipment.value = ''
+  }
+}
+
+function removeEquipment(equip: string) {
+  labels.value.suggestedRoomEquipment = (labels.value.suggestedRoomEquipment || []).filter(e => e !== equip)
+}
+
 // Load settings on mount
 onMounted(() => {
   loadTranscriptionSettings()
+  loadLabelsSettings()
 })
 </script>
 
@@ -335,6 +431,202 @@ onMounted(() => {
             </ul>
           </div>
         </div>
+
+        <div class="card card-full-width">
+          <div class="card-header">
+            <h3>Custom Labels</h3>
+          </div>
+          <div class="card-body">
+            <Alert v-if="labelsError" variant="danger" class="mb-3" dismissible @dismiss="labelsError = null">
+              {{ labelsError }}
+            </Alert>
+
+            <Alert v-if="labelsSuccess" variant="success" class="mb-3">
+              Label settings saved successfully!
+            </Alert>
+
+            <div v-if="labelsLoading" class="loading-state">
+              Loading label settings...
+            </div>
+
+            <template v-else>
+              <p class="text-muted mb-3">
+                Customize how entities are named throughout the application. These labels will appear in navigation, page titles, buttons, and forms.
+              </p>
+
+              <div class="labels-grid">
+                <!-- Staff Labels -->
+                <div class="label-group">
+                  <h4>Staff Labels</h4>
+                  <div class="form-group">
+                    <label for="staff-label">Plural (e.g., "Staff", "Therapists")</label>
+                    <input
+                      id="staff-label"
+                      v-model="labels.staffLabel"
+                      type="text"
+                      class="form-control"
+                      placeholder="Staff"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label for="staff-label-singular">Singular (e.g., "Staff Member", "Therapist")</label>
+                    <input
+                      id="staff-label-singular"
+                      v-model="labels.staffLabelSingular"
+                      type="text"
+                      class="form-control"
+                      placeholder="Staff Member"
+                    />
+                  </div>
+                </div>
+
+                <!-- Patient Labels -->
+                <div class="label-group">
+                  <h4>Patient Labels</h4>
+                  <div class="form-group">
+                    <label for="patient-label">Plural (e.g., "Patients", "Clients")</label>
+                    <input
+                      id="patient-label"
+                      v-model="labels.patientLabel"
+                      type="text"
+                      class="form-control"
+                      placeholder="Patients"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label for="patient-label-singular">Singular (e.g., "Patient", "Client")</label>
+                    <input
+                      id="patient-label-singular"
+                      v-model="labels.patientLabelSingular"
+                      type="text"
+                      class="form-control"
+                      placeholder="Patient"
+                    />
+                  </div>
+                </div>
+
+                <!-- Room Labels -->
+                <div class="label-group">
+                  <h4>Room Labels</h4>
+                  <div class="form-group">
+                    <label for="room-label">Plural (e.g., "Rooms", "Treatment Areas")</label>
+                    <input
+                      id="room-label"
+                      v-model="labels.roomLabel"
+                      type="text"
+                      class="form-control"
+                      placeholder="Rooms"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label for="room-label-singular">Singular (e.g., "Room", "Treatment Area")</label>
+                    <input
+                      id="room-label-singular"
+                      v-model="labels.roomLabelSingular"
+                      type="text"
+                      class="form-control"
+                      placeholder="Room"
+                    />
+                  </div>
+                </div>
+
+                <!-- Other Labels -->
+                <div class="label-group">
+                  <h4>Other Labels</h4>
+                  <div class="form-group">
+                    <label for="certification-label">Certifications Label</label>
+                    <input
+                      id="certification-label"
+                      v-model="labels.certificationLabel"
+                      type="text"
+                      class="form-control"
+                      placeholder="Certifications"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label for="equipment-label">Room Equipment Label</label>
+                    <input
+                      id="equipment-label"
+                      v-model="labels.equipmentLabel"
+                      type="text"
+                      class="form-control"
+                      placeholder="Equipment"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Suggested Certifications -->
+              <div class="suggestions-section">
+                <h4>Suggested {{ labels.certificationLabel || 'Certifications' }}</h4>
+                <p class="text-muted text-sm">
+                  These will be shown as suggestions when adding {{ (labels.staffLabelSingular || 'staff member').toLowerCase() }} certifications.
+                </p>
+                <div class="tag-input-row">
+                  <input
+                    v-model="newCertification"
+                    type="text"
+                    class="form-control"
+                    placeholder="Add certification..."
+                    @keydown.enter.prevent="addCertification"
+                  />
+                  <Button type="button" variant="outline" size="sm" @click="addCertification">Add</Button>
+                </div>
+                <div v-if="labels.suggestedCertifications?.length" class="tags-list">
+                  <Badge
+                    v-for="cert in labels.suggestedCertifications"
+                    :key="cert"
+                    variant="primary"
+                    class="tag-badge"
+                    @click="removeCertification(cert)"
+                  >
+                    {{ cert }} ×
+                  </Badge>
+                </div>
+              </div>
+
+              <!-- Suggested Equipment -->
+              <div class="suggestions-section">
+                <h4>Suggested {{ labels.equipmentLabel || 'Equipment' }}</h4>
+                <p class="text-muted text-sm">
+                  These will be shown as suggestions when configuring {{ (labels.roomLabelSingular || 'room').toLowerCase() }} capabilities.
+                </p>
+                <div class="tag-input-row">
+                  <input
+                    v-model="newEquipment"
+                    type="text"
+                    class="form-control"
+                    placeholder="Add equipment..."
+                    @keydown.enter.prevent="addEquipment"
+                  />
+                  <Button type="button" variant="outline" size="sm" @click="addEquipment">Add</Button>
+                </div>
+                <div v-if="labels.suggestedRoomEquipment?.length" class="tags-list">
+                  <Badge
+                    v-for="equip in labels.suggestedRoomEquipment"
+                    :key="equip"
+                    variant="primary"
+                    class="tag-badge"
+                    @click="removeEquipment(equip)"
+                  >
+                    {{ equip }} ×
+                  </Badge>
+                </div>
+              </div>
+
+              <div class="button-row">
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  :disabled="labelsSaving"
+                  @click="handleSaveLabels"
+                >
+                  {{ labelsSaving ? 'Saving...' : 'Save Label Settings' }}
+                </button>
+              </div>
+            </template>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -412,6 +704,79 @@ onMounted(() => {
 
 @media (max-width: 640px) {
   .color-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card-full-width {
+  grid-column: 1 / -1;
+}
+
+.labels-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.label-group h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.suggestions-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: var(--background-color);
+  border-radius: var(--radius-md);
+}
+
+.suggestions-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.tag-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tag-input-row .form-control {
+  flex: 1;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-badge {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.tag-badge:hover {
+  opacity: 0.8;
+}
+
+.text-sm {
+  font-size: 13px;
+}
+
+.mb-3 {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .labels-grid {
     grid-template-columns: 1fr;
   }
 }

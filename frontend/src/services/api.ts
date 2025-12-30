@@ -4,6 +4,8 @@ import type {
   LoginResponse,
   User,
   Organization,
+  OrganizationLabels,
+  BusinessTypeTemplate,
   Staff,
   Patient,
   Rule,
@@ -196,6 +198,49 @@ export const organizationService = {
     organizationId?: string
   }): Promise<ApiResponse<TranscriptionSettings>> {
     const { data } = await api.put('/organizations/current/transcription', settings)
+    return data
+  },
+
+  async getLabels(): Promise<ApiResponse<OrganizationLabels>> {
+    const { data } = await api.get('/organizations/current/labels')
+    return data
+  },
+
+  async updateLabels(labels: OrganizationLabels & { organizationId?: string }): Promise<ApiResponse<Organization>> {
+    const { data } = await api.put('/organizations/current/labels', labels)
+    return data
+  }
+}
+
+// Template Service (for super admins)
+export const templateService = {
+  async list(params?: { search?: string; isActive?: boolean }): Promise<PaginatedResponse<BusinessTypeTemplate>> {
+    const { data } = await api.get('/templates', { params })
+    return data
+  },
+
+  async listActive(): Promise<ApiResponse<BusinessTypeTemplate[]>> {
+    const { data } = await api.get('/templates/active')
+    return data
+  },
+
+  async get(id: string): Promise<ApiResponse<BusinessTypeTemplate>> {
+    const { data } = await api.get(`/templates/${id}`)
+    return data
+  },
+
+  async create(template: Partial<BusinessTypeTemplate>): Promise<ApiResponse<BusinessTypeTemplate>> {
+    const { data } = await api.post('/templates', template)
+    return data
+  },
+
+  async update(id: string, template: Partial<BusinessTypeTemplate>): Promise<ApiResponse<BusinessTypeTemplate>> {
+    const { data } = await api.put(`/templates/${id}`, template)
+    return data
+  },
+
+  async delete(id: string): Promise<{ success: boolean }> {
+    const { data } = await api.delete(`/templates/${id}`)
     return data
   }
 }

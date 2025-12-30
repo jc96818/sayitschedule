@@ -10,6 +10,17 @@ export interface OrganizationCreate {
   requiresHipaa?: boolean
   transcriptionProvider?: TranscriptionProvider
   medicalSpecialty?: MedicalSpecialty
+  businessTypeTemplateId?: string | null
+  staffLabel?: string
+  staffLabelSingular?: string
+  patientLabel?: string
+  patientLabelSingular?: string
+  roomLabel?: string
+  roomLabelSingular?: string
+  certificationLabel?: string
+  equipmentLabel?: string
+  suggestedCertifications?: string[]
+  suggestedRoomEquipment?: string[]
 }
 
 export interface OrganizationUpdate {
@@ -22,6 +33,30 @@ export interface OrganizationUpdate {
   requiresHipaa?: boolean
   transcriptionProvider?: TranscriptionProvider
   medicalSpecialty?: MedicalSpecialty
+  businessTypeTemplateId?: string | null
+  staffLabel?: string
+  staffLabelSingular?: string
+  patientLabel?: string
+  patientLabelSingular?: string
+  roomLabel?: string
+  roomLabelSingular?: string
+  certificationLabel?: string
+  equipmentLabel?: string
+  suggestedCertifications?: string[]
+  suggestedRoomEquipment?: string[]
+}
+
+export interface OrganizationLabels {
+  staffLabel?: string
+  staffLabelSingular?: string
+  patientLabel?: string
+  patientLabelSingular?: string
+  roomLabel?: string
+  roomLabelSingular?: string
+  certificationLabel?: string
+  equipmentLabel?: string
+  suggestedCertifications?: string[]
+  suggestedRoomEquipment?: string[]
 }
 
 export type { Organization }
@@ -69,6 +104,28 @@ export class OrganizationRepository {
   }
 
   async create(data: OrganizationCreate): Promise<Organization> {
+    // If a template is specified, fetch it and use its labels as defaults
+    let templateLabels: OrganizationLabels = {}
+    if (data.businessTypeTemplateId) {
+      const template = await prisma.businessTypeTemplate.findUnique({
+        where: { id: data.businessTypeTemplateId }
+      })
+      if (template) {
+        templateLabels = {
+          staffLabel: template.staffLabel,
+          staffLabelSingular: template.staffLabelSingular,
+          patientLabel: template.patientLabel,
+          patientLabelSingular: template.patientLabelSingular,
+          roomLabel: template.roomLabel,
+          roomLabelSingular: template.roomLabelSingular,
+          certificationLabel: template.certificationLabel,
+          equipmentLabel: template.equipmentLabel,
+          suggestedCertifications: template.suggestedCertifications as string[],
+          suggestedRoomEquipment: template.suggestedRoomEquipment as string[]
+        }
+      }
+    }
+
     return prisma.organization.create({
       data: {
         name: data.name,
@@ -76,7 +133,19 @@ export class OrganizationRepository {
         logoUrl: data.logoUrl,
         primaryColor: data.primaryColor || '#2563eb',
         secondaryColor: data.secondaryColor || '#1e40af',
-        requiresHipaa: data.requiresHipaa ?? false
+        requiresHipaa: data.requiresHipaa ?? false,
+        businessTypeTemplateId: data.businessTypeTemplateId,
+        // Use provided labels, fall back to template, then to defaults
+        staffLabel: data.staffLabel ?? templateLabels.staffLabel ?? 'Staff',
+        staffLabelSingular: data.staffLabelSingular ?? templateLabels.staffLabelSingular ?? 'Staff Member',
+        patientLabel: data.patientLabel ?? templateLabels.patientLabel ?? 'Patients',
+        patientLabelSingular: data.patientLabelSingular ?? templateLabels.patientLabelSingular ?? 'Patient',
+        roomLabel: data.roomLabel ?? templateLabels.roomLabel ?? 'Rooms',
+        roomLabelSingular: data.roomLabelSingular ?? templateLabels.roomLabelSingular ?? 'Room',
+        certificationLabel: data.certificationLabel ?? templateLabels.certificationLabel ?? 'Certifications',
+        equipmentLabel: data.equipmentLabel ?? templateLabels.equipmentLabel ?? 'Equipment',
+        suggestedCertifications: data.suggestedCertifications ?? templateLabels.suggestedCertifications ?? [],
+        suggestedRoomEquipment: data.suggestedRoomEquipment ?? templateLabels.suggestedRoomEquipment ?? []
       }
     })
   }
@@ -126,6 +195,50 @@ export class OrganizationRepository {
     })
 
     return org
+  }
+
+  async getLabels(id: string): Promise<OrganizationLabels | null> {
+    const org = await prisma.organization.findUnique({
+      where: { id },
+      select: {
+        staffLabel: true,
+        staffLabelSingular: true,
+        patientLabel: true,
+        patientLabelSingular: true,
+        roomLabel: true,
+        roomLabelSingular: true,
+        certificationLabel: true,
+        equipmentLabel: true,
+        suggestedCertifications: true,
+        suggestedRoomEquipment: true
+      }
+    })
+
+    if (!org) return null
+
+    return {
+      staffLabel: org.staffLabel,
+      staffLabelSingular: org.staffLabelSingular,
+      patientLabel: org.patientLabel,
+      patientLabelSingular: org.patientLabelSingular,
+      roomLabel: org.roomLabel,
+      roomLabelSingular: org.roomLabelSingular,
+      certificationLabel: org.certificationLabel,
+      equipmentLabel: org.equipmentLabel,
+      suggestedCertifications: org.suggestedCertifications as string[],
+      suggestedRoomEquipment: org.suggestedRoomEquipment as string[]
+    }
+  }
+
+  async updateLabels(id: string, labels: OrganizationLabels): Promise<Organization | null> {
+    try {
+      return await prisma.organization.update({
+        where: { id },
+        data: labels
+      })
+    } catch {
+      return null
+    }
   }
 }
 

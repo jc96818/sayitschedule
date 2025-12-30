@@ -10,6 +10,54 @@ export interface Organization {
   requiresHipaa: boolean
   createdAt: string
   updatedAt: string
+  // Label customization
+  businessTypeTemplateId?: string | null
+  staffLabel: string
+  staffLabelSingular: string
+  patientLabel: string
+  patientLabelSingular: string
+  roomLabel: string
+  roomLabelSingular: string
+  certificationLabel: string
+  equipmentLabel: string
+  suggestedCertifications: string[]
+  suggestedRoomEquipment: string[]
+}
+
+// Business Type Template
+export interface BusinessTypeTemplate {
+  id: string
+  name: string
+  description: string | null
+  isDefault: boolean
+  isActive: boolean
+  staffLabel: string
+  staffLabelSingular: string
+  patientLabel: string
+  patientLabelSingular: string
+  roomLabel: string
+  roomLabelSingular: string
+  certificationLabel: string
+  equipmentLabel: string
+  suggestedCertifications: string[]
+  suggestedRoomEquipment: string[]
+  createdAt: string
+  updatedAt: string
+  organizationCount?: number
+}
+
+// Organization Labels (subset for updating)
+export interface OrganizationLabels {
+  staffLabel?: string
+  staffLabelSingular?: string
+  patientLabel?: string
+  patientLabelSingular?: string
+  roomLabel?: string
+  roomLabelSingular?: string
+  certificationLabel?: string
+  equipmentLabel?: string
+  suggestedCertifications?: string[]
+  suggestedRoomEquipment?: string[]
 }
 
 // User roles
