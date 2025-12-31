@@ -122,6 +122,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/MySchedulePage.vue')
       },
       {
+        path: 'time-off-requests',
+        name: 'time-off-requests',
+        component: () => import('@/pages/TimeOffRequestsPage.vue'),
+        meta: { requiredRoles: ['super_admin', 'admin', 'admin_assistant'] }
+      },
+      {
         path: 'data-management',
         name: 'data-management',
         component: () => import('@/pages/DataManagementPage.vue')

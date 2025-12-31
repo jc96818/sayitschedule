@@ -75,7 +75,8 @@ const navigation = computed<NavSection[]>(() => {
         { name: 'Rules', path: '/app/rules', icon: 'adjustments', roles: ['super_admin', 'admin', 'admin_assistant'] },
         { name: staffLabel.value, path: '/app/staff', icon: 'users', roles: ['super_admin', 'admin', 'admin_assistant'] },
         { name: patientLabel.value, path: '/app/patients', icon: 'user-group', roles: ['super_admin', 'admin', 'admin_assistant'] },
-        { name: roomLabel.value, path: '/app/rooms', icon: 'building', roles: ['super_admin', 'admin', 'admin_assistant'] }
+        { name: roomLabel.value, path: '/app/rooms', icon: 'building', roles: ['super_admin', 'admin', 'admin_assistant'] },
+        { name: 'Time-Off Requests', path: '/app/time-off-requests', icon: 'calendar-off', roles: ['super_admin', 'admin', 'admin_assistant'] }
       ]
     },
     {
@@ -196,6 +197,11 @@ async function handleLogout() {
           <!-- Clock Icon -->
           <svg v-else-if="item.icon === 'clock'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <!-- Calendar Off Icon (Time-Off Requests) -->
+          <svg v-else-if="item.icon === 'calendar-off'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l2 2 4-4" />
           </svg>
           <!-- Database Icon -->
           <svg v-else-if="item.icon === 'database'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">

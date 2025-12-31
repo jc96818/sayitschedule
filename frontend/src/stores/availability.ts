@@ -12,6 +12,9 @@ export const useAvailabilityStore = defineStore('availability', () => {
   const pendingTotal = ref(0)
   const pendingCount = ref(0)
 
+  // State for all requests (admin history view)
+  const allRequests = ref<StaffAvailability[]>([])
+
   // Loading and error states
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -89,6 +92,23 @@ export const useAvailabilityStore = defineStore('availability', () => {
       pendingCount.value = response.data.pendingCount
     } catch (e) {
       console.error('Failed to fetch pending count:', e)
+    }
+  }
+
+  /**
+   * Fetch all requests for the organization (admin history view)
+   */
+  async function fetchAll(params?: { startDate?: string; endDate?: string; status?: AvailabilityStatus }) {
+    loading.value = true
+    error.value = null
+    try {
+      const response = await availabilityService.listAll(params)
+      allRequests.value = response.data
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch requests'
+      throw e
+    } finally {
+      loading.value = false
     }
   }
 
@@ -239,6 +259,7 @@ export const useAvailabilityStore = defineStore('availability', () => {
     availability.value = []
     pendingRequests.value = []
     pendingTotal.value = 0
+    allRequests.value = []
     currentStaffId.value = null
     error.value = null
   }
@@ -249,6 +270,7 @@ export const useAvailabilityStore = defineStore('availability', () => {
     pendingRequests,
     pendingTotal,
     pendingCount,
+    allRequests,
     loading,
     error,
     currentStaffId,
@@ -262,6 +284,7 @@ export const useAvailabilityStore = defineStore('availability', () => {
     fetchByStaffId,
     fetchPending,
     fetchPendingCount,
+    fetchAll,
     createRequest,
     updateRequest,
     deleteRequest,
