@@ -71,10 +71,10 @@ const navigation = computed<NavSection[]>(() => {
     {
       title: 'Management',
       items: [
-        { name: 'Rules', path: '/app/rules', icon: 'adjustments' },
-        { name: staffLabel.value, path: '/app/staff', icon: 'users' },
-        { name: patientLabel.value, path: '/app/patients', icon: 'user-group' },
-        { name: roomLabel.value, path: '/app/rooms', icon: 'building' }
+        { name: 'Rules', path: '/app/rules', icon: 'adjustments', roles: ['super_admin', 'admin', 'admin_assistant'] },
+        { name: staffLabel.value, path: '/app/staff', icon: 'users', roles: ['super_admin', 'admin', 'admin_assistant'] },
+        { name: patientLabel.value, path: '/app/patients', icon: 'user-group', roles: ['super_admin', 'admin', 'admin_assistant'] },
+        { name: roomLabel.value, path: '/app/rooms', icon: 'building', roles: ['super_admin', 'admin', 'admin_assistant'] }
       ]
     },
     {

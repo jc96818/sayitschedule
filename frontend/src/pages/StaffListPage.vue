@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useStaffStore } from '@/stores/staff'
+import { useAuthStore } from '@/stores/auth'
 import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, SearchBox } from '@/components/ui'
 import { voiceService } from '@/services/api'
 import { useLabels } from '@/composables/useLabels'
 import type { Staff } from '@/types'
 
 const staffStore = useStaffStore()
+const authStore = useAuthStore()
 const { staffLabel, staffLabelSingular, staffLabelLower, certificationLabel } = useLabels()
 
 // Voice hints modal ref
@@ -165,7 +167,7 @@ watch([statusFilter, genderFilter], () => {
         <h2>{{ staffLabel }} Management</h2>
         <p>Manage {{ staffLabelLower }} and their availability</p>
       </div>
-      <div class="header-actions">
+      <div v-if="authStore.canManageStaff" class="header-actions">
         <Button variant="primary" @click="showAddModal = true">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -177,10 +179,11 @@ watch([statusFilter, genderFilter], () => {
 
     <div class="page-content">
       <!-- Voice Hints Modal -->
-      <VoiceHintsModal ref="voiceHintsModal" page-type="staff" />
+      <VoiceHintsModal v-if="authStore.canManageStaff" ref="voiceHintsModal" page-type="staff" />
 
       <!-- Voice Interface -->
       <VoiceInput
+        v-if="authStore.canManageStaff"
         :title="`Add ${staffLabelSingular}`"
         :description="`Say it or type it to add a ${staffLabelSingular.toLowerCase()}.`"
         :show-hints-link="true"

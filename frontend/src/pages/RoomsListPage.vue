@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoomsStore } from '@/stores/rooms'
+import { useAuthStore } from '@/stores/auth'
 import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, SearchBox } from '@/components/ui'
 import { voiceService } from '@/services/api'
 import { useLabels } from '@/composables/useLabels'
 import type { Room } from '@/types'
 
 const roomsStore = useRoomsStore()
+const authStore = useAuthStore()
 const { roomLabel, roomLabelSingular, roomLabelLower, roomLabelSingularLower, equipmentLabel, suggestedRoomEquipment } = useLabels()
 
 // Voice hints modal ref
@@ -170,7 +172,7 @@ const capabilitySuggestions = computed(() => {
         <h2>{{ roomLabel }} Management</h2>
         <p>Configure {{ roomLabelLower }} and their {{ equipmentLabel.toLowerCase() }}</p>
       </div>
-      <div class="header-actions">
+      <div v-if="authStore.canManageRooms" class="header-actions">
         <Button variant="primary" @click="showAddModal = true">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -182,10 +184,11 @@ const capabilitySuggestions = computed(() => {
 
     <div class="page-content">
       <!-- Voice Hints Modal -->
-      <VoiceHintsModal ref="voiceHintsModal" page-type="room" />
+      <VoiceHintsModal v-if="authStore.canManageRooms" ref="voiceHintsModal" page-type="room" />
 
       <!-- Voice Interface -->
       <VoiceInput
+        v-if="authStore.canManageRooms"
         :title="`Add ${roomLabel}`"
         :description="`Say it or type it to add a ${roomLabelSingularLower}.`"
         :show-hints-link="true"

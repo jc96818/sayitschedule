@@ -62,37 +62,44 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'rules',
         name: 'rules',
-        component: () => import('@/pages/RulesPage.vue')
+        component: () => import('@/pages/RulesPage.vue'),
+        meta: { requiredRoles: ['super_admin', 'admin', 'admin_assistant'] }
       },
       {
         path: 'staff',
         name: 'staff',
-        component: () => import('@/pages/StaffListPage.vue')
+        component: () => import('@/pages/StaffListPage.vue'),
+        meta: { requiredRoles: ['super_admin', 'admin', 'admin_assistant'] }
       },
       {
         path: 'staff/:id',
         name: 'staff-profile',
-        component: () => import('@/pages/StaffProfilePage.vue')
+        component: () => import('@/pages/StaffProfilePage.vue'),
+        meta: { requiredRoles: ['super_admin', 'admin', 'admin_assistant'] }
       },
       {
         path: 'patients',
         name: 'patients',
-        component: () => import('@/pages/PatientListPage.vue')
+        component: () => import('@/pages/PatientListPage.vue'),
+        meta: { requiredRoles: ['super_admin', 'admin', 'admin_assistant'] }
       },
       {
         path: 'patients/:id',
         name: 'patient-profile',
-        component: () => import('@/pages/PatientProfilePage.vue')
+        component: () => import('@/pages/PatientProfilePage.vue'),
+        meta: { requiredRoles: ['super_admin', 'admin', 'admin_assistant'] }
       },
       {
         path: 'rooms',
         name: 'rooms',
-        component: () => import('@/pages/RoomsListPage.vue')
+        component: () => import('@/pages/RoomsListPage.vue'),
+        meta: { requiredRoles: ['super_admin', 'admin', 'admin_assistant'] }
       },
       {
         path: 'rooms/:id',
         name: 'room-profile',
-        component: () => import('@/pages/RoomProfilePage.vue')
+        component: () => import('@/pages/RoomProfilePage.vue'),
+        meta: { requiredRoles: ['super_admin', 'admin', 'admin_assistant'] }
       },
       {
         path: 'users',
@@ -243,6 +250,18 @@ router.beforeEach(async (to, _from, next) => {
     const authStore = useAuthStore()
 
     if (!authStore.isSuperAdmin) {
+      next({ name: 'dashboard' })
+      return
+    }
+  }
+
+  // Check role-based access for routes with requiredRoles
+  if (to.meta.requiredRoles && Array.isArray(to.meta.requiredRoles)) {
+    const { useAuthStore } = await import('@/stores/auth')
+    const authStore = useAuthStore()
+
+    const userRole = authStore.user?.role
+    if (!userRole || !to.meta.requiredRoles.includes(userRole)) {
       next({ name: 'dashboard' })
       return
     }

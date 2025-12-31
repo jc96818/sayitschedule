@@ -21,6 +21,19 @@ export const useAuthStore = defineStore('auth', () => {
   const canManageSchedules = computed(() =>
     isSuperAdmin.value || isAdmin.value || isAdminAssistant.value
   )
+  // Staff, patients, rooms, and rules management - admin and assistant can manage
+  const canManageStaff = computed(() =>
+    isSuperAdmin.value || isAdmin.value || isAdminAssistant.value
+  )
+  const canManagePatients = computed(() =>
+    isSuperAdmin.value || isAdmin.value || isAdminAssistant.value
+  )
+  const canManageRooms = computed(() =>
+    isSuperAdmin.value || isAdmin.value || isAdminAssistant.value
+  )
+  const canManageRules = computed(() =>
+    isSuperAdmin.value || isAdmin.value || isAdminAssistant.value
+  )
 
   async function login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await authService.login(credentials)
@@ -104,6 +117,10 @@ export const useAuthStore = defineStore('auth', () => {
     isStaff,
     canManageUsers,
     canManageSchedules,
+    canManageStaff,
+    canManagePatients,
+    canManageRooms,
+    canManageRules,
     login,
     verifyMfa,
     clearMfaState,

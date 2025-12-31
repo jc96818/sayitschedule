@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRulesStore } from '@/stores/rules'
+import { useAuthStore } from '@/stores/auth'
 import { VoiceInput, VoiceHintsModal, Modal, Alert, Badge, Button, Toggle, RuleAnalysisModal, SearchBox } from '@/components/ui'
 import type { Rule, ParsedRuleItem } from '@/types'
 import type { SuggestedRuleForCreate } from '@/components/ui/RuleAnalysisModal.vue'
 
 const rulesStore = useRulesStore()
+const authStore = useAuthStore()
 
 // Voice hints modal ref
 const voiceHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>(null)
@@ -343,7 +345,7 @@ onMounted(() => {
         <h2>Scheduling Rules</h2>
         <p>Manage rules that govern schedule generation</p>
       </div>
-      <div class="header-actions">
+      <div v-if="authStore.canManageRules" class="header-actions">
         <Button variant="outline" @click="showAnalysisModal = true" :disabled="rulesStore.rules.length === 0">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -364,10 +366,11 @@ onMounted(() => {
 
     <div class="page-content">
       <!-- Voice Hints Modal -->
-      <VoiceHintsModal ref="voiceHintsModal" page-type="rules" />
+      <VoiceHintsModal v-if="authStore.canManageRules" ref="voiceHintsModal" page-type="rules" />
 
       <!-- Voice Interface -->
       <VoiceInput
+        v-if="authStore.canManageRules"
         title="Add Rules"
         description="Say it or type it—add scheduling rules (multiple at once)."
         :show-hints-link="true"
@@ -630,7 +633,7 @@ onMounted(() => {
             <Badge :variant="rule.isActive ? getCategoryBadgeVariant(rule.category) : 'secondary'">
               {{ rule.isActive ? getCategoryLabel(rule.category) : 'Disabled' }}
             </Badge>
-            <div class="rule-actions">
+            <div v-if="authStore.canManageRules" class="rule-actions">
               <Toggle
                 :model-value="rule.isActive"
                 @update:model-value="() => handleToggleRule(rule)"
