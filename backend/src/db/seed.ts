@@ -29,101 +29,111 @@ const prisma = new PrismaClient({ adapter })
 async function seed() {
   console.log('Seeding database...')
 
-  // Create business type templates
-  const templates = await Promise.all([
-    prisma.businessTypeTemplate.create({
-      data: {
-        name: 'ABA Therapy',
-        description: 'Applied Behavior Analysis therapy practices',
-        isDefault: true,
-        isActive: true,
-        staffLabel: 'Therapists',
-        staffLabelSingular: 'Therapist',
-        patientLabel: 'Clients',
-        patientLabelSingular: 'Client',
-        roomLabel: 'Treatment Rooms',
-        roomLabelSingular: 'Treatment Room',
-        certificationLabel: 'Certifications',
-        equipmentLabel: 'Equipment',
-        suggestedCertifications: ['BCBA', 'BCaBA', 'RBT', 'BCBA-D', 'ABA', 'Pediatrics'],
-        suggestedRoomEquipment: ['sensory_equipment', 'therapy_swing', 'quiet_space', 'observation_mirror', 'reward_station']
-      }
-    }),
-    prisma.businessTypeTemplate.create({
-      data: {
-        name: 'Speech Therapy',
-        description: 'Speech-Language Pathology practices',
-        isDefault: false,
-        isActive: true,
-        staffLabel: 'Clinicians',
-        staffLabelSingular: 'Clinician',
-        patientLabel: 'Clients',
-        patientLabelSingular: 'Client',
-        roomLabel: 'Treatment Rooms',
-        roomLabelSingular: 'Treatment Room',
-        certificationLabel: 'Credentials',
-        equipmentLabel: 'Equipment',
-        suggestedCertifications: ['CCC-SLP', 'CF-SLP', 'SLPA', 'AAC Specialist', 'Feeding Specialist'],
-        suggestedRoomEquipment: ['sound_booth', 'mirror_wall', 'computer_station', 'therapy_materials', 'articulation_tools']
-      }
-    }),
-    prisma.businessTypeTemplate.create({
-      data: {
-        name: 'Occupational Therapy',
-        description: 'Occupational therapy practices',
-        isDefault: false,
-        isActive: true,
-        staffLabel: 'Therapists',
-        staffLabelSingular: 'Therapist',
-        patientLabel: 'Clients',
-        patientLabelSingular: 'Client',
-        roomLabel: 'Therapy Spaces',
-        roomLabelSingular: 'Therapy Space',
-        certificationLabel: 'Certifications',
-        equipmentLabel: 'Features',
-        suggestedCertifications: ['OTR/L', 'COTA/L', 'CHT', 'Sensory Integration', 'Pediatric OT'],
-        suggestedRoomEquipment: ['sensory_equipment', 'therapy_swing', 'fine_motor_station', 'large_space', 'wheelchair_accessible']
-      }
-    }),
-    prisma.businessTypeTemplate.create({
-      data: {
-        name: 'Physical Therapy',
-        description: 'Physical therapy practices',
-        isDefault: false,
-        isActive: true,
-        staffLabel: 'Therapists',
-        staffLabelSingular: 'Therapist',
-        patientLabel: 'Patients',
-        patientLabelSingular: 'Patient',
-        roomLabel: 'Treatment Areas',
-        roomLabelSingular: 'Treatment Area',
-        certificationLabel: 'Specializations',
-        equipmentLabel: 'Equipment',
-        suggestedCertifications: ['DPT', 'PTA', 'OCS', 'NCS', 'Pediatric PT', 'Sports PT'],
-        suggestedRoomEquipment: ['treatment_table', 'exercise_equipment', 'parallel_bars', 'wheelchair_accessible', 'gait_training']
-      }
-    }),
-    prisma.businessTypeTemplate.create({
-      data: {
-        name: 'General Therapy Practice',
-        description: 'Multi-discipline therapy practices',
-        isDefault: false,
-        isActive: true,
-        staffLabel: 'Staff',
-        staffLabelSingular: 'Staff Member',
-        patientLabel: 'Clients',
-        patientLabelSingular: 'Client',
-        roomLabel: 'Rooms',
-        roomLabelSingular: 'Room',
-        certificationLabel: 'Certifications',
-        equipmentLabel: 'Capabilities',
-        suggestedCertifications: [],
-        suggestedRoomEquipment: ['wheelchair_accessible', 'quiet_space', 'computer_station']
-      }
-    })
-  ])
-
-  console.log(`Created ${templates.length} business type templates`)
+  // Check if business type templates already exist (created by migration)
+  const existingTemplates = await prisma.businessTypeTemplate.count()
+  if (existingTemplates > 0) {
+    console.log(`Found ${existingTemplates} business type templates (created by migration)`)
+  } else {
+    // Create templates if they don't exist (for backwards compatibility)
+    const templates = await Promise.all([
+      prisma.businessTypeTemplate.create({
+        data: {
+          id: 'tmpl_aba_therapy',
+          name: 'ABA Therapy',
+          description: 'Applied Behavior Analysis therapy practices',
+          isDefault: true,
+          isActive: true,
+          staffLabel: 'Therapists',
+          staffLabelSingular: 'Therapist',
+          patientLabel: 'Clients',
+          patientLabelSingular: 'Client',
+          roomLabel: 'Treatment Rooms',
+          roomLabelSingular: 'Treatment Room',
+          certificationLabel: 'Certifications',
+          equipmentLabel: 'Equipment',
+          suggestedCertifications: ['BCBA', 'BCaBA', 'RBT', 'BCBA-D', 'ABA', 'Pediatrics'],
+          suggestedRoomEquipment: ['sensory_equipment', 'therapy_swing', 'quiet_space', 'observation_mirror', 'reward_station']
+        }
+      }),
+      prisma.businessTypeTemplate.create({
+        data: {
+          id: 'tmpl_speech_therapy',
+          name: 'Speech Therapy',
+          description: 'Speech-Language Pathology practices',
+          isDefault: false,
+          isActive: true,
+          staffLabel: 'Clinicians',
+          staffLabelSingular: 'Clinician',
+          patientLabel: 'Clients',
+          patientLabelSingular: 'Client',
+          roomLabel: 'Treatment Rooms',
+          roomLabelSingular: 'Treatment Room',
+          certificationLabel: 'Credentials',
+          equipmentLabel: 'Equipment',
+          suggestedCertifications: ['CCC-SLP', 'CF-SLP', 'SLPA', 'AAC Specialist', 'Feeding Specialist'],
+          suggestedRoomEquipment: ['sound_booth', 'mirror_wall', 'computer_station', 'therapy_materials', 'articulation_tools']
+        }
+      }),
+      prisma.businessTypeTemplate.create({
+        data: {
+          id: 'tmpl_occupational_therapy',
+          name: 'Occupational Therapy',
+          description: 'Occupational therapy practices',
+          isDefault: false,
+          isActive: true,
+          staffLabel: 'Therapists',
+          staffLabelSingular: 'Therapist',
+          patientLabel: 'Clients',
+          patientLabelSingular: 'Client',
+          roomLabel: 'Therapy Spaces',
+          roomLabelSingular: 'Therapy Space',
+          certificationLabel: 'Certifications',
+          equipmentLabel: 'Features',
+          suggestedCertifications: ['OTR/L', 'COTA/L', 'CHT', 'Sensory Integration', 'Pediatric OT'],
+          suggestedRoomEquipment: ['sensory_equipment', 'therapy_swing', 'fine_motor_station', 'large_space', 'wheelchair_accessible']
+        }
+      }),
+      prisma.businessTypeTemplate.create({
+        data: {
+          id: 'tmpl_physical_therapy',
+          name: 'Physical Therapy',
+          description: 'Physical therapy practices',
+          isDefault: false,
+          isActive: true,
+          staffLabel: 'Therapists',
+          staffLabelSingular: 'Therapist',
+          patientLabel: 'Patients',
+          patientLabelSingular: 'Patient',
+          roomLabel: 'Treatment Areas',
+          roomLabelSingular: 'Treatment Area',
+          certificationLabel: 'Specializations',
+          equipmentLabel: 'Equipment',
+          suggestedCertifications: ['DPT', 'PTA', 'OCS', 'NCS', 'Pediatric PT', 'Sports PT'],
+          suggestedRoomEquipment: ['treatment_table', 'exercise_equipment', 'parallel_bars', 'wheelchair_accessible', 'gait_training']
+        }
+      }),
+      prisma.businessTypeTemplate.create({
+        data: {
+          id: 'tmpl_general_therapy',
+          name: 'General Therapy Practice',
+          description: 'Multi-discipline therapy practices',
+          isDefault: false,
+          isActive: true,
+          staffLabel: 'Staff',
+          staffLabelSingular: 'Staff Member',
+          patientLabel: 'Clients',
+          patientLabelSingular: 'Client',
+          roomLabel: 'Rooms',
+          roomLabelSingular: 'Room',
+          certificationLabel: 'Certifications',
+          equipmentLabel: 'Capabilities',
+          suggestedCertifications: [],
+          suggestedRoomEquipment: ['wheelchair_accessible', 'quiet_space', 'computer_station']
+        }
+      })
+    ])
+    console.log(`Created ${templates.length} business type templates`)
+  }
 
   // Create demo organization
   const demoOrg = await prisma.organization.create({
