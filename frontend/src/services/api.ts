@@ -593,7 +593,7 @@ export const superAdminUsersService = {
     return data
   },
 
-  async create(user: { email: string; password: string; name: string }): Promise<ApiResponse<User>> {
+  async create(user: { email: string; name: string }): Promise<ApiResponse<User>> {
     const { data } = await api.post('/super-admin/users', user)
     return data
   },
@@ -607,8 +607,8 @@ export const superAdminUsersService = {
     await api.delete(`/super-admin/users/${id}`)
   },
 
-  async resetPassword(id: string, password: string): Promise<{ success: boolean }> {
-    const { data } = await api.post(`/super-admin/users/${id}/reset-password`, { password })
+  async resendInvite(id: string): Promise<{ message: string }> {
+    const { data } = await api.post(`/super-admin/users/${id}/resend-invite`)
     return data
   }
 }

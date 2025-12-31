@@ -24,7 +24,7 @@ export const useSuperAdminUsersStore = defineStore('superAdminUsers', () => {
     }
   }
 
-  async function createUser(userData: { email: string; password: string; name: string }) {
+  async function createUser(userData: { email: string; name: string }) {
     loading.value = true
     error.value = null
     try {
@@ -73,13 +73,15 @@ export const useSuperAdminUsersStore = defineStore('superAdminUsers', () => {
     }
   }
 
-  async function resetPassword(id: string, newPassword: string) {
+  async function resendInvite(id: string) {
     loading.value = true
     error.value = null
     try {
-      await superAdminUsersService.resetPassword(id, newPassword)
+      await superAdminUsersService.resendInvite(id)
+      // Refresh to get updated invitation expiry
+      await fetchUsers()
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to reset password'
+      error.value = e instanceof Error ? e.message : 'Failed to resend invitation'
       throw e
     } finally {
       loading.value = false
@@ -95,6 +97,6 @@ export const useSuperAdminUsersStore = defineStore('superAdminUsers', () => {
     createUser,
     updateUser,
     deleteUser,
-    resetPassword
+    resendInvite
   }
 })

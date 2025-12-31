@@ -2,11 +2,12 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { requireSuperAdmin } from '../middleware/auth.js'
 import { userRepository } from '../repositories/users.js'
+import { passwordResetTokenRepository } from '../repositories/passwordResetTokens.js'
 import { logAudit } from '../repositories/audit.js'
+import { sendSuperAdminInvitation } from '../services/email.js'
 
 const createSuperAdminSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
   name: z.string().min(1)
 })
 
@@ -15,9 +16,6 @@ const updateSuperAdminSchema = z.object({
   name: z.string().min(1).optional()
 })
 
-const resetPasswordSchema = z.object({
-  password: z.string().min(8)
-})
 
 export async function superAdminUserRoutes(fastify: FastifyInstance) {
   // List all super admin users
@@ -34,7 +32,26 @@ export async function superAdminUserRoutes(fastify: FastifyInstance) {
       search
     })
 
-    return result
+    // For pending users, fetch invitation expiry information
+    const pendingUserIds = result.data
+      .filter(u => u.status === 'pending')
+      .map(u => u.id)
+
+    const invitationTokens = await passwordResetTokenRepository.findActiveInvitationsByUserIds(pendingUserIds)
+
+    // Create a map of userId -> expiresAt
+    const expiryMap = new Map(invitationTokens.map(t => [t.userId, t.expiresAt]))
+
+    // Merge invitation expiry into response
+    const dataWithExpiry = result.data.map(user => ({
+      ...user,
+      invitationExpiresAt: user.status === 'pending' ? expiryMap.get(user.id) || null : null
+    }))
+
+    return {
+      ...result,
+      data: dataWithExpiry
+    }
   })
 
   // Get single super admin user
@@ -49,7 +66,7 @@ export async function superAdminUserRoutes(fastify: FastifyInstance) {
     return { data: user }
   })
 
-  // Create new super admin user
+  // Create new super admin user (sends invitation email)
   fastify.post('/', { preHandler: requireSuperAdmin() }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = createSuperAdminSchema.parse(request.body)
     const ctx = request.ctx.user!
@@ -60,12 +77,14 @@ export async function superAdminUserRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Email already in use' })
     }
 
+    // Create user without password (will be set via invite link)
+    // Super admins always require MFA
     const user = await userRepository.create({
       organizationId: null, // Super admins have no organization
       email: body.email,
-      password: body.password,
       name: body.name,
-      role: 'super_admin'
+      role: 'super_admin',
+      mfaRequired: true  // Super admins must set up MFA
     })
 
     await logAudit(ctx.userId, 'create', 'super_admin_user', user.id, null, {
@@ -73,7 +92,36 @@ export async function superAdminUserRoutes(fastify: FastifyInstance) {
       name: body.name
     })
 
-    return reply.status(201).send({ data: user })
+    // Send invitation email
+    let inviteSent = false
+    try {
+      // Create invitation token
+      const tokenRecord = await passwordResetTokenRepository.create(user.id, 'invitation')
+
+      // Get inviter's name
+      const inviter = await userRepository.findById(ctx.userId)
+      const inviterName = inviter?.name || 'A super administrator'
+
+      // Send invitation email
+      await sendSuperAdminInvitation({
+        user: { email: body.email, name: body.name },
+        token: tokenRecord.token,
+        invitedByName: inviterName
+      })
+
+      inviteSent = true
+    } catch (error) {
+      console.error('Failed to send super admin invitation email:', error)
+      // Don't fail the request - user was created, just email failed
+    }
+
+    return reply.status(201).send({
+      data: user,
+      inviteSent,
+      message: inviteSent
+        ? 'Super admin created and invitation email sent'
+        : 'Super admin created (invitation email failed to send)'
+    })
   })
 
   // Update super admin user
@@ -113,10 +161,9 @@ export async function superAdminUserRoutes(fastify: FastifyInstance) {
     return { data: user }
   })
 
-  // Reset another super admin's password
-  fastify.post('/:id/reset-password', { preHandler: requireSuperAdmin() }, async (request: FastifyRequest, reply: FastifyReply) => {
+  // Resend invitation email for a pending super admin
+  fastify.post('/:id/resend-invite', { preHandler: requireSuperAdmin() }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string }
-    const body = resetPasswordSchema.parse(request.body)
     const ctx = request.ctx.user!
 
     // Check if user exists and is a super admin
@@ -125,14 +172,34 @@ export async function superAdminUserRoutes(fastify: FastifyInstance) {
       return reply.status(404).send({ error: 'Super admin user not found' })
     }
 
-    const success = await userRepository.updatePassword(id, body.password)
-    if (!success) {
-      return reply.status(500).send({ error: 'Failed to reset password' })
+    // Check if user already has a password (already set up)
+    const userWithPassword = await userRepository.findByIdWithPassword(id)
+    if (userWithPassword?.passwordHash) {
+      return reply.status(400).send({ error: 'User has already set up their password' })
     }
 
-    await logAudit(ctx.userId, 'reset_password', 'super_admin_user', id, null)
+    try {
+      // Create new invitation token (invalidates old ones)
+      const tokenRecord = await passwordResetTokenRepository.create(id, 'invitation')
 
-    return { success: true }
+      // Get inviter's name
+      const inviter = await userRepository.findById(ctx.userId)
+      const inviterName = inviter?.name || 'A super administrator'
+
+      // Send invitation email
+      await sendSuperAdminInvitation({
+        user: { email: existing.email, name: existing.name },
+        token: tokenRecord.token,
+        invitedByName: inviterName
+      })
+
+      await logAudit(ctx.userId, 'resend_invite', 'super_admin_user', id, null)
+
+      return { message: 'Invitation email sent' }
+    } catch (error) {
+      console.error('Failed to send super admin invitation email:', error)
+      return reply.status(500).send({ error: 'Failed to send invitation email' })
+    }
   })
 
   // Delete super admin user

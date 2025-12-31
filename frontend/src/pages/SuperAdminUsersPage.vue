@@ -5,6 +5,10 @@ import { useAuthStore } from '@/stores/auth'
 import { Modal, Alert, Badge, Button } from '@/components/ui'
 import type { User } from '@/types'
 
+interface SuperAdminUser extends User {
+  invitationExpiresAt?: string | null
+}
+
 const usersStore = useSuperAdminUsersStore()
 const authStore = useAuthStore()
 
@@ -14,23 +18,20 @@ const searchQuery = ref('')
 // Add/Edit modal
 const showModal = ref(false)
 const isEditing = ref(false)
-const formData = ref<{ id?: string; name: string; email: string; password: string }>({
+const formData = ref<{ id?: string; name: string; email: string }>({
   name: '',
-  email: '',
-  password: ''
+  email: ''
 })
 
-// Reset password modal
-const showResetPasswordModal = ref(false)
-const resetPasswordUserId = ref<string | null>(null)
-const newPassword = ref('')
+// Resend invite state
+const resendingInviteId = ref<string | null>(null)
 
 // Delete confirmation
 const showDeleteModal = ref(false)
 const deleteUserId = ref<string | null>(null)
 
 const filteredUsers = computed(() => {
-  let result = usersStore.users
+  let result = usersStore.users as SuperAdminUser[]
 
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
@@ -41,6 +42,11 @@ const filteredUsers = computed(() => {
 
   return result
 })
+
+function isInvitationExpired(user: SuperAdminUser): boolean {
+  if (!user.invitationExpiresAt) return false
+  return new Date(user.invitationExpiresAt) < new Date()
+}
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return 'Never'
@@ -57,8 +63,7 @@ function openAddModal() {
   isEditing.value = false
   formData.value = {
     name: '',
-    email: '',
-    password: ''
+    email: ''
   }
   showModal.value = true
 }
@@ -68,8 +73,7 @@ function openEditModal(user: User) {
   formData.value = {
     id: user.id,
     name: user.name,
-    email: user.email,
-    password: ''
+    email: user.email
   }
   showModal.value = true
 }
@@ -84,8 +88,7 @@ async function handleSubmit() {
     } else {
       await usersStore.createUser({
         name: formData.value.name,
-        email: formData.value.email,
-        password: formData.value.password
+        email: formData.value.email
       })
     }
     showModal.value = false
@@ -94,22 +97,14 @@ async function handleSubmit() {
   }
 }
 
-function openResetPasswordModal(userId: string) {
-  resetPasswordUserId.value = userId
-  newPassword.value = ''
-  showResetPasswordModal.value = true
-}
-
-async function handleResetPassword() {
-  if (!resetPasswordUserId.value) return
-
+async function handleResendInvite(userId: string) {
+  resendingInviteId.value = userId
   try {
-    await usersStore.resetPassword(resetPasswordUserId.value, newPassword.value)
-    showResetPasswordModal.value = false
-    resetPasswordUserId.value = null
-    newPassword.value = ''
+    await usersStore.resendInvite(userId)
   } catch (error) {
-    console.error('Failed to reset password:', error)
+    console.error('Failed to resend invite:', error)
+  } finally {
+    resendingInviteId.value = null
   }
 }
 
@@ -211,6 +206,7 @@ onMounted(() => {
               <tr>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Status</th>
                 <th>MFA</th>
                 <th>Last Login</th>
                 <th>Actions</th>
@@ -229,6 +225,11 @@ onMounted(() => {
                 </td>
                 <td>{{ user.email }}</td>
                 <td>
+                  <Badge v-if="user.status === 'active'" variant="success">Active</Badge>
+                  <Badge v-else-if="isInvitationExpired(user)" variant="danger">Invite Expired</Badge>
+                  <Badge v-else variant="warning">Pending</Badge>
+                </td>
+                <td>
                   <Badge :variant="user.mfaEnabled ? 'success' : 'secondary'">
                     {{ user.mfaEnabled ? 'Enabled' : 'Disabled' }}
                   </Badge>
@@ -237,8 +238,14 @@ onMounted(() => {
                 <td>
                   <div class="action-buttons">
                     <Button size="sm" variant="outline" @click="openEditModal(user)"> Edit </Button>
-                    <Button size="sm" variant="outline" @click="openResetPasswordModal(user.id)">
-                      Reset Password
+                    <Button
+                      v-if="user.status === 'pending'"
+                      size="sm"
+                      variant="outline"
+                      :loading="resendingInviteId === user.id"
+                      @click="handleResendInvite(user.id)"
+                    >
+                      Resend Invite
                     </Button>
                     <Button
                       v-if="!isCurrentUser(user)"
@@ -258,7 +265,7 @@ onMounted(() => {
     </div>
 
     <!-- Add/Edit User Modal -->
-    <Modal v-model="showModal" :title="isEditing ? 'Edit Super Admin' : 'Add Super Admin'" size="md">
+    <Modal v-model="showModal" :title="isEditing ? 'Edit Super Admin' : 'Invite Super Admin'" size="md">
       <form @submit.prevent="handleSubmit">
         <div class="form-group">
           <label for="name">Full Name</label>
@@ -270,47 +277,15 @@ onMounted(() => {
           <input id="email" v-model="formData.email" type="email" class="form-control" required />
         </div>
 
-        <div v-if="!isEditing" class="form-group">
-          <label for="password">Password</label>
-          <input
-            id="password"
-            v-model="formData.password"
-            type="password"
-            class="form-control"
-            minlength="8"
-            required
-          />
-          <small class="text-muted">Minimum 8 characters</small>
-        </div>
+        <Alert v-if="!isEditing" variant="info" class="mt-3">
+          An invitation email will be sent to this address. The user will need to set up their password and configure two-factor authentication (MFA) before they can access the platform.
+        </Alert>
 
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px">
           <Button type="button" variant="outline" @click="showModal = false"> Cancel </Button>
           <Button type="submit" variant="primary" :loading="usersStore.loading">
-            {{ isEditing ? 'Save Changes' : 'Create Super Admin' }}
+            {{ isEditing ? 'Save Changes' : 'Send Invitation' }}
           </Button>
-        </div>
-      </form>
-    </Modal>
-
-    <!-- Reset Password Modal -->
-    <Modal v-model="showResetPasswordModal" title="Reset Password" size="sm">
-      <form @submit.prevent="handleResetPassword">
-        <div class="form-group">
-          <label for="newPassword">New Password</label>
-          <input
-            id="newPassword"
-            v-model="newPassword"
-            type="password"
-            class="form-control"
-            minlength="8"
-            required
-          />
-          <small class="text-muted">Minimum 8 characters</small>
-        </div>
-
-        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px">
-          <Button type="button" variant="outline" @click="showResetPasswordModal = false"> Cancel </Button>
-          <Button type="submit" variant="primary" :loading="usersStore.loading"> Reset Password </Button>
         </div>
       </form>
     </Modal>

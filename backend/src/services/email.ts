@@ -84,6 +84,15 @@ interface PasswordResetData {
   token: string
 }
 
+interface SuperAdminInvitationData {
+  user: {
+    email: string
+    name: string
+  }
+  token: string
+  invitedByName: string
+}
+
 interface LeadNotificationData {
   id: string
   name: string
@@ -518,6 +527,104 @@ This link will expire in 48 hours. If you didn't expect this invitation, you can
 ---
 This is an automated message from Say It Schedule.
 If you have questions, please contact your administrator.
+`
+
+  return sendEmail(user.email, subject, htmlBody, textBody)
+}
+
+/**
+ * Send super admin invitation email with password setup link
+ * Super admins don't belong to an organization, so they use the main app URL
+ */
+export async function sendSuperAdminInvitation(
+  data: SuperAdminInvitationData
+): Promise<boolean> {
+  const { user, token, invitedByName } = data
+
+  const primaryColor = '#1e293b'  // Dark slate for super admin branding
+
+  // Super admins use the main app URL (no subdomain)
+  const setupUrl = `${APP_URL}/setup-password?token=${token}`
+
+  const subject = `You've been invited to Say It Schedule as a Super Admin`
+
+  const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); color: white; padding: 20px; text-align: center; }
+    .badge { display: inline-block; background-color: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 4px; font-size: 12px; margin-top: 8px; }
+    .content { padding: 20px; background-color: #f9fafb; }
+    .welcome { font-size: 18px; margin-bottom: 16px; }
+    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
+    .detail-row { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+    .detail-row:last-child { border-bottom: none; }
+    .label { font-weight: bold; color: #6b7280; }
+    .button { display: inline-block; background-color: ${primaryColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin-top: 16px; font-weight: bold; }
+    .expiry { color: #6b7280; font-size: 14px; margin-top: 16px; }
+    .mfa-notice { background-color: #dbeafe; padding: 12px; border-radius: 6px; margin-top: 16px; font-size: 14px; color: #1e40af; }
+    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Say It Schedule</h1>
+      <span class="badge">Super Admin Access</span>
+    </div>
+    <div class="content">
+      <p class="welcome">Welcome to Say It Schedule!</p>
+      <p>${invitedByName} has invited you to join Say It Schedule as a <strong>Super Administrator</strong>. This role grants you platform-wide access to manage organizations, users, and system settings.</p>
+      <div class="details">
+        <div class="detail-row">
+          <span class="label">Your Email:</span> ${user.email}
+        </div>
+        <div class="detail-row">
+          <span class="label">Your Name:</span> ${user.name}
+        </div>
+        <div class="detail-row">
+          <span class="label">Role:</span> Super Administrator
+        </div>
+      </div>
+      <div style="text-align: center;">
+        <a href="${setupUrl}" class="button">Set Up Your Password</a>
+      </div>
+      <div class="mfa-notice">
+        <strong>Security Note:</strong> After setting your password, you will be required to set up two-factor authentication (2FA) to protect your super admin account.
+      </div>
+      <p class="expiry">This link will expire in 48 hours. If you didn't expect this invitation, you can safely ignore this email.</p>
+    </div>
+    <div class="footer">
+      <p>This is an automated message from Say It Schedule.</p>
+      <p>If you have questions, please contact the platform administrator.</p>
+    </div>
+  </div>
+</body>
+</html>
+`
+
+  const textBody = `
+Welcome to Say It Schedule!
+
+${invitedByName} has invited you to join Say It Schedule as a Super Administrator. This role grants you platform-wide access to manage organizations, users, and system settings.
+
+Your Email: ${user.email}
+Your Name: ${user.name}
+Role: Super Administrator
+
+Set Up Your Password: ${setupUrl}
+
+SECURITY NOTE: After setting your password, you will be required to set up two-factor authentication (2FA) to protect your super admin account.
+
+This link will expire in 48 hours. If you didn't expect this invitation, you can safely ignore this email.
+
+---
+This is an automated message from Say It Schedule.
+If you have questions, please contact the platform administrator.
 `
 
   return sendEmail(user.email, subject, htmlBody, textBody)

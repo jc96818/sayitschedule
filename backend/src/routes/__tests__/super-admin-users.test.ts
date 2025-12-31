@@ -9,6 +9,7 @@ const mockUserRepository = {
   findAllSuperAdmins: vi.fn(),
   countSuperAdmins: vi.fn(),
   findById: vi.fn(),
+  findByIdWithPassword: vi.fn(),
   findByEmail: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
@@ -17,12 +18,26 @@ const mockUserRepository = {
   getAuthState: vi.fn()
 }
 
+// Mock the password reset token repository
+const mockPasswordResetTokenRepository = {
+  create: vi.fn(),
+  findActiveInvitationsByUserIds: vi.fn()
+}
+
 vi.mock('../../repositories/users.js', () => ({
   userRepository: mockUserRepository
 }))
 
+vi.mock('../../repositories/passwordResetTokens.js', () => ({
+  passwordResetTokenRepository: mockPasswordResetTokenRepository
+}))
+
 vi.mock('../../repositories/audit.js', () => ({
   logAudit: vi.fn()
+}))
+
+vi.mock('../../services/email.js', () => ({
+  sendSuperAdminInvitation: vi.fn().mockResolvedValue(true)
 }))
 
 describe('Super Admin Users Routes', () => {
@@ -88,9 +103,9 @@ describe('Super Admin Users Routes', () => {
   })
 
   describe('GET /api/super-admin/users', () => {
-    it('should return list of super admin users', async () => {
+    it('should return list of super admin users with invitation status', async () => {
       const mockResult = {
-        users: [
+        data: [
           {
             id: 'super-admin-1',
             email: 'admin1@example.com',
@@ -98,7 +113,8 @@ describe('Super Admin Users Routes', () => {
             role: 'super_admin',
             createdAt: new Date(),
             lastLogin: null,
-            mfaEnabled: false
+            mfaEnabled: false,
+            status: 'active'
           },
           {
             id: 'super-admin-2',
@@ -106,15 +122,20 @@ describe('Super Admin Users Routes', () => {
             name: 'Admin Two',
             role: 'super_admin',
             createdAt: new Date(),
-            lastLogin: new Date(),
-            mfaEnabled: true
+            lastLogin: null,
+            mfaEnabled: false,
+            status: 'pending'
           }
         ],
         total: 2,
         page: 1,
-        limit: 20
+        limit: 20,
+        totalPages: 1
       }
       mockUserRepository.findAllSuperAdmins.mockResolvedValue(mockResult)
+      mockPasswordResetTokenRepository.findActiveInvitationsByUserIds.mockResolvedValue([
+        { userId: 'super-admin-2', expiresAt: new Date(Date.now() + 86400000) }
+      ])
 
       const response = await app.inject({
         method: 'GET',
@@ -124,8 +145,10 @@ describe('Super Admin Users Routes', () => {
 
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.body)
-      expect(body.users).toHaveLength(2)
-      expect(body.users[0]).toHaveProperty('email', 'admin1@example.com')
+      expect(body.data).toHaveLength(2)
+      expect(body.data[0]).toHaveProperty('email', 'admin1@example.com')
+      expect(body.data[0].invitationExpiresAt).toBeNull()
+      expect(body.data[1].invitationExpiresAt).toBeDefined()
     })
 
     it('should reject non-super-admin users', async () => {
@@ -151,14 +174,17 @@ describe('Super Admin Users Routes', () => {
   })
 
   describe('POST /api/super-admin/users', () => {
-    it('should create a new super admin user', async () => {
+    it('should create a new super admin user and send invite', async () => {
       const newUser = {
         email: 'newadmin@example.com',
-        name: 'New Admin',
-        password: 'SecurePass123!'
+        name: 'New Admin'
       }
 
       mockUserRepository.findByEmail.mockResolvedValue(null)
+      mockUserRepository.findById.mockResolvedValue({
+        id: 'super-admin-1',
+        name: 'Current Admin'
+      })
       mockUserRepository.create.mockResolvedValue({
         id: 'new-super-admin',
         ...newUser,
@@ -166,7 +192,15 @@ describe('Super Admin Users Routes', () => {
         organizationId: null,
         createdAt: new Date(),
         lastLogin: null,
-        mfaEnabled: false
+        mfaEnabled: false,
+        mfaRequired: true,
+        status: 'pending'
+      })
+      mockPasswordResetTokenRepository.create.mockResolvedValue({
+        id: 'token-1',
+        token: 'test-invite-token',
+        userId: 'new-super-admin',
+        type: 'invitation'
       })
 
       const response = await app.inject({
@@ -180,6 +214,8 @@ describe('Super Admin Users Routes', () => {
       const body = JSON.parse(response.body)
       expect(body.data.email).toBe('newadmin@example.com')
       expect(body.data.role).toBe('super_admin')
+      expect(body.inviteSent).toBe(true)
+      expect(body.message).toContain('invitation email sent')
     })
 
     it('should reject duplicate email', async () => {
@@ -194,8 +230,7 @@ describe('Super Admin Users Routes', () => {
         headers: { authorization: `Bearer ${superAdminToken}` },
         payload: {
           email: 'existing@example.com',
-          name: 'Duplicate',
-          password: 'SecurePass123!'
+          name: 'Duplicate'
         }
       })
 
@@ -204,7 +239,7 @@ describe('Super Admin Users Routes', () => {
       expect(body.error).toContain('already in use')
     })
 
-    it('should reject weak password', async () => {
+    it('should require email and name', async () => {
       mockUserRepository.findByEmail.mockResolvedValue(null)
 
       const response = await app.inject({
@@ -212,14 +247,12 @@ describe('Super Admin Users Routes', () => {
         url: '/api/super-admin/users',
         headers: { authorization: `Bearer ${superAdminToken}` },
         payload: {
-          email: 'newadmin@example.com',
-          name: 'New Admin',
-          password: 'short'
+          email: 'newadmin@example.com'
+          // missing name
         }
       })
 
-      // Zod validation error - Fastify defaults to 500 for unhandled errors
-      // In production, you'd have an error handler that returns 400
+      // Zod validation error
       expect([400, 500]).toContain(response.statusCode)
     })
   })
@@ -328,41 +361,73 @@ describe('Super Admin Users Routes', () => {
     })
   })
 
-  describe('POST /api/super-admin/users/:id/reset-password', () => {
-    it('should reset password for another super admin', async () => {
+  describe('POST /api/super-admin/users/:id/resend-invite', () => {
+    it('should resend invite for a pending super admin', async () => {
       mockUserRepository.findById.mockResolvedValue({
         id: 'super-admin-2',
+        email: 'pending@example.com',
+        name: 'Pending Admin',
         role: 'super_admin',
         organizationId: null
       })
-      mockUserRepository.updatePassword.mockResolvedValue(true)
+      mockUserRepository.findByIdWithPassword.mockResolvedValue({
+        id: 'super-admin-2',
+        passwordHash: null  // No password set yet
+      })
+      mockPasswordResetTokenRepository.create.mockResolvedValue({
+        id: 'token-2',
+        token: 'new-invite-token',
+        userId: 'super-admin-2',
+        type: 'invitation'
+      })
 
       const response = await app.inject({
         method: 'POST',
-        url: '/api/super-admin/users/super-admin-2/reset-password',
-        headers: { authorization: `Bearer ${superAdminToken}` },
-        payload: { password: 'NewSecurePass123!' }
+        url: '/api/super-admin/users/super-admin-2/resend-invite',
+        headers: { authorization: `Bearer ${superAdminToken}` }
       })
 
       expect(response.statusCode).toBe(200)
+      const body = JSON.parse(response.body)
+      expect(body.message).toContain('Invitation email sent')
     })
 
-    it('should reject weak password on reset', async () => {
+    it('should reject resend for user who already set up password', async () => {
       mockUserRepository.findById.mockResolvedValue({
         id: 'super-admin-2',
         role: 'super_admin',
         organizationId: null
       })
+      mockUserRepository.findByIdWithPassword.mockResolvedValue({
+        id: 'super-admin-2',
+        passwordHash: 'some-hashed-password'  // Password already set
+      })
 
       const response = await app.inject({
         method: 'POST',
-        url: '/api/super-admin/users/super-admin-2/reset-password',
-        headers: { authorization: `Bearer ${superAdminToken}` },
-        payload: { password: 'weak' }
+        url: '/api/super-admin/users/super-admin-2/resend-invite',
+        headers: { authorization: `Bearer ${superAdminToken}` }
       })
 
-      // Zod validation error - Fastify defaults to 500 for unhandled errors
-      expect([400, 500]).toContain(response.statusCode)
+      expect(response.statusCode).toBe(400)
+      const body = JSON.parse(response.body)
+      expect(body.error).toContain('already set up their password')
+    })
+
+    it('should reject resend for non-super-admin user', async () => {
+      mockUserRepository.findById.mockResolvedValue({
+        id: 'regular-admin',
+        role: 'admin',
+        organizationId: 'org-1'
+      })
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/super-admin/users/regular-admin/resend-invite',
+        headers: { authorization: `Bearer ${superAdminToken}` }
+      })
+
+      expect(response.statusCode).toBe(404)
     })
   })
 })
