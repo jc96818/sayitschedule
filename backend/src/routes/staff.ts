@@ -19,6 +19,19 @@ const updateStaffSchema = createStaffSchema.partial().extend({
 })
 
 export async function staffRoutes(fastify: FastifyInstance) {
+  // Get current user's linked staff profile
+  fastify.get('/me', { preHandler: authenticate }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.ctx.user!
+
+    // Find staff member linked to the current user
+    const staffMember = await staffRepository.findByUserId(user.userId)
+    if (!staffMember) {
+      return reply.status(404).send({ error: 'No staff profile linked to your account' })
+    }
+
+    return { data: staffMember }
+  })
+
   // List all staff
   fastify.get('/', { preHandler: authenticate }, async (request: FastifyRequest, reply: FastifyReply) => {
     const organizationId = request.ctx.organizationId

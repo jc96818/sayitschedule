@@ -257,6 +257,12 @@ export const staffService = {
     return data
   },
 
+  // Get current user's linked staff profile
+  async getMyProfile(): Promise<ApiResponse<Staff>> {
+    const { data } = await api.get('/staff/me')
+    return data
+  },
+
   async create(staff: Partial<Staff>): Promise<ApiResponse<Staff>> {
     const { data } = await api.post('/staff', staff)
     return data

@@ -117,6 +117,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/AccountSettingsPage.vue')
       },
       {
+        path: 'my-schedule',
+        name: 'my-schedule',
+        component: () => import('@/pages/MySchedulePage.vue')
+      },
+      {
         path: 'data-management',
         name: 'data-management',
         component: () => import('@/pages/DataManagementPage.vue')
