@@ -70,6 +70,15 @@ enum CancellationReason {
   other
 }
 
+// Booking source - tracks how an appointment was booked
+enum BookingSource {
+  admin          // Booked by admin/staff in dashboard
+  staff          // Booked by assigned therapist
+  portal         // Booked via patient portal
+  ai_voice       // Booked via AI voice command
+  api            // Booked via external API
+}
+
 // BAA (Business Associate Agreement) status
 enum BaaStatus {
   not_started
@@ -337,7 +346,22 @@ model Patient {
   status                   Status       @default(active)
   createdAt                DateTime     @default(now()) @map("created_at")
 
-  sessions Session[]
+  // Contact information (for reminders and portal access)
+  email                    String?      @db.VarChar(255)
+  phone                    String?      @db.VarChar(20)
+
+  // Guardian/Caregiver contact (for minors or dependent patients)
+  guardianName             String?      @map("guardian_name") @db.VarChar(255)
+  guardianEmail            String?      @map("guardian_email") @db.VarChar(255)
+  guardianPhone            String?      @map("guardian_phone") @db.VarChar(20)
+  guardianRelationship     String?      @map("guardian_relationship") @db.VarChar(50)
+
+  // Session preferences
+  defaultSessionDuration   Int?         @map("default_session_duration")  // minutes, overrides org default
+  genderPreference         Gender?      @map("gender_preference")  // preferred therapist gender
+
+  sessions         Session[]
+  contacts         PatientContact[]
 
   @@map("patients")
 }
@@ -414,6 +438,10 @@ model Session {
   confirmedAt        DateTime?           @map("confirmed_at")
   confirmedById      String?             @map("confirmed_by_id")
   confirmedBy        User?               @relation("SessionConfirmer", fields: [confirmedById], references: [id])
+
+  // Booking metadata (for portal and multi-channel booking)
+  bookedByContactId  String?             @map("booked_by_contact_id")  // Portal user who booked
+  bookedVia          BookingSource       @default(admin) @map("booked_via")
 
   @@map("sessions")
 }
@@ -575,4 +603,133 @@ model BaaAgreement {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("baa_agreements")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PATIENT PORTAL MODELS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Contact relationship types for portal access
+enum ContactRelationship {
+  self           // Patient is their own contact (adult patient)
+  parent         // Parent of minor patient
+  guardian       // Legal guardian
+  caregiver      // Professional caregiver
+  spouse         // Spouse/partner
+  other          // Other relationship
+}
+
+// Patient Contacts - Supports multiple contacts per patient with portal access
+model PatientContact {
+  id                String              @id @default(cuid())
+  patientId         String              @map("patient_id")
+  patient           Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  // Contact information
+  name              String              @db.VarChar(255)
+  email             String?             @db.VarChar(255)
+  phone             String?             @db.VarChar(20)
+  relationship      ContactRelationship @default(self)
+
+  // Portal access control
+  canAccessPortal   Boolean             @default(false) @map("can_access_portal")
+  isPrimaryContact  Boolean             @default(false) @map("is_primary_contact")
+
+  // Communication preferences
+  emailOptIn        Boolean             @default(true) @map("email_opt_in")
+  smsOptIn          Boolean             @default(false) @map("sms_opt_in")
+
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at")
+
+  // Portal authentication
+  portalSessions    PortalSession[]
+  loginTokens       PortalLoginToken[]
+
+  @@index([patientId])
+  @@index([email])
+  @@map("patient_contacts")
+}
+
+// Portal Login Tokens - Magic link / OTP authentication
+// Security: Only stores hashed tokens, never plaintext
+model PortalLoginToken {
+  id          String         @id @default(cuid())
+  contactId   String         @map("contact_id")
+  contact     PatientContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  // Token details (hash only - plaintext is never stored)
+  tokenHash   String         @unique @map("token_hash") @db.VarChar(64)  // SHA-256 hash
+  channel     String         @default("email") @db.VarChar(10)   // "email" or "sms"
+
+  // Expiration and usage
+  expiresAt   DateTime       @map("expires_at")
+  usedAt      DateTime?      @map("used_at")
+
+  // Security metadata
+  ipAddress   String?        @map("ip_address") @db.VarChar(45)
+  userAgent   String?        @map("user_agent") @db.VarChar(500)
+
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  @@index([tokenHash])
+  @@index([contactId])
+  @@map("portal_login_tokens")
+}
+
+// Portal Sessions - Active portal sessions for contacts
+model PortalSession {
+  id            String         @id @default(cuid())
+  contactId     String         @map("contact_id")
+  contact       PatientContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  // Session token (hashed)
+  tokenHash     String         @unique @map("token_hash") @db.VarChar(64)
+
+  // Session lifecycle
+  expiresAt     DateTime       @map("expires_at")
+  lastActivityAt DateTime      @map("last_activity_at")
+  revokedAt     DateTime?      @map("revoked_at")
+
+  // Security metadata
+  ipAddress     String?        @map("ip_address") @db.VarChar(45)
+  userAgent     String?        @map("user_agent") @db.VarChar(500)
+
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  @@index([tokenHash])
+  @@index([contactId])
+  @@map("portal_sessions")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BOOKING ENGINE MODELS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Appointment Holds - Temporary slot reservations during booking
+model AppointmentHold {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+
+  // Slot details
+  staffId        String?      @map("staff_id")
+  roomId         String?      @map("room_id")
+  date           DateTime
+  startTime      String       @map("start_time") @db.VarChar(5)
+  endTime        String       @map("end_time") @db.VarChar(5)
+
+  // Hold metadata
+  expiresAt      DateTime     @map("expires_at")
+  releasedAt     DateTime?    @map("released_at")
+  convertedToSessionId String? @map("converted_to_session_id")
+
+  // Who created the hold
+  createdByContactId String?  @map("created_by_contact_id")  // Portal user
+  createdByUserId    String?  @map("created_by_user_id")     // Staff/Admin user
+
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId, date, startTime])
+  @@index([expiresAt])
+  @@map("appointment_holds")
 }

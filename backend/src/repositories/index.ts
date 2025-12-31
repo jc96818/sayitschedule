@@ -14,9 +14,10 @@ export * from './passwordResetTokens.js'
 export * from './leads.js'
 export * from './organizationSettings.js'
 export * from './organizationFeatures.js'
+export * from './booking.js'
 
 // Re-export common types from Prisma
-export type { Gender, Status, UserRole, ScheduleStatus, RuleCategory, BaaStatus, AvailabilityStatus, TokenType, LeadStatus, SessionStatus, CancellationReason } from '@prisma/client'
+export type { Gender, Status, UserRole, ScheduleStatus, RuleCategory, BaaStatus, AvailabilityStatus, TokenType, LeadStatus, SessionStatus, CancellationReason, BookingSource, ContactRelationship } from '@prisma/client'
 
 // Import singleton instances
 import { organizationRepository } from './organizations.js'
@@ -33,6 +34,7 @@ import { passwordResetTokenRepository } from './passwordResetTokens.js'
 import { leadRepository } from './leads.js'
 import { organizationSettingsRepository } from './organizationSettings.js'
 import { organizationFeaturesRepository } from './organizationFeatures.js'
+import { bookingRepository } from './booking.js'
 
 // Export singleton instances as default repositories
 export const repositories = {
@@ -49,7 +51,8 @@ export const repositories = {
   passwordResetTokens: passwordResetTokenRepository,
   leads: leadRepository,
   organizationSettings: organizationSettingsRepository,
-  organizationFeatures: organizationFeaturesRepository
+  organizationFeatures: organizationFeaturesRepository,
+  booking: bookingRepository
 }
 
 export default repositories
