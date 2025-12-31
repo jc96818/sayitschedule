@@ -479,3 +479,119 @@ export interface RuleAnalysisResult {
   enhancements: RuleEnhancement[]
   summary: RuleAnalysisSummary
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PORTAL TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Portal branding/customization from organization settings
+export interface PortalBranding {
+  // Organization info
+  organizationName: string
+  organizationSubdomain: string
+
+  // Branding
+  logoUrl: string | null
+  primaryColor: string
+  secondaryColor: string
+  backgroundUrl: string | null
+  showOrgName: boolean
+
+  // Welcome text
+  welcomeTitle: string
+  welcomeMessage: string
+
+  // Contact info
+  contactEmail: string | null
+  contactPhone: string | null
+
+  // Footer
+  footerText: string | null
+  termsUrl: string | null
+  privacyUrl: string | null
+
+  // Labels
+  patientLabel: string
+  patientLabelSingular: string
+
+  // Feature flags
+  selfBookingEnabled: boolean
+  portalAllowCancel: boolean
+  portalAllowReschedule: boolean
+  portalRequireConfirmation: boolean
+}
+
+// Portal user (authenticated contact)
+export interface PortalUser {
+  contactId: string
+  patientId: string
+  organizationId: string
+  name: string
+  email: string | null
+  phone: string | null
+}
+
+// Portal session (appointment)
+export interface PortalSession {
+  id: string
+  date: string
+  startTime: string
+  endTime: string
+  therapistName: string
+  roomName: string | null
+  status: SessionStatus | 'pending'
+  notes: string | null
+  confirmedAt: string | null
+  canCancel: boolean
+  canConfirm: boolean
+}
+
+// Portal auth request result
+export interface PortalAuthRequestResult {
+  success: boolean
+  message: string
+  channel?: 'email' | 'sms'
+  expiresAt?: string
+}
+
+// Portal auth verify result
+export interface PortalVerifyResult {
+  message: string
+  sessionToken: string
+  user: PortalUser
+  expiresAt: string
+}
+
+// Portal booking availability slot
+export interface PortalAvailabilitySlot {
+  date: string
+  startTime: string
+  endTime: string
+  staffId: string
+  staffName: string
+  roomId: string | null
+  roomName: string | null
+}
+
+// Portal booking hold
+export interface PortalBookingHold {
+  id: string
+  staffId: string
+  staffName: string
+  roomId: string | null
+  roomName: string | null
+  date: string
+  startTime: string
+  endTime: string
+  expiresAt: string
+}
+
+// Portal booking settings
+export interface PortalBookingSettings {
+  selfBookingEnabled: boolean
+  leadTimeHours: number
+  maxFutureDays: number
+  requiresApproval: boolean
+  earliestBookingDate: string
+  latestBookingDate: string
+}

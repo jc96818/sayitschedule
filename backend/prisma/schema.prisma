@@ -238,6 +238,21 @@ model OrganizationFeatures {
   selfBookingMaxFutureDays Int       @default(30) @map("self_booking_max_future_days")     // How far ahead can book
   selfBookingRequiresApproval Boolean @default(false) @map("self_booking_requires_approval") // If true, books as 'pending'
 
+  // ─── Portal Customization ───
+  // These settings allow organizations to heavily customize their patient portal appearance
+  portalWelcomeTitle      String     @default("Welcome to Your Patient Portal") @map("portal_welcome_title") @db.VarChar(100)
+  portalWelcomeMessage    String     @default("Sign in to view your appointments and manage your schedule.") @map("portal_welcome_message") @db.VarChar(500)
+  portalPrimaryColor      String?    @map("portal_primary_color") @db.VarChar(7)      // Override org color for portal (hex)
+  portalSecondaryColor    String?    @map("portal_secondary_color") @db.VarChar(7)    // Override org color for portal (hex)
+  portalLogoUrl           String?    @map("portal_logo_url") @db.VarChar(500)         // Override org logo for portal
+  portalBackgroundUrl     String?    @map("portal_background_url") @db.VarChar(500)   // Custom background image
+  portalShowOrgName       Boolean    @default(true) @map("portal_show_org_name")      // Show org name on portal
+  portalContactEmail      String?    @map("portal_contact_email") @db.VarChar(255)    // Support email shown to portal users
+  portalContactPhone      String?    @map("portal_contact_phone") @db.VarChar(20)     // Support phone shown to portal users
+  portalFooterText        String?    @map("portal_footer_text") @db.VarChar(500)      // Custom footer message
+  portalTermsUrl          String?    @map("portal_terms_url") @db.VarChar(500)        // Link to terms of service
+  portalPrivacyUrl        String?    @map("portal_privacy_url") @db.VarChar(500)      // Link to privacy policy
+
   // ─── Reporting Features ───
   advancedReportsEnabled Boolean     @default(false) @map("advanced_reports_enabled")
   reportExportEnabled   Boolean      @default(true) @map("report_export_enabled")

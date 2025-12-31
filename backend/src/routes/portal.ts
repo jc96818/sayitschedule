@@ -66,6 +66,100 @@ interface HoldIdParams {
 
 export async function portalRoutes(fastify: FastifyInstance) {
   // ─────────────────────────────────────────────────────────────────────────────
+  // PUBLIC ROUTES (No authentication required)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * GET /portal/branding
+   * Get portal branding/customization for the current organization.
+   * This is a public endpoint used to display the portal login page with
+   * organization-specific branding before the user authenticates.
+   */
+  fastify.get(
+    '/branding',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const organizationId = request.ctx.organizationId
+
+      if (!organizationId) {
+        return reply.code(404).send({
+          error: 'Organization not found',
+          message: 'Unable to determine organization from request'
+        })
+      }
+
+      // Get organization basic info
+      const organization = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: {
+          id: true,
+          name: true,
+          subdomain: true,
+          logoUrl: true,
+          primaryColor: true,
+          secondaryColor: true,
+          patientLabelSingular: true,
+          patientLabel: true
+        }
+      })
+
+      if (!organization) {
+        return reply.code(404).send({
+          error: 'Organization not found'
+        })
+      }
+
+      // Get portal customization from organization features
+      const features = await organizationFeaturesRepository.findByOrganizationId(organizationId)
+
+      // Check if portal is enabled
+      if (!features.patientPortalEnabled) {
+        return reply.code(403).send({
+          error: 'Portal not enabled',
+          message: 'The patient portal is not enabled for this organization'
+        })
+      }
+
+      return reply.send({
+        data: {
+          // Organization info
+          organizationName: organization.name,
+          organizationSubdomain: organization.subdomain,
+
+          // Branding (portal-specific overrides fall back to org defaults)
+          logoUrl: features.portalLogoUrl || organization.logoUrl,
+          primaryColor: features.portalPrimaryColor || organization.primaryColor,
+          secondaryColor: features.portalSecondaryColor || organization.secondaryColor,
+          backgroundUrl: features.portalBackgroundUrl,
+          showOrgName: features.portalShowOrgName,
+
+          // Welcome text
+          welcomeTitle: features.portalWelcomeTitle,
+          welcomeMessage: features.portalWelcomeMessage,
+
+          // Contact info
+          contactEmail: features.portalContactEmail,
+          contactPhone: features.portalContactPhone,
+
+          // Footer
+          footerText: features.portalFooterText,
+          termsUrl: features.portalTermsUrl,
+          privacyUrl: features.portalPrivacyUrl,
+
+          // Labels (for display consistency)
+          patientLabel: organization.patientLabel,
+          patientLabelSingular: organization.patientLabelSingular,
+
+          // Feature flags (for UI behavior)
+          selfBookingEnabled: features.selfBookingEnabled,
+          portalAllowCancel: features.portalAllowCancel,
+          portalAllowReschedule: features.portalAllowReschedule,
+          portalRequireConfirmation: features.portalRequireConfirmation
+        }
+      })
+    }
+  )
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // AUTH ROUTES (Unauthenticated)
   // ─────────────────────────────────────────────────────────────────────────────
 

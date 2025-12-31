@@ -1114,4 +1114,156 @@ export const settingsService = {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PORTAL SERVICES (Patient/Caregiver Portal)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import type {
+  PortalBranding,
+  PortalUser,
+  PortalSession,
+  PortalAuthRequestResult,
+  PortalVerifyResult,
+  PortalAvailabilitySlot,
+  PortalBookingHold,
+  PortalBookingSettings
+} from '@/types'
+
+// Separate axios instance for portal (uses different token storage)
+const portalApi = axios.create({
+  baseURL: '/api/portal',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
+// Portal token interceptor
+portalApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('portal_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+portalApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const url = error.config?.url || ''
+      // Don't redirect for auth endpoints
+      if (!url.includes('/auth/')) {
+        localStorage.removeItem('portal_token')
+        window.location.href = '/portal/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
+// Portal Branding Service (public - no auth required)
+export const portalBrandingService = {
+  async getBranding(): Promise<ApiResponse<PortalBranding>> {
+    const { data } = await portalApi.get('/branding')
+    return data
+  }
+}
+
+// Portal Auth Service
+export const portalAuthService = {
+  async requestLogin(
+    identifier: string,
+    channel: 'email' | 'sms'
+  ): Promise<PortalAuthRequestResult> {
+    const { data } = await portalApi.post('/auth/request', { identifier, channel })
+    return data
+  },
+
+  async verifyToken(token: string): Promise<PortalVerifyResult> {
+    const { data } = await portalApi.post('/auth/verify', { token })
+    return data
+  },
+
+  async me(): Promise<ApiResponse<PortalUser>> {
+    const { data } = await portalApi.get('/auth/me')
+    return data
+  },
+
+  async logout(): Promise<void> {
+    await portalApi.post('/auth/logout')
+  }
+}
+
+// Portal Appointments Service
+export const portalAppointmentsService = {
+  async getUpcoming(): Promise<ApiResponse<PortalSession[]>> {
+    const { data } = await portalApi.get('/appointments/upcoming')
+    return data
+  },
+
+  async getPast(params?: { page?: number; limit?: number }): Promise<PaginatedResponse<PortalSession>> {
+    const { data } = await portalApi.get('/appointments/past', { params })
+    return data
+  },
+
+  async get(sessionId: string): Promise<ApiResponse<PortalSession>> {
+    const { data } = await portalApi.get(`/appointments/${sessionId}`)
+    return data
+  },
+
+  async confirm(sessionId: string): Promise<ApiResponse<PortalSession>> {
+    const { data } = await portalApi.post(`/appointments/${sessionId}/confirm`)
+    return data
+  },
+
+  async cancel(sessionId: string, reason?: string): Promise<ApiResponse<PortalSession>> {
+    const { data } = await portalApi.post(`/appointments/${sessionId}/cancel`, { reason })
+    return data
+  }
+}
+
+// Portal Booking Service (self-booking)
+export const portalBookingService = {
+  async getSettings(): Promise<ApiResponse<PortalBookingSettings>> {
+    const { data } = await portalApi.get('/booking/settings')
+    return data
+  },
+
+  async getAvailability(params: {
+    dateFrom: string
+    dateTo: string
+    staffId?: string
+    duration?: number
+  }): Promise<ApiResponse<PortalAvailabilitySlot[]>> {
+    const { data } = await portalApi.get('/booking/availability', { params })
+    return data
+  },
+
+  async getTherapists(): Promise<ApiResponse<Array<{ id: string; name: string }>>> {
+    const { data } = await portalApi.get('/booking/therapists')
+    return data
+  },
+
+  async createHold(slot: {
+    staffId: string
+    roomId?: string
+    date: string
+    startTime: string
+    endTime: string
+  }): Promise<ApiResponse<PortalBookingHold>> {
+    const { data } = await portalApi.post('/booking/hold', slot)
+    return data
+  },
+
+  async releaseHold(holdId: string): Promise<{ success: boolean }> {
+    const { data } = await portalApi.delete(`/booking/hold/${holdId}`)
+    return data
+  },
+
+  async book(holdId: string, notes?: string): Promise<ApiResponse<PortalSession>> {
+    const { data } = await portalApi.post('/booking/book', { holdId, notes })
+    return data
+  }
+}
+
 export default api

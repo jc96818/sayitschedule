@@ -139,6 +139,58 @@ const routes: RouteRecordRaw[] = [
       }
     ]
   },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PORTAL ROUTES (Patient/Caregiver facing)
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    path: '/portal',
+    name: 'portal-redirect',
+    redirect: '/portal/login'
+  },
+  {
+    path: '/portal/login',
+    name: 'portal-login',
+    component: () => import('@/pages/portal/PortalLoginPage.vue'),
+    meta: { requiresAuth: false, isPortal: true }
+  },
+  {
+    path: '/portal/verify',
+    name: 'portal-verify',
+    component: () => import('@/pages/portal/PortalVerifyPage.vue'),
+    meta: { requiresAuth: false, isPortal: true }
+  },
+  {
+    path: '/portal',
+    component: () => import('@/layouts/PortalLayout.vue'),
+    meta: { requiresPortalAuth: true, isPortal: true },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'portal-dashboard',
+        component: () => import('@/pages/portal/PortalDashboardPage.vue')
+      },
+      {
+        path: 'appointments',
+        name: 'portal-appointments',
+        component: () => import('@/pages/portal/PortalAppointmentsPage.vue')
+      },
+      {
+        path: 'book',
+        name: 'portal-book',
+        component: () => import('@/pages/portal/PortalBookingPage.vue'),
+        meta: { requiresSelfBooking: true }
+      },
+      {
+        path: 'settings',
+        name: 'portal-settings',
+        component: () => import('@/pages/portal/PortalSettingsPage.vue')
+      }
+    ]
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SUPER ADMIN ROUTES
+  // ═══════════════════════════════════════════════════════════════════════════
   {
     path: '/super-admin',
     component: () => import('@/layouts/SuperAdminLayout.vue'),
@@ -189,6 +241,56 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, _from, next) => {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PORTAL ROUTE HANDLING (separate from staff app)
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (to.meta.isPortal) {
+    const portalToken = localStorage.getItem('portal_token')
+
+    // Portal auth required but no token
+    if (to.meta.requiresPortalAuth && !portalToken) {
+      next({ name: 'portal-login' })
+      return
+    }
+
+    // Already logged in, redirect to dashboard
+    if (to.name === 'portal-login' && portalToken) {
+      next({ name: 'portal-dashboard' })
+      return
+    }
+
+    // For authenticated portal routes, validate session
+    if (to.meta.requiresPortalAuth && portalToken) {
+      const { usePortalAuthStore } = await import('@/stores/portalAuth')
+      const portalStore = usePortalAuthStore()
+
+      // Ensure user data is loaded
+      if (!portalStore.user) {
+        try {
+          await portalStore.fetchCurrentUser()
+        } catch {
+          // Token invalid, redirect to login
+          localStorage.removeItem('portal_token')
+          next({ name: 'portal-login' })
+          return
+        }
+      }
+
+      // Check self-booking requirement
+      if (to.meta.requiresSelfBooking && !portalStore.canBook) {
+        next({ name: 'portal-dashboard' })
+        return
+      }
+    }
+
+    next()
+    return
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAFF APP ROUTE HANDLING
+  // ═══════════════════════════════════════════════════════════════════════════
+
   // First, check for auth token in URL (cross-subdomain transfer)
   const transferredToken = consumeAuthTokenFromUrl()
 
