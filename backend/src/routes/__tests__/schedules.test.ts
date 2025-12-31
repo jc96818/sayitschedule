@@ -917,6 +917,7 @@ describe('Schedule Routes', () => {
       vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(mockPublishedSchedule as any)
       vi.mocked(validateAndRegenerateCopiedSchedule).mockResolvedValue({
         validSessions: [{
+          scheduleId: 'schedule-2',
           therapistId: 'staff-1',
           patientId: 'patient-1',
           date: new Date('2025-01-06'),
@@ -956,6 +957,7 @@ describe('Schedule Routes', () => {
       vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(mockPublishedSchedule as any)
       vi.mocked(validateAndRegenerateCopiedSchedule).mockResolvedValue({
         validSessions: [{
+          scheduleId: 'schedule-2',
           therapistId: 'staff-2',
           patientId: 'patient-1',
           date: new Date('2025-01-07'),
