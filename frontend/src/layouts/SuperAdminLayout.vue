@@ -112,8 +112,19 @@ async function logout() {
 </template>
 
 <style scoped>
+.nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+}
+
 .nav-item.active {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border-right-color: white !important;
+  background-color: rgba(59, 130, 246, 0.3) !important;
+  border-right-color: #3b82f6 !important;
+  color: white !important;
+  font-weight: 600;
+}
+
+.nav-item.active:hover {
+  background-color: rgba(59, 130, 246, 0.4) !important;
 }
 </style>
