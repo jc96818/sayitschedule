@@ -299,6 +299,47 @@ export class ScheduleRepository {
     // Return the new schedule with its sessions
     return this.findByIdWithSessions(createdSchedule.id, organizationId)
   }
+
+  async createDraftCopyWithValidation(
+    sourceScheduleId: string,
+    organizationId: string,
+    createdBy: string,
+    validSessions: SessionCreate[]
+  ): Promise<ScheduleWithSessions | null> {
+    // Get the source schedule to get version number
+    const sourceSchedule = await this.findById(sourceScheduleId, organizationId)
+    if (!sourceSchedule) return null
+
+    // Create new draft schedule with incremented version
+    const createdSchedule = await prisma.schedule.create({
+      data: {
+        organization: { connect: { id: organizationId } },
+        weekStartDate: sourceSchedule.weekStartDate,
+        createdBy: { connect: { id: createdBy } },
+        status: 'draft',
+        version: sourceSchedule.version + 1
+      }
+    })
+
+    // Add validated sessions to the new schedule
+    if (validSessions.length > 0) {
+      await prisma.session.createMany({
+        data: validSessions.map(session => ({
+          scheduleId: createdSchedule.id,
+          therapistId: session.therapistId,
+          patientId: session.patientId,
+          roomId: session.roomId,
+          date: session.date,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          notes: session.notes
+        }))
+      })
+    }
+
+    // Return the new schedule with its sessions
+    return this.findByIdWithSessions(createdSchedule.id, organizationId)
+  }
 }
 
 export const scheduleRepository = new ScheduleRepository()

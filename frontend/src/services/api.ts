@@ -485,6 +485,29 @@ export interface VoiceModifyResult {
   to?: { date: string; startTime: string }
 }
 
+// Schedule copy modification types
+export interface SessionModification {
+  original: {
+    therapistName?: string
+    patientName?: string
+    date: string
+    startTime: string
+  }
+  replacement?: {
+    therapistName?: string
+    patientName?: string
+    date: string
+    startTime: string
+  }
+  reason: string
+}
+
+export interface CopyModifications {
+  regenerated: SessionModification[]
+  removed: SessionModification[]
+  warnings: string[]
+}
+
 // Schedule Service
 export const scheduleService = {
   async list(params?: { status?: string }): Promise<PaginatedResponse<Schedule>> {
@@ -526,8 +549,21 @@ export const scheduleService = {
     await api.delete(`/schedules/${scheduleId}/sessions/${sessionId}`)
   },
 
-  async createDraftCopy(id: string): Promise<ApiResponse<Schedule & { sessions: Session[] }, { message: string; sourceScheduleId: string }>> {
+  async createDraftCopy(id: string): Promise<ApiResponse<Schedule & { sessions: Session[] }, { message: string; sourceScheduleId: string; modifications?: CopyModifications }>> {
     const { data } = await api.post(`/schedules/${id}/create-draft`)
+    return data
+  },
+
+  async createSession(scheduleId: string, session: {
+    staffId: string
+    patientId: string
+    roomId?: string
+    date: string
+    startTime: string
+    endTime: string
+    notes?: string
+  }): Promise<ApiResponse<Session>> {
+    const { data } = await api.post(`/schedules/${scheduleId}/sessions`, session)
     return data
   }
 }

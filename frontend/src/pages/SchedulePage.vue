@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useSchedulesStore } from '@/stores/schedules'
 import { useStaffStore } from '@/stores/staff'
 import { useRoomsStore } from '@/stores/rooms'
+import { usePatientsStore } from '@/stores/patients'
 import { Button, Badge, Alert, StatCard, VoiceInput, VoiceHintsModal } from '@/components/ui'
 import { voiceService } from '@/services/api'
 import { getFederalHoliday } from '@/utils/holidays'
@@ -12,6 +13,7 @@ import type { Session } from '@/types'
 const schedulesStore = useSchedulesStore()
 const staffStore = useStaffStore()
 const roomsStore = useRoomsStore()
+const patientsStore = usePatientsStore()
 const { staffLabel, staffLabelSingular, patientLabel, patientLabelSingular, roomLabel, roomLabelSingular } = useLabels()
 
 // Voice hints modal ref
@@ -22,6 +24,22 @@ const voiceGenerateHintsModal = ref<InstanceType<typeof VoiceHintsModal> | null>
 const showVoiceConfirmation = ref(false)
 const voiceTranscript = ref('')
 const voiceError = ref('')
+
+// Copy modification report state
+const showCopyModificationReport = ref(false)
+
+// Session creation state
+const showAddSessionModal = ref(false)
+const addingSession = ref(false)
+const newSession = ref({
+  staffId: '',
+  patientId: '',
+  roomId: '',
+  date: '',
+  startTime: '',
+  endTime: '',
+  notes: ''
+})
 
 // Voice generation state
 const showGenerateConfirmation = ref(false)
@@ -433,8 +451,77 @@ async function handleCreateDraftCopy() {
     const response = await schedulesStore.createDraftCopy(currentSchedule.value.id)
     // The store sets currentSchedule to the new draft, so the UI will update automatically
     console.log('Created draft copy:', response.meta?.message)
+    // Show modification report if there were any modifications
+    if (schedulesStore.copyModifications &&
+        (schedulesStore.copyModifications.regenerated.length > 0 ||
+         schedulesStore.copyModifications.removed.length > 0)) {
+      showCopyModificationReport.value = true
+    }
   } catch (error) {
     console.error('Failed to create draft copy:', error)
+  }
+}
+
+function closeCopyModificationReport() {
+  showCopyModificationReport.value = false
+  schedulesStore.clearCopyModifications()
+}
+
+function openAddSessionModal() {
+  // Reset form with default values
+  const today = currentWeekDate.value
+  newSession.value = {
+    staffId: '',
+    patientId: '',
+    roomId: '',
+    date: today.toISOString().split('T')[0],
+    startTime: '09:00',
+    endTime: '10:00',
+    notes: ''
+  }
+  showAddSessionModal.value = true
+}
+
+function closeAddSessionModal() {
+  showAddSessionModal.value = false
+}
+
+async function handleAddSession() {
+  if (!newSession.value.staffId || !newSession.value.patientId || !newSession.value.date || !newSession.value.startTime || !newSession.value.endTime) {
+    return
+  }
+
+  addingSession.value = true
+  try {
+    await schedulesStore.createSession({
+      staffId: newSession.value.staffId,
+      patientId: newSession.value.patientId,
+      roomId: newSession.value.roomId || undefined,
+      date: newSession.value.date,
+      startTime: newSession.value.startTime,
+      endTime: newSession.value.endTime,
+      notes: newSession.value.notes || undefined
+    })
+    showAddSessionModal.value = false
+  } catch (error) {
+    console.error('Failed to add session:', error)
+  } finally {
+    addingSession.value = false
+  }
+}
+
+// Open add session modal from modification report (pre-fill patient info)
+function handleAddSessionFromReport(patientName?: string) {
+  closeCopyModificationReport()
+  openAddSessionModal()
+  // Try to find the patient by name and pre-select them
+  if (patientName) {
+    const patient = patientsStore.patients.find(
+      p => p.name?.toLowerCase().includes(patientName.toLowerCase())
+    )
+    if (patient) {
+      newSession.value.patientId = patient.id
+    }
   }
 }
 
@@ -451,6 +538,7 @@ onMounted(() => {
   loadSchedule()
   staffStore.fetchStaff() // Load staff for therapist filter and gender lookup
   roomsStore.fetchRooms() // Load rooms for room display
+  patientsStore.fetchPatients() // Load patients for add session modal
 })
 </script>
 
@@ -505,6 +593,16 @@ onMounted(() => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
           Edit Draft Copy
+        </Button>
+        <Button
+          v-if="currentSchedule?.status === 'draft'"
+          variant="outline"
+          @click="openAddSessionModal"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Add Session
         </Button>
         <Button
           v-if="currentSchedule?.status === 'draft'"
@@ -619,7 +717,7 @@ onMounted(() => {
         <VoiceInput
           v-if="currentSchedule.status === 'draft'"
           title="Edit Schedule"
-          description="Say it or type it: changes (move, cancel, reschedule)."
+          description="Say it or type it: move, cancel, add or reschedule sessions."
           :show-hints-link="true"
           @result="handleVoiceResult"
           @show-hints="voiceHintsModal?.openModal()"
@@ -682,6 +780,27 @@ onMounted(() => {
                   <span>
                     {{ capitalizeFirst(schedulesStore.pendingModification.currentDayOfWeek) }}
                     {{ formatTime(schedulesStore.pendingModification.currentStartTime) }}
+                  </span>
+                </div>
+              </div>
+            </template>
+            <!-- Create action -->
+            <template v-else-if="schedulesStore.pendingModification.action === 'create'">
+              <strong>Add New Session:</strong>
+              <div class="modification-details">
+                <div v-if="schedulesStore.pendingModification.patientName" class="detail-row">
+                  <span class="detail-label">{{ patientLabelSingular }}:</span>
+                  <span>{{ schedulesStore.pendingModification.patientName }}</span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.therapistName" class="detail-row">
+                  <span class="detail-label">{{ staffLabelSingular }}:</span>
+                  <span>{{ schedulesStore.pendingModification.therapistName }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">When:</span>
+                  <span>
+                    {{ schedulesStore.pendingModification.newDayOfWeek ? capitalizeFirst(schedulesStore.pendingModification.newDayOfWeek) : '' }}
+                    {{ formatTime(schedulesStore.pendingModification.newStartTime) }}
                   </span>
                 </div>
               </div>
@@ -1002,6 +1121,228 @@ onMounted(() => {
           </div>
         </div>
       </template>
+    </div>
+
+    <!-- Copy Modification Report Modal -->
+    <div v-if="showCopyModificationReport && schedulesStore.copyModifications" class="modal-overlay" @click.self="closeCopyModificationReport">
+      <div class="modal-content modification-report-modal">
+        <div class="modal-header">
+          <h3>Schedule Copy Report</h3>
+          <button class="modal-close" @click="closeCopyModificationReport">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Explanation message -->
+          <div class="report-intro">
+            <p>
+              Your draft copy has been created. The sessions were validated against your current scheduling rules and availability.
+              <span v-if="schedulesStore.copyModifications.regenerated.length > 0 || schedulesStore.copyModifications.removed.length > 0">
+                Some changes were made to resolve conflicts:
+              </span>
+            </p>
+          </div>
+
+          <!-- Warnings -->
+          <div v-if="schedulesStore.copyModifications.warnings.length > 0" class="modification-section">
+            <div v-for="(warning, index) in schedulesStore.copyModifications.warnings" :key="'warning-' + index" class="modification-warning">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{{ warning }}</span>
+            </div>
+          </div>
+
+          <!-- Regenerated Sessions -->
+          <div v-if="schedulesStore.copyModifications.regenerated.length > 0" class="modification-section">
+            <h4 class="section-title section-title-success">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Rescheduled Sessions ({{ schedulesStore.copyModifications.regenerated.length }})
+            </h4>
+            <p class="section-description">These sessions were automatically rescheduled to new times that comply with current rules.</p>
+            <div class="modification-list">
+              <div v-for="(mod, index) in schedulesStore.copyModifications.regenerated" :key="'regen-' + index" class="modification-item regenerated">
+                <div class="modification-change">
+                  <div class="modification-from">
+                    <span class="person-name">{{ mod.original.patientName }}</span>
+                    <span class="session-details">
+                      {{ mod.original.date }} at {{ formatTime(mod.original.startTime) }}
+                      <span v-if="mod.original.therapistName" class="therapist-info-text">with {{ mod.original.therapistName }}</span>
+                    </span>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="arrow-icon" width="20" height="20">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                  <div class="modification-to">
+                    <span class="person-name">{{ mod.replacement?.patientName || mod.original.patientName }}</span>
+                    <span class="session-details">
+                      {{ mod.replacement?.date }} at {{ formatTime(mod.replacement?.startTime) }}
+                      <span v-if="mod.replacement?.therapistName" class="therapist-info-text">with {{ mod.replacement.therapistName }}</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="modification-reason">
+                  <span class="reason-label">Reason:</span> {{ mod.reason }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Removed Sessions -->
+          <div v-if="schedulesStore.copyModifications.removed.length > 0" class="modification-section">
+            <h4 class="section-title section-title-danger">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Removed Sessions ({{ schedulesStore.copyModifications.removed.length }})
+            </h4>
+            <p class="section-description">These sessions could not be automatically rescheduled. You can manually add them back using the button below each session or use the "Add Session" button in the schedule view.</p>
+            <div class="modification-list">
+              <div v-for="(mod, index) in schedulesStore.copyModifications.removed" :key="'removed-' + index" class="modification-item removed">
+                <div class="modification-item-content">
+                  <div class="modification-details-row">
+                    <span class="person-name">{{ mod.original.patientName }}</span>
+                    <span class="session-details">
+                      {{ mod.original.date }} at {{ formatTime(mod.original.startTime) }}
+                      <span v-if="mod.original.therapistName" class="therapist-info-text">with {{ mod.original.therapistName }}</span>
+                    </span>
+                  </div>
+                  <div class="modification-reason">
+                    <span class="reason-label">Reason:</span> {{ mod.reason }}
+                  </div>
+                </div>
+                <div class="modification-actions">
+                  <Button variant="outline" size="sm" @click="handleAddSessionFromReport(mod.original.patientName)">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Session
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- No modifications message -->
+          <div v-if="schedulesStore.copyModifications.regenerated.length === 0 && schedulesStore.copyModifications.removed.length === 0" class="no-modifications">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="48" height="48">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p>All sessions passed validation. No modifications were needed.</p>
+          </div>
+
+          <!-- Next steps section -->
+          <div v-if="schedulesStore.copyModifications.removed.length > 0" class="next-steps">
+            <h4>What you can do next:</h4>
+            <ul>
+              <li>Click "Add Session" next to any removed session to manually schedule it</li>
+              <li>Use voice commands like "Add a session for [{{ patientLabelSingular }}] on [day] at [time]"</li>
+              <li>Click "Add Session" in the schedule view to create new sessions</li>
+              <li>Review and adjust any rescheduled sessions as needed</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <Button v-if="schedulesStore.copyModifications.removed.length > 0" variant="outline" @click="openAddSessionModal(); closeCopyModificationReport()">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Sessions
+          </Button>
+          <Button variant="primary" @click="closeCopyModificationReport">
+            Got It
+          </Button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Session Modal -->
+    <div v-if="showAddSessionModal" class="modal-overlay" @click.self="closeAddSessionModal">
+      <div class="modal-content add-session-modal">
+        <div class="modal-header">
+          <h3>Add New Session</h3>
+          <button class="modal-close" @click="closeAddSessionModal">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <form @submit.prevent="handleAddSession" class="add-session-form">
+            <div class="form-group">
+              <label :for="'session-staff'">{{ staffLabelSingular }} *</label>
+              <select id="session-staff" v-model="newSession.staffId" required class="form-control">
+                <option value="">Select {{ staffLabelSingular }}</option>
+                <option v-for="staff in staffStore.staff" :key="staff.id" :value="staff.id">
+                  {{ staff.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label :for="'session-patient'">{{ patientLabelSingular }} *</label>
+              <select id="session-patient" v-model="newSession.patientId" required class="form-control">
+                <option value="">Select {{ patientLabelSingular }}</option>
+                <option v-for="patient in patientsStore.patients" :key="patient.id" :value="patient.id">
+                  {{ patient.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label :for="'session-room'">{{ roomLabelSingular }}</label>
+              <select id="session-room" v-model="newSession.roomId" class="form-control">
+                <option value="">No Room</option>
+                <option v-for="room in roomsStore.rooms" :key="room.id" :value="room.id">
+                  {{ room.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="session-date">Date *</label>
+              <input id="session-date" v-model="newSession.date" type="date" required class="form-control" />
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="session-start">Start Time *</label>
+                <input id="session-start" v-model="newSession.startTime" type="time" required class="form-control" />
+              </div>
+              <div class="form-group">
+                <label for="session-end">End Time *</label>
+                <input id="session-end" v-model="newSession.endTime" type="time" required class="form-control" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="session-notes">Notes</label>
+              <textarea id="session-notes" v-model="newSession.notes" class="form-control" rows="2" placeholder="Optional notes about this session"></textarea>
+            </div>
+          </form>
+
+          <Alert v-if="schedulesStore.error" variant="danger" class="mt-3">
+            {{ schedulesStore.error }}
+          </Alert>
+        </div>
+
+        <div class="modal-footer">
+          <Button variant="ghost" @click="closeAddSessionModal">Cancel</Button>
+          <Button variant="primary" :loading="addingSession" @click="handleAddSession">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Session
+          </Button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -1384,5 +1725,321 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: var(--card-background);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modification-report-modal {
+  max-width: 700px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background-color: var(--background-color);
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Modification Report Styles */
+.modification-section {
+  margin-bottom: 24px;
+}
+
+.modification-section:last-child {
+  margin-bottom: 0;
+}
+
+.modification-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: var(--warning-light, #fef3c7);
+  border-radius: var(--radius-md);
+  color: var(--warning-color, #d97706);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.modification-warning:last-child {
+  margin-bottom: 0;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.section-title-success {
+  color: var(--success-color);
+}
+
+.section-title-danger {
+  color: var(--danger-color);
+}
+
+.modification-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modification-item {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--background-color);
+}
+
+.modification-item.regenerated {
+  border-left: 3px solid var(--success-color);
+}
+
+.modification-item.removed {
+  border-left: 3px solid var(--danger-color);
+}
+
+.modification-change {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.modification-from,
+.modification-to {
+  flex: 1;
+  min-width: 180px;
+}
+
+.arrow-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.modification-details-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.person-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.session-details {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.therapist-info {
+  color: var(--text-muted);
+}
+
+.modification-reason {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.reason-label {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.no-modifications {
+  text-align: center;
+  padding: 32px;
+  color: var(--success-color);
+}
+
+.no-modifications svg {
+  margin-bottom: 16px;
+}
+
+.no-modifications p {
+  margin: 0;
+  font-size: 16px;
+}
+
+/* Report Introduction */
+.report-intro {
+  margin-bottom: 20px;
+  padding: 16px;
+  background-color: var(--background-color);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.report-intro p {
+  margin: 0;
+}
+
+/* Section Description */
+.section-description {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+/* Modification Item Content */
+.modification-item-content {
+  flex: 1;
+}
+
+/* Removed item with action button */
+.modification-item.removed {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.modification-actions {
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+/* Therapist info text - different from the conflict class */
+.therapist-info-text {
+  color: var(--text-muted);
+}
+
+/* Next Steps Section */
+.next-steps {
+  margin-top: 24px;
+  padding: 16px;
+  background-color: var(--primary-light);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--primary-color);
+}
+
+.next-steps h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.next-steps ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.next-steps li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+.next-steps li:last-child {
+  margin-bottom: 0;
+}
+
+/* Add Session Modal */
+.add-session-modal {
+  max-width: 500px;
+}
+
+.add-session-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.mt-3 {
+  margin-top: 16px;
 }
 </style>

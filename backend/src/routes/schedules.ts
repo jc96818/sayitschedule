@@ -4,7 +4,7 @@ import { authenticate, requireAdminOrAssistant } from '../middleware/auth.js'
 import { scheduleRepository, sessionRepository } from '../repositories/schedules.js'
 import { organizationRepository } from '../repositories/organizations.js'
 import { logAudit } from '../repositories/audit.js'
-import { generateSchedule } from '../services/scheduler.js'
+import { generateSchedule, validateAndRegenerateCopiedSchedule, type SessionModification } from '../services/scheduler.js'
 import { generateSchedulePdf } from '../services/pdfGenerator.js'
 import {
   findMatchingSessions,
@@ -218,7 +218,7 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
     return { data: schedule }
   })
 
-  // Create draft copy of a published schedule
+  // Create draft copy of a published schedule with rule validation
   fastify.post('/:id/create-draft', { preHandler: requireAdminOrAssistant() }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string }
     const organizationId = request.ctx.organizationId
@@ -228,8 +228,8 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    // Get the source schedule first to validate it exists and is published
-    const sourceSchedule = await scheduleRepository.findById(id, organizationId)
+    // Get the source schedule with sessions to validate
+    const sourceSchedule = await scheduleRepository.findByIdWithSessions(id, organizationId)
     if (!sourceSchedule) {
       return reply.status(404).send({ error: 'Schedule not found' })
     }
@@ -240,26 +240,98 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       })
     }
 
-    // Create the draft copy
-    const newSchedule = await scheduleRepository.createDraftCopy(id, organizationId, ctx.userId)
-    if (!newSchedule) {
-      return reply.status(500).send({ error: 'Failed to create draft copy' })
-    }
+    try {
+      // Validate and regenerate sessions against current rules
+      console.log(`Validating ${sourceSchedule.sessions.length} sessions against current rules...`)
+      const validationResult = await validateAndRegenerateCopiedSchedule(
+        organizationId,
+        sourceSchedule
+      )
 
-    await logAudit(ctx.userId, 'create', 'schedule', newSchedule.id, organizationId, {
-      action: 'create_draft_copy',
-      sourceScheduleId: id,
-      sourceVersion: sourceSchedule.version,
-      newVersion: newSchedule.version
-    })
+      // Set schedule ID on validated sessions
+      const sessionsWithScheduleId = validationResult.validSessions.map(s => ({
+        ...s,
+        scheduleId: '' // Will be set by repository
+      }))
 
-    return reply.status(201).send({
-      data: newSchedule,
-      meta: {
-        message: `Created draft copy (version ${newSchedule.version}) from published schedule`,
-        sourceScheduleId: id
+      // Create the draft copy with validated sessions
+      const newSchedule = await scheduleRepository.createDraftCopyWithValidation(
+        id,
+        organizationId,
+        ctx.userId,
+        sessionsWithScheduleId
+      )
+
+      if (!newSchedule) {
+        return reply.status(500).send({ error: 'Failed to create draft copy' })
       }
-    })
+
+      // Prepare modifications summary for response
+      const modifications: {
+        regenerated: SessionModification[]
+        removed: SessionModification[]
+        warnings: string[]
+      } = {
+        regenerated: validationResult.modifications.regenerated,
+        removed: validationResult.modifications.removed,
+        warnings: validationResult.warnings
+      }
+
+      const hasModifications = modifications.regenerated.length > 0 || modifications.removed.length > 0
+
+      await logAudit(ctx.userId, 'create', 'schedule', newSchedule.id, organizationId, {
+        action: 'create_draft_copy_with_validation',
+        sourceScheduleId: id,
+        sourceVersion: sourceSchedule.version,
+        newVersion: newSchedule.version,
+        originalSessionCount: sourceSchedule.sessions.length,
+        validatedSessionCount: newSchedule.sessions.length,
+        sessionsRegenerated: modifications.regenerated.length,
+        sessionsRemoved: modifications.removed.length
+      })
+
+      const message = hasModifications
+        ? `Created draft copy (version ${newSchedule.version}) with ${modifications.regenerated.length} session(s) rescheduled and ${modifications.removed.length} session(s) removed due to rule violations.`
+        : `Created draft copy (version ${newSchedule.version}) from published schedule. All sessions passed validation.`
+
+      return reply.status(201).send({
+        data: newSchedule,
+        meta: {
+          message,
+          sourceScheduleId: id,
+          modifications: hasModifications ? modifications : undefined
+        }
+      })
+    } catch (error) {
+      console.error('Error creating draft copy with validation:', error)
+
+      // Fall back to simple copy if validation fails
+      const newSchedule = await scheduleRepository.createDraftCopy(id, organizationId, ctx.userId)
+      if (!newSchedule) {
+        return reply.status(500).send({ error: 'Failed to create draft copy' })
+      }
+
+      await logAudit(ctx.userId, 'create', 'schedule', newSchedule.id, organizationId, {
+        action: 'create_draft_copy_fallback',
+        sourceScheduleId: id,
+        sourceVersion: sourceSchedule.version,
+        newVersion: newSchedule.version,
+        fallbackReason: error instanceof Error ? error.message : 'Unknown error'
+      })
+
+      return reply.status(201).send({
+        data: newSchedule,
+        meta: {
+          message: `Created draft copy (version ${newSchedule.version}) from published schedule. Validation was skipped due to an error.`,
+          sourceScheduleId: id,
+          modifications: {
+            regenerated: [],
+            removed: [],
+            warnings: ['Rule validation was skipped due to an error. Please review the schedule manually.']
+          }
+        }
+      })
+    }
   })
 
   // Add session to schedule
@@ -428,25 +500,30 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       })
     }
 
-    // Find matching session(s) based on the voice command criteria
-    const matchingResults = await findMatchingSessions({
-      scheduleId: id,
-      therapistName: body.therapistName,
-      patientName: body.patientName,
-      dayOfWeek: body.currentDayOfWeek,
-      startTime: body.currentStartTime
-    })
+    // For create action, skip session lookup (we're creating new, not modifying existing)
+    // For other actions, find matching session(s) based on the voice command criteria
+    let matchingResults: Awaited<ReturnType<typeof findMatchingSessions>> = []
 
-    if (matchingResults.length === 0) {
-      let searchCriteria = []
-      if (body.therapistName) searchCriteria.push(`therapist "${body.therapistName}"`)
-      if (body.patientName) searchCriteria.push(`patient "${body.patientName}"`)
-      if (body.currentDayOfWeek) searchCriteria.push(`on ${body.currentDayOfWeek}`)
-      if (body.currentStartTime) searchCriteria.push(`at ${body.currentStartTime}`)
-
-      return reply.status(404).send({
-        error: `Could not find a session matching: ${searchCriteria.join(', ')}`
+    if (body.action !== 'create') {
+      matchingResults = await findMatchingSessions({
+        scheduleId: id,
+        therapistName: body.therapistName,
+        patientName: body.patientName,
+        dayOfWeek: body.currentDayOfWeek,
+        startTime: body.currentStartTime
       })
+
+      if (matchingResults.length === 0) {
+        const searchCriteria = []
+        if (body.therapistName) searchCriteria.push(`therapist "${body.therapistName}"`)
+        if (body.patientName) searchCriteria.push(`patient "${body.patientName}"`)
+        if (body.currentDayOfWeek) searchCriteria.push(`on ${body.currentDayOfWeek}`)
+        if (body.currentStartTime) searchCriteria.push(`at ${body.currentStartTime}`)
+
+        return reply.status(404).send({
+          error: `Could not find a session matching: ${searchCriteria.join(', ')}`
+        })
+      }
     }
 
     // Handle different actions
@@ -554,10 +631,138 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       }
 
       case 'create': {
-        // Create action should redirect to regular session creation
-        return reply.status(400).send({
-          error: 'To create a new session, use the regular add session endpoint.'
+        // Create a new session via voice command
+        if (!body.therapistName && !body.patientName) {
+          return reply.status(400).send({
+            error: 'To create a session, please specify the therapist or patient name.'
+          })
+        }
+
+        if (!body.newStartTime) {
+          return reply.status(400).send({
+            error: 'Please specify the time for the new session.'
+          })
+        }
+
+        // Look up the therapist by name
+        let therapist = null
+        if (body.therapistName) {
+          const { staffRepository } = await import('../repositories/staff.js')
+          const staffResult = await staffRepository.findAll(organizationId, {
+            search: body.therapistName,
+            page: 1,
+            limit: 10
+          })
+          const matchingStaff = staffResult.data.filter(s =>
+            s.name.toLowerCase().includes(body.therapistName!.toLowerCase())
+          )
+          if (matchingStaff.length === 0) {
+            return reply.status(404).send({
+              error: `Could not find ${body.therapistName} in the staff directory.`
+            })
+          }
+          if (matchingStaff.length > 1) {
+            return reply.status(400).send({
+              error: `Multiple staff members match "${body.therapistName}". Please be more specific.`
+            })
+          }
+          therapist = matchingStaff[0]
+        }
+
+        // Look up the patient by name
+        let patient = null
+        if (body.patientName) {
+          const { patientRepository } = await import('../repositories/patients.js')
+          const patientResult = await patientRepository.findAll(organizationId, {
+            search: body.patientName,
+            page: 1,
+            limit: 10
+          })
+          const matchingPatients = patientResult.data.filter(p =>
+            p.name.toLowerCase().includes(body.patientName!.toLowerCase())
+          )
+          if (matchingPatients.length === 0) {
+            return reply.status(404).send({
+              error: `Could not find patient "${body.patientName}".`
+            })
+          }
+          if (matchingPatients.length > 1) {
+            return reply.status(400).send({
+              error: `Multiple patients match "${body.patientName}". Please be more specific.`
+            })
+          }
+          patient = matchingPatients[0]
+        }
+
+        // We need both a therapist and patient to create a session
+        if (!therapist || !patient) {
+          return reply.status(400).send({
+            error: 'Please specify both the therapist and patient for the new session.'
+          })
+        }
+
+        // Calculate the date
+        let sessionDate: Date
+        if (body.newDayOfWeek) {
+          sessionDate = getDateForDayOfWeek(schedule.weekStartDate, body.newDayOfWeek)
+        } else if (body.newDate) {
+          sessionDate = new Date(body.newDate)
+        } else {
+          // Default to the first day of the schedule week
+          sessionDate = new Date(schedule.weekStartDate)
+        }
+
+        const startTime = body.newStartTime
+        const endTime = body.newEndTime || calculateNewEndTime(startTime)
+
+        // Check for conflicts at the requested time
+        const conflicts = await checkForConflicts({
+          scheduleId: id,
+          therapistId: therapist.id,
+          patientId: patient.id,
+          date: sessionDate,
+          startTime: startTime,
+          endTime: endTime
         })
+
+        if (conflicts.length > 0) {
+          const conflict = conflicts[0]
+          return reply.status(409).send({
+            error: `Time conflict: ${conflict.therapistName || 'Therapist'} already has a session with ${conflict.patientName || 'patient'} at ${conflict.startTime}`,
+            conflictWith: conflict
+          })
+        }
+
+        // Create the session
+        const newSession = await sessionRepository.create({
+          scheduleId: id,
+          therapistId: therapist.id,
+          patientId: patient.id,
+          date: sessionDate,
+          startTime: startTime,
+          endTime: endTime,
+          notes: body.notes
+        })
+
+        await logAudit(ctx.userId, 'create', 'session', newSession.id, organizationId, {
+          action: 'voice_create',
+          therapistName: therapist.name,
+          patientName: patient.name,
+          date: sessionDate,
+          startTime: startTime
+        })
+
+        return {
+          data: {
+            action: 'created',
+            session: {
+              ...newSession,
+              therapistName: therapist.name,
+              patientName: patient.name
+            },
+            message: `Created session for ${patient.name} with ${therapist.name} at ${startTime}`
+          }
+        }
       }
 
       default:

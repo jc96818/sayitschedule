@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Schedule, Session } from '@/types'
 import { scheduleService, voiceService } from '@/services/api'
-import type { ScheduleModification, VoiceModifyResult } from '@/services/api'
+import type { ScheduleModification, VoiceModifyResult, CopyModifications } from '@/services/api'
 
 export const useSchedulesStore = defineStore('schedules', () => {
   const schedules = ref<Schedule[]>([])
@@ -20,6 +20,9 @@ export const useSchedulesStore = defineStore('schedules', () => {
   const parseConfidence = ref(0)
   const parsing = ref(false)
   const modifying = ref(false)
+
+  // Copy modification state - stores results from schedule copy with validation
+  const copyModifications = ref<CopyModifications | null>(null)
 
   const publishedSchedules = computed(() =>
     schedules.value.filter((s) => s.status === 'published')
@@ -166,13 +169,22 @@ export const useSchedulesStore = defineStore('schedules', () => {
       const response = await voiceService.parseSchedule(transcript)
       const parsed = response.data
 
-      if (
-        (parsed.commandType === 'modify_session' || parsed.commandType === 'cancel_session') &&
-        parsed.confidence >= 0.5
-      ) {
+      const validCommandTypes = ['modify_session', 'cancel_session', 'schedule_session']
+      if (validCommandTypes.includes(parsed.commandType) && parsed.confidence >= 0.5) {
         const data = parsed.data as Record<string, unknown>
+
+        // Determine the action based on command type and data
+        let action: ScheduleModification['action'] = 'move'
+        if (parsed.commandType === 'schedule_session') {
+          action = 'create'
+        } else if (parsed.commandType === 'cancel_session') {
+          action = 'cancel'
+        } else if (data.action) {
+          action = data.action as ScheduleModification['action']
+        }
+
         pendingModification.value = {
-          action: (data.action as ScheduleModification['action']) || 'move',
+          action,
           therapistName: data.therapistName as string | undefined,
           patientName: data.patientName as string | undefined,
           currentDate: data.currentDate as string | undefined,
@@ -186,7 +198,7 @@ export const useSchedulesStore = defineStore('schedules', () => {
         }
         parseConfidence.value = parsed.confidence
       } else {
-        error.value = 'Could not understand the command. Try something like "Move John\'s 9 AM to 2 PM"'
+        error.value = 'Could not understand the command. Try something like "Move John\'s 9 AM to 2 PM" or "Add a session for Sarah on Tuesday at 10 AM"'
         throw new Error(error.value)
       }
       return parsed
@@ -228,6 +240,9 @@ export const useSchedulesStore = defineStore('schedules', () => {
         if (sessionIndex !== -1) {
           currentSchedule.value.sessions[sessionIndex] = response.data.session
         }
+      } else if (response.data.action === 'created') {
+        // Add the new session to local state
+        currentSchedule.value.sessions.push(response.data.session)
       }
 
       clearPendingModification()
@@ -260,6 +275,34 @@ export const useSchedulesStore = defineStore('schedules', () => {
     }
   }
 
+  async function createSession(session: {
+    staffId: string
+    patientId: string
+    roomId?: string
+    date: string
+    startTime: string
+    endTime: string
+    notes?: string
+  }) {
+    if (!currentSchedule.value) {
+      throw new Error('No current schedule')
+    }
+
+    loading.value = true
+    error.value = null
+    try {
+      const response = await scheduleService.createSession(currentSchedule.value.id, session)
+      // Add the new session to the local state
+      currentSchedule.value.sessions.push(response.data)
+      return response.data
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to create session'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   function clearPendingModification() {
     pendingModification.value = null
     parseConfidence.value = 0
@@ -269,6 +312,7 @@ export const useSchedulesStore = defineStore('schedules', () => {
   async function createDraftCopy(id: string) {
     creatingDraft.value = true
     error.value = null
+    copyModifications.value = null
     try {
       const response = await scheduleService.createDraftCopy(id)
       // Add the new draft to schedules list
@@ -276,6 +320,10 @@ export const useSchedulesStore = defineStore('schedules', () => {
       totalCount.value++
       // Set as current schedule so UI navigates to it
       currentSchedule.value = response.data
+      // Store modification results if any
+      if (response.meta?.modifications) {
+        copyModifications.value = response.meta.modifications
+      }
       return response
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to create draft copy'
@@ -283,6 +331,10 @@ export const useSchedulesStore = defineStore('schedules', () => {
     } finally {
       creatingDraft.value = false
     }
+  }
+
+  function clearCopyModifications() {
+    copyModifications.value = null
   }
 
   return {
@@ -303,6 +355,8 @@ export const useSchedulesStore = defineStore('schedules', () => {
     parseConfidence,
     parsing,
     modifying,
+    // Copy modification state
+    copyModifications,
     // Methods
     fetchSchedules,
     fetchScheduleById,
@@ -311,11 +365,13 @@ export const useSchedulesStore = defineStore('schedules', () => {
     createDraftCopy,
     updateSession,
     deleteSession,
+    createSession,
     exportToPdf,
     clearCurrent,
     // Voice modification methods
     parseVoiceModification,
     applyVoiceModification,
-    clearPendingModification
+    clearPendingModification,
+    clearCopyModifications
   }
 })

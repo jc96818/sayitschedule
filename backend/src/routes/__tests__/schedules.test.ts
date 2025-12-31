@@ -28,7 +28,8 @@ vi.mock('../../repositories/schedules.js', () => ({
     create: vi.fn(),
     publish: vi.fn(),
     archive: vi.fn(),
-    addSessions: vi.fn()
+    addSessions: vi.fn(),
+    createDraftCopyWithValidation: vi.fn()
   },
   sessionRepository: {
     findBySchedule: vi.fn(),
@@ -38,12 +39,27 @@ vi.mock('../../repositories/schedules.js', () => ({
   }
 }))
 
+// Mock staff repository for voice create
+vi.mock('../../repositories/staff.js', () => ({
+  staffRepository: {
+    findAll: vi.fn()
+  }
+}))
+
+// Mock patient repository for voice create
+vi.mock('../../repositories/patients.js', () => ({
+  patientRepository: {
+    findAll: vi.fn()
+  }
+}))
+
 vi.mock('../../repositories/audit.js', () => ({
   logAudit: vi.fn()
 }))
 
 vi.mock('../../services/scheduler.js', () => ({
-  generateSchedule: vi.fn()
+  generateSchedule: vi.fn(),
+  validateAndRegenerateCopiedSchedule: vi.fn()
 }))
 
 vi.mock('../../services/sessionLookup.js', () => ({
@@ -68,8 +84,10 @@ vi.mock('../../services/aiProvider.js', () => ({
 
 // Import mocked modules
 import { scheduleRepository, sessionRepository } from '../../repositories/schedules.js'
-import { generateSchedule } from '../../services/scheduler.js'
-import { findMatchingSessions, checkForConflicts } from '../../services/sessionLookup.js'
+import { staffRepository } from '../../repositories/staff.js'
+import { patientRepository } from '../../repositories/patients.js'
+import { generateSchedule, validateAndRegenerateCopiedSchedule } from '../../services/scheduler.js'
+import { findMatchingSessions, checkForConflicts, getDateForDayOfWeek } from '../../services/sessionLookup.js'
 import { validateSessionEntities } from '../../services/sessionValidation.js'
 import { isProviderConfigured } from '../../services/aiProvider.js'
 
@@ -655,6 +673,347 @@ describe('Schedule Routes', () => {
       })
 
       expect(response.statusCode).toBe(501)
+    })
+
+    describe('create action', () => {
+      it('creates a new session via voice command', async () => {
+        const mockStaff = {
+          id: 'staff-1',
+          name: 'Sarah Johnson',
+          organizationId: 'test-org-id'
+        }
+        const mockPatient = {
+          id: 'patient-1',
+          name: 'Emily Carter',
+          organizationId: 'test-org-id'
+        }
+        const mockNewSession = {
+          id: 'session-new',
+          scheduleId: 'schedule-1',
+          therapistId: 'staff-1',
+          patientId: 'patient-1',
+          date: new Date('2025-01-07'),
+          startTime: '10:00',
+          endTime: '11:00'
+        }
+
+        vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(mockSchedule as any)
+        vi.mocked(findMatchingSessions).mockResolvedValue([])
+        vi.mocked(staffRepository.findAll).mockResolvedValue({
+          data: [mockStaff],
+          total: 1,
+          totalPages: 1,
+          page: 1,
+          limit: 10
+        } as any)
+        vi.mocked(patientRepository.findAll).mockResolvedValue({
+          data: [mockPatient],
+          total: 1,
+          totalPages: 1,
+          page: 1,
+          limit: 10
+        } as any)
+        vi.mocked(getDateForDayOfWeek).mockReturnValue(new Date('2025-01-07'))
+        vi.mocked(checkForConflicts).mockResolvedValue([])
+        vi.mocked(sessionRepository.create).mockResolvedValue(mockNewSession as any)
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/schedules/schedule-1/modify-voice',
+          payload: {
+            action: 'create',
+            therapistName: 'Sarah',
+            patientName: 'Emily',
+            newDayOfWeek: 'tuesday',
+            newStartTime: '10:00'
+          }
+        })
+
+        expect(response.statusCode).toBe(200)
+        const body = JSON.parse(response.payload)
+        expect(body.data.action).toBe('created')
+        expect(body.data.session.therapistName).toBe('Sarah Johnson')
+        expect(body.data.session.patientName).toBe('Emily Carter')
+        expect(body.data.message).toContain('Created session')
+      })
+
+      it('returns 400 when therapist and patient names are missing', async () => {
+        vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(mockSchedule as any)
+        vi.mocked(findMatchingSessions).mockResolvedValue([])
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/schedules/schedule-1/modify-voice',
+          payload: {
+            action: 'create',
+            newStartTime: '10:00'
+          }
+        })
+
+        expect(response.statusCode).toBe(400)
+        const body = JSON.parse(response.payload)
+        expect(body.error).toContain('specify the therapist or patient')
+      })
+
+      it('returns 400 when start time is missing', async () => {
+        vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(mockSchedule as any)
+        vi.mocked(findMatchingSessions).mockResolvedValue([])
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/schedules/schedule-1/modify-voice',
+          payload: {
+            action: 'create',
+            therapistName: 'Sarah',
+            patientName: 'Emily'
+          }
+        })
+
+        expect(response.statusCode).toBe(400)
+        const body = JSON.parse(response.payload)
+        expect(body.error).toContain('specify the time')
+      })
+
+      it('returns 404 when therapist is not found', async () => {
+        vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(mockSchedule as any)
+        vi.mocked(findMatchingSessions).mockResolvedValue([])
+        vi.mocked(staffRepository.findAll).mockResolvedValue({
+          data: [],
+          total: 0,
+          totalPages: 0,
+          page: 1,
+          limit: 10
+        } as any)
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/schedules/schedule-1/modify-voice',
+          payload: {
+            action: 'create',
+            therapistName: 'Unknown',
+            patientName: 'Emily',
+            newStartTime: '10:00'
+          }
+        })
+
+        expect(response.statusCode).toBe(404)
+        const body = JSON.parse(response.payload)
+        expect(body.error).toContain('Could not find Unknown')
+      })
+
+      it('returns 404 when patient is not found', async () => {
+        const mockStaff = { id: 'staff-1', name: 'Sarah Johnson' }
+
+        vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(mockSchedule as any)
+        vi.mocked(findMatchingSessions).mockResolvedValue([])
+        vi.mocked(staffRepository.findAll).mockResolvedValue({
+          data: [mockStaff],
+          total: 1,
+          totalPages: 1,
+          page: 1,
+          limit: 10
+        } as any)
+        vi.mocked(patientRepository.findAll).mockResolvedValue({
+          data: [],
+          total: 0,
+          totalPages: 0,
+          page: 1,
+          limit: 10
+        } as any)
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/schedules/schedule-1/modify-voice',
+          payload: {
+            action: 'create',
+            therapistName: 'Sarah',
+            patientName: 'Unknown',
+            newStartTime: '10:00'
+          }
+        })
+
+        expect(response.statusCode).toBe(404)
+        const body = JSON.parse(response.payload)
+        expect(body.error).toContain('Could not find patient')
+      })
+
+      it('returns 409 when there is a time conflict', async () => {
+        const mockStaff = { id: 'staff-1', name: 'Sarah Johnson' }
+        const mockPatient = { id: 'patient-1', name: 'Emily Carter' }
+        const conflictSession = {
+          id: 'session-existing',
+          therapistName: 'Sarah Johnson',
+          patientName: 'Michael Brown',
+          startTime: '10:00'
+        }
+
+        vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(mockSchedule as any)
+        vi.mocked(findMatchingSessions).mockResolvedValue([])
+        vi.mocked(staffRepository.findAll).mockResolvedValue({
+          data: [mockStaff],
+          total: 1,
+          totalPages: 1,
+          page: 1,
+          limit: 10
+        } as any)
+        vi.mocked(patientRepository.findAll).mockResolvedValue({
+          data: [mockPatient],
+          total: 1,
+          totalPages: 1,
+          page: 1,
+          limit: 10
+        } as any)
+        vi.mocked(getDateForDayOfWeek).mockReturnValue(new Date('2025-01-07'))
+        vi.mocked(checkForConflicts).mockResolvedValue([conflictSession] as any)
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/schedules/schedule-1/modify-voice',
+          payload: {
+            action: 'create',
+            therapistName: 'Sarah',
+            patientName: 'Emily',
+            newDayOfWeek: 'tuesday',
+            newStartTime: '10:00'
+          }
+        })
+
+        expect(response.statusCode).toBe(409)
+        const body = JSON.parse(response.payload)
+        expect(body.error).toContain('Time conflict')
+      })
+    })
+  })
+
+  describe('POST /api/schedules/:id/create-draft', () => {
+    const mockPublishedSchedule = {
+      id: 'schedule-1',
+      organizationId: 'test-org-id',
+      weekStartDate: new Date('2025-01-06'),
+      status: 'published',
+      version: 1,
+      sessions: [
+        {
+          id: 'session-1',
+          therapistId: 'staff-1',
+          patientId: 'patient-1',
+          date: new Date('2025-01-06'),
+          startTime: '09:00',
+          endTime: '10:00'
+        }
+      ]
+    }
+
+    it('creates a draft copy with validated sessions', async () => {
+      const mockNewSchedule = {
+        id: 'schedule-2',
+        organizationId: 'test-org-id',
+        weekStartDate: new Date('2025-01-06'),
+        status: 'draft',
+        version: 2,
+        sessions: mockPublishedSchedule.sessions
+      }
+
+      vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(mockPublishedSchedule as any)
+      vi.mocked(validateAndRegenerateCopiedSchedule).mockResolvedValue({
+        validSessions: [{
+          therapistId: 'staff-1',
+          patientId: 'patient-1',
+          date: new Date('2025-01-06'),
+          startTime: '09:00',
+          endTime: '10:00'
+        }],
+        modifications: {
+          regenerated: [],
+          removed: []
+        },
+        warnings: []
+      })
+      vi.mocked(scheduleRepository.createDraftCopyWithValidation).mockResolvedValue(mockNewSchedule as any)
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/schedules/schedule-1/create-draft'
+      })
+
+      expect(response.statusCode).toBe(201)
+      const body = JSON.parse(response.payload)
+      expect(body.data.id).toBe('schedule-2')
+      expect(body.data.status).toBe('draft')
+      expect(body.meta.message).toContain('All sessions passed validation')
+    })
+
+    it('returns modifications in the response when sessions are regenerated or removed', async () => {
+      const mockNewSchedule = {
+        id: 'schedule-2',
+        organizationId: 'test-org-id',
+        weekStartDate: new Date('2025-01-06'),
+        status: 'draft',
+        version: 2,
+        sessions: []
+      }
+
+      vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(mockPublishedSchedule as any)
+      vi.mocked(validateAndRegenerateCopiedSchedule).mockResolvedValue({
+        validSessions: [{
+          therapistId: 'staff-2',
+          patientId: 'patient-1',
+          date: new Date('2025-01-07'),
+          startTime: '14:00',
+          endTime: '15:00'
+        }],
+        modifications: {
+          regenerated: [{
+            original: { therapistName: 'Sarah', patientName: 'Emily', date: '2025-01-06', startTime: '09:00' },
+            replacement: { therapistName: 'John', patientName: 'Emily', date: '2025-01-07', startTime: '14:00' },
+            reason: 'Sarah is no longer available on Mondays'
+          }],
+          removed: [{
+            original: { therapistName: 'Bob', patientName: 'Mike', date: '2025-01-08', startTime: '10:00' },
+            reason: 'Patient Mike is no longer active'
+          }]
+        },
+        warnings: ['Some sessions required changes']
+      })
+      vi.mocked(scheduleRepository.createDraftCopyWithValidation).mockResolvedValue(mockNewSchedule as any)
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/schedules/schedule-1/create-draft'
+      })
+
+      expect(response.statusCode).toBe(201)
+      const body = JSON.parse(response.payload)
+      expect(body.meta.modifications.regenerated).toHaveLength(1)
+      expect(body.meta.modifications.removed).toHaveLength(1)
+      expect(body.meta.message).toContain('1 session(s) rescheduled')
+      expect(body.meta.message).toContain('1 session(s) removed')
+    })
+
+    it('returns 400 when trying to copy a draft schedule', async () => {
+      const draftSchedule = { ...mockPublishedSchedule, status: 'draft' }
+
+      vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(draftSchedule as any)
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/schedules/schedule-1/create-draft'
+      })
+
+      expect(response.statusCode).toBe(400)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toContain('Only published schedules')
+    })
+
+    it('returns 404 when schedule not found', async () => {
+      vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(null)
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/schedules/non-existent/create-draft'
+      })
+
+      expect(response.statusCode).toBe(404)
     })
   })
 })
