@@ -49,6 +49,7 @@ enum AvailabilityStatus {
 
 // Session status for tracking appointment lifecycle
 enum SessionStatus {
+  pending       // Awaiting approval (self-booked with requires_approval)
   scheduled
   confirmed
   checked_in
@@ -230,6 +231,12 @@ model OrganizationFeatures {
   portalAllowCancel     Boolean      @default(true) @map("portal_allow_cancel")
   portalAllowReschedule Boolean      @default(false) @map("portal_allow_reschedule")
   portalRequireConfirmation Boolean  @default(true) @map("portal_require_confirmation")
+
+  // ─── Self-Booking Settings ───
+  selfBookingEnabled      Boolean    @default(false) @map("self_booking_enabled")
+  selfBookingLeadTimeHours Int       @default(24) @map("self_booking_lead_time_hours")     // Minimum hours before appointment
+  selfBookingMaxFutureDays Int       @default(30) @map("self_booking_max_future_days")     // How far ahead can book
+  selfBookingRequiresApproval Boolean @default(false) @map("self_booking_requires_approval") // If true, books as 'pending'
 
   // ─── Reporting Features ───
   advancedReportsEnabled Boolean     @default(false) @map("advanced_reports_enabled")

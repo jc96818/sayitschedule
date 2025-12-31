@@ -644,6 +644,7 @@ export class SessionRepository {
 
     // Initialize all statuses to 0
     const result: Record<SessionStatus, number> = {
+      pending: 0,
       scheduled: 0,
       confirmed: 0,
       checked_in: 0,

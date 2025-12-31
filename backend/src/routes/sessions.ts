@@ -7,6 +7,7 @@ import { logAudit } from '../repositories/audit.js'
 
 // Valid status transitions - ensures proper workflow
 const validStatusTransitions: Record<SessionStatus, SessionStatus[]> = {
+  pending: ['scheduled', 'cancelled'], // Pending approval - can approve (scheduled) or reject (cancelled)
   scheduled: ['confirmed', 'cancelled', 'late_cancel'],
   confirmed: ['checked_in', 'cancelled', 'late_cancel', 'no_show'],
   checked_in: ['in_progress', 'cancelled', 'late_cancel'],
@@ -18,7 +19,7 @@ const validStatusTransitions: Record<SessionStatus, SessionStatus[]> = {
 }
 
 const updateStatusSchema = z.object({
-  status: z.enum(['scheduled', 'confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled', 'late_cancel', 'no_show']),
+  status: z.enum(['pending', 'scheduled', 'confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled', 'late_cancel', 'no_show']),
   notes: z.string().optional()
 })
 

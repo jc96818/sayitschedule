@@ -10,7 +10,10 @@ import { portalAuthService } from '../services/portalAuth.js'
 import { portalAuthenticate, requirePatientPortalEnabled, getPortalUser } from '../middleware/portalAuth.js'
 import { prisma } from '../repositories/base.js'
 import { organizationSettingsRepository } from '../repositories/organizationSettings.js'
+import { organizationFeaturesRepository } from '../repositories/organizationFeatures.js'
 import { auditRepository } from '../repositories/audit.js'
+import { availabilityService } from '../services/availability.js'
+import { bookingRepository } from '../repositories/booking.js'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REQUEST TYPES
@@ -31,6 +34,30 @@ interface SessionIdParams {
 
 interface CancelBody {
   reason?: string
+}
+
+interface AvailabilityQuery {
+  dateFrom: string
+  dateTo: string
+  staffId?: string
+  duration?: string
+}
+
+interface CreateHoldBody {
+  staffId: string
+  roomId?: string
+  date: string
+  startTime: string
+  endTime: string
+}
+
+interface BookFromHoldBody {
+  holdId: string
+  notes?: string
+}
+
+interface HoldIdParams {
+  holdId: string
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -498,6 +525,417 @@ export async function portalRoutes(fastify: FastifyInstance) {
           status: s.status,
           therapist: s.therapist
         }))
+      })
+    }
+  )
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SELF-BOOKING ROUTES (Authenticated, requires self-booking enabled)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Helper middleware to require self-booking enabled
+   */
+  async function requireSelfBookingEnabled(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = getPortalUser(request)
+    const features = await organizationFeaturesRepository.findByOrganizationId(
+      user.organizationId
+    )
+
+    if (!features.selfBookingEnabled) {
+      return reply.code(403).send({
+        error: 'Feature Not Available',
+        message: 'Self-booking is not enabled for this organization.',
+        feature: 'selfBooking'
+      })
+    }
+  }
+
+  /**
+   * GET /portal/booking/availability
+   * Get available time slots for the patient to book
+   */
+  fastify.get<{ Querystring: AvailabilityQuery }>(
+    '/booking/availability',
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled, requireSelfBookingEnabled] },
+    async (
+      request: FastifyRequest<{ Querystring: AvailabilityQuery }>,
+      reply: FastifyReply
+    ) => {
+      const user = getPortalUser(request)
+      const { dateFrom, dateTo, staffId, duration } = request.query
+
+      if (!dateFrom || !dateTo) {
+        return reply.code(400).send({
+          error: 'Missing required parameters',
+          message: 'dateFrom and dateTo are required (YYYY-MM-DD format)'
+        })
+      }
+
+      // Get self-booking settings for constraints
+      const features = await organizationFeaturesRepository.findByOrganizationId(
+        user.organizationId
+      )
+      const settings = await organizationSettingsRepository.findByOrganizationId(
+        user.organizationId
+      )
+
+      // Validate date constraints
+      const fromDate = new Date(dateFrom)
+      const toDate = new Date(dateTo)
+      const now = new Date()
+
+      // Enforce lead time
+      const minBookingDate = new Date(now)
+      minBookingDate.setHours(minBookingDate.getHours() + features.selfBookingLeadTimeHours)
+
+      if (fromDate < minBookingDate) {
+        fromDate.setTime(minBookingDate.getTime())
+      }
+
+      // Enforce max future days
+      const maxBookingDate = new Date(now)
+      maxBookingDate.setDate(maxBookingDate.getDate() + features.selfBookingMaxFutureDays)
+
+      if (toDate > maxBookingDate) {
+        toDate.setTime(maxBookingDate.getTime())
+      }
+
+      // If the range is now invalid, return empty
+      if (fromDate > toDate) {
+        return reply.send({
+          slots: [],
+          constraints: {
+            leadTimeHours: features.selfBookingLeadTimeHours,
+            maxFutureDays: features.selfBookingMaxFutureDays,
+            earliestDate: minBookingDate.toISOString().split('T')[0],
+            latestDate: maxBookingDate.toISOString().split('T')[0]
+          }
+        })
+      }
+
+      // Get available slots
+      const result = await availabilityService.getAvailableSlots({
+        organizationId: user.organizationId,
+        dateFrom: fromDate,
+        dateTo: toDate,
+        durationMinutes: duration ? parseInt(duration) : settings.defaultSessionDuration,
+        staffId
+      })
+
+      return reply.send({
+        slots: result.slots,
+        constraints: {
+          leadTimeHours: features.selfBookingLeadTimeHours,
+          maxFutureDays: features.selfBookingMaxFutureDays,
+          earliestDate: minBookingDate.toISOString().split('T')[0],
+          latestDate: maxBookingDate.toISOString().split('T')[0]
+        }
+      })
+    }
+  )
+
+  /**
+   * GET /portal/booking/therapists
+   * Get list of available therapists for booking
+   */
+  fastify.get(
+    '/booking/therapists',
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled, requireSelfBookingEnabled] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = getPortalUser(request)
+
+      // Get active staff members who can take appointments
+      const staff = await prisma.staff.findMany({
+        where: {
+          organizationId: user.organizationId,
+          status: 'active'
+        },
+        select: {
+          id: true,
+          name: true
+        },
+        orderBy: { name: 'asc' }
+      })
+
+      return reply.send({ therapists: staff })
+    }
+  )
+
+  /**
+   * POST /portal/booking/hold
+   * Create a temporary hold on a time slot
+   */
+  fastify.post<{ Body: CreateHoldBody }>(
+    '/booking/hold',
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled, requireSelfBookingEnabled] },
+    async (
+      request: FastifyRequest<{ Body: CreateHoldBody }>,
+      reply: FastifyReply
+    ) => {
+      const user = getPortalUser(request)
+      const { staffId, roomId, date, startTime, endTime } = request.body
+
+      if (!staffId || !date || !startTime || !endTime) {
+        return reply.code(400).send({
+          error: 'Missing required fields',
+          message: 'staffId, date, startTime, and endTime are required'
+        })
+      }
+
+      // Validate against self-booking constraints
+      const features = await organizationFeaturesRepository.findByOrganizationId(
+        user.organizationId
+      )
+
+      const bookingDate = new Date(date)
+      const now = new Date()
+
+      // Check lead time
+      const minBookingDate = new Date(now)
+      minBookingDate.setHours(minBookingDate.getHours() + features.selfBookingLeadTimeHours)
+      minBookingDate.setHours(0, 0, 0, 0)
+      bookingDate.setHours(0, 0, 0, 0)
+
+      if (bookingDate < minBookingDate) {
+        return reply.code(400).send({
+          error: 'Booking too soon',
+          message: `Appointments must be booked at least ${features.selfBookingLeadTimeHours} hours in advance`
+        })
+      }
+
+      // Check max future days
+      const maxBookingDate = new Date(now)
+      maxBookingDate.setDate(maxBookingDate.getDate() + features.selfBookingMaxFutureDays)
+
+      if (bookingDate > maxBookingDate) {
+        return reply.code(400).send({
+          error: 'Booking too far ahead',
+          message: `Appointments can only be booked up to ${features.selfBookingMaxFutureDays} days in advance`
+        })
+      }
+
+      // Create the hold
+      const result = await bookingRepository.createHold({
+        organizationId: user.organizationId,
+        staffId,
+        roomId,
+        date: new Date(date),
+        startTime,
+        endTime,
+        createdByContactId: user.contactId,
+        holdDurationMinutes: 10 // Give portal users a bit more time
+      })
+
+      if (!result.success) {
+        return reply.code(409).send({
+          error: 'Hold failed',
+          message: result.error
+        })
+      }
+
+      return reply.code(201).send({
+        holdId: result.hold!.id,
+        expiresAt: result.hold!.expiresAt,
+        message: 'Time slot held. Complete your booking before the hold expires.'
+      })
+    }
+  )
+
+  /**
+   * DELETE /portal/booking/hold/:holdId
+   * Release a hold without booking
+   */
+  fastify.delete<{ Params: HoldIdParams }>(
+    '/booking/hold/:holdId',
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
+    async (
+      request: FastifyRequest<{ Params: HoldIdParams }>,
+      reply: FastifyReply
+    ) => {
+      const user = getPortalUser(request)
+      const { holdId } = request.params
+
+      // Verify the hold belongs to this contact
+      const hold = await prisma.appointmentHold.findFirst({
+        where: {
+          id: holdId,
+          createdByContactId: user.contactId,
+          organizationId: user.organizationId
+        }
+      })
+
+      if (!hold) {
+        return reply.code(404).send({
+          error: 'Not found',
+          message: 'Hold not found'
+        })
+      }
+
+      const released = await bookingRepository.releaseHold(holdId)
+
+      if (!released) {
+        return reply.code(400).send({
+          error: 'Release failed',
+          message: 'Hold could not be released (may already be released or converted)'
+        })
+      }
+
+      return reply.send({ message: 'Hold released successfully' })
+    }
+  )
+
+  /**
+   * POST /portal/booking/book
+   * Convert a hold into a booked appointment
+   */
+  fastify.post<{ Body: BookFromHoldBody }>(
+    '/booking/book',
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled, requireSelfBookingEnabled] },
+    async (
+      request: FastifyRequest<{ Body: BookFromHoldBody }>,
+      reply: FastifyReply
+    ) => {
+      const user = getPortalUser(request)
+      const { holdId, notes } = request.body
+
+      if (!holdId) {
+        return reply.code(400).send({
+          error: 'Missing required field',
+          message: 'holdId is required'
+        })
+      }
+
+      // Verify the hold belongs to this contact
+      const hold = await prisma.appointmentHold.findFirst({
+        where: {
+          id: holdId,
+          createdByContactId: user.contactId,
+          organizationId: user.organizationId,
+          expiresAt: { gt: new Date() },
+          releasedAt: null,
+          convertedToSessionId: null
+        }
+      })
+
+      if (!hold) {
+        return reply.code(404).send({
+          error: 'Not found',
+          message: 'Hold not found or has expired'
+        })
+      }
+
+      // Check if this needs approval
+      const features = await organizationFeaturesRepository.findByOrganizationId(
+        user.organizationId
+      )
+
+      // Book the appointment
+      const result = await bookingRepository.bookFromHold({
+        holdId,
+        organizationId: user.organizationId,
+        patientId: user.patientId,
+        notes,
+        bookedVia: 'portal',
+        bookedByContactId: user.contactId
+      })
+
+      if (!result.success) {
+        return reply.code(409).send({
+          error: 'Booking failed',
+          message: result.error
+        })
+      }
+
+      // If approval is required, update the session status
+      if (features.selfBookingRequiresApproval) {
+        await prisma.session.update({
+          where: { id: result.sessionId },
+          data: {
+            status: 'pending',
+            statusUpdatedAt: new Date()
+          }
+        })
+      }
+
+      // Audit log
+      await auditRepository.log(
+        null,
+        'session.booked_by_patient',
+        'session',
+        result.sessionId!,
+        user.organizationId,
+        {
+          contactId: user.contactId,
+          patientId: user.patientId,
+          holdId,
+          requiresApproval: features.selfBookingRequiresApproval
+        }
+      )
+
+      // Get the created session details
+      const session = await prisma.session.findUnique({
+        where: { id: result.sessionId },
+        include: {
+          therapist: { select: { id: true, name: true } },
+          room: { select: { id: true, name: true } }
+        }
+      })
+
+      return reply.code(201).send({
+        message: features.selfBookingRequiresApproval
+          ? 'Appointment requested. You will be notified once it is confirmed.'
+          : 'Appointment booked successfully.',
+        appointment: session ? {
+          id: session.id,
+          date: session.date,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          status: session.status,
+          therapist: session.therapist,
+          room: session.room
+        } : null,
+        requiresApproval: features.selfBookingRequiresApproval
+      })
+    }
+  )
+
+  /**
+   * GET /portal/booking/settings
+   * Get self-booking configuration for the portal UI
+   */
+  fastify.get(
+    '/booking/settings',
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = getPortalUser(request)
+
+      const features = await organizationFeaturesRepository.findByOrganizationId(
+        user.organizationId
+      )
+      const settings = await organizationSettingsRepository.findByOrganizationId(
+        user.organizationId
+      )
+
+      const now = new Date()
+      const minBookingDate = new Date(now)
+      minBookingDate.setHours(minBookingDate.getHours() + features.selfBookingLeadTimeHours)
+
+      const maxBookingDate = new Date(now)
+      maxBookingDate.setDate(maxBookingDate.getDate() + features.selfBookingMaxFutureDays)
+
+      return reply.send({
+        selfBookingEnabled: features.selfBookingEnabled,
+        leadTimeHours: features.selfBookingLeadTimeHours,
+        maxFutureDays: features.selfBookingMaxFutureDays,
+        requiresApproval: features.selfBookingRequiresApproval,
+        defaultSessionDuration: settings.defaultSessionDuration,
+        slotInterval: settings.slotInterval,
+        earliestBookingDate: minBookingDate.toISOString().split('T')[0],
+        latestBookingDate: maxBookingDate.toISOString().split('T')[0]
       })
     }
   )
