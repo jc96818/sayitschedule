@@ -202,6 +202,27 @@ export interface Schedule {
   sessions?: Session[]
 }
 
+// Session Status
+export type SessionStatus =
+  | 'scheduled'
+  | 'confirmed'
+  | 'checked_in'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled'
+  | 'late_cancel'
+  | 'no_show'
+
+// Cancellation Reason
+export type CancellationReason =
+  | 'patient_request'
+  | 'caregiver_request'
+  | 'therapist_unavailable'
+  | 'weather'
+  | 'illness'
+  | 'scheduling_conflict'
+  | 'other'
+
 // Session
 export interface Session {
   id: string
@@ -214,6 +235,20 @@ export interface Session {
   endTime: string
   notes: string | null
   createdAt: string
+  // Session status tracking
+  status?: SessionStatus
+  actualStartTime?: string | null
+  actualEndTime?: string | null
+  statusUpdatedAt?: string | null
+  statusUpdatedById?: string | null
+  // Cancellation details
+  cancellationReason?: CancellationReason | null
+  cancellationNotes?: string | null
+  cancelledAt?: string | null
+  cancelledById?: string | null
+  // Confirmation tracking
+  confirmedAt?: string | null
+  confirmedById?: string | null
   // Joined fields from API
   therapistName?: string
   patientName?: string
@@ -265,6 +300,83 @@ export interface StaffAvailability {
 export interface StaffAvailabilityWithStaff extends StaffAvailability {
   staffName: string
   staffEmail: string | null
+}
+
+// Organization Settings
+export interface BusinessHoursDay {
+  open: boolean
+  start: string
+  end: string
+}
+
+export interface BusinessHours {
+  monday: BusinessHoursDay
+  tuesday: BusinessHoursDay
+  wednesday: BusinessHoursDay
+  thursday: BusinessHoursDay
+  friday: BusinessHoursDay
+  saturday: BusinessHoursDay
+  sunday: BusinessHoursDay
+}
+
+export interface OrganizationSettings {
+  id: string
+  organizationId: string
+  businessHours: BusinessHours
+  timezone: string
+  defaultSessionDuration: number
+  slotInterval: number
+  lateCancelWindowHours: number
+  createdAt: string
+  updatedAt: string
+}
+
+// Organization Features
+export interface OrganizationFeatures {
+  id: string
+  organizationId: string
+  emailRemindersEnabled: boolean
+  smsRemindersEnabled: boolean
+  reminderHours: number[]
+  patientPortalEnabled: boolean
+  portalAllowCancel: boolean
+  portalAllowReschedule: boolean
+  portalRequireConfirmation: boolean
+  advancedReportsEnabled: boolean
+  reportExportEnabled: boolean
+  voiceCommandsEnabled: boolean
+  medicalTranscribeEnabled: boolean
+  apiAccessEnabled: boolean
+  webhooksEnabled: boolean
+  maxStaff: number | null
+  maxPatients: number | null
+  maxRemindersPerMonth: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FeatureStatuses {
+  emailReminders: boolean
+  smsReminders: boolean
+  patientPortal: boolean
+  advancedReports: boolean
+  reportExport: boolean
+  voiceCommands: boolean
+  medicalTranscribe: boolean
+  apiAccess: boolean
+  webhooks: boolean
+}
+
+// Session Status Counts
+export interface SessionStatusCounts {
+  scheduled: number
+  confirmed: number
+  checked_in: number
+  in_progress: number
+  completed: number
+  cancelled: number
+  late_cancel: number
+  no_show: number
 }
 
 // Audit Log

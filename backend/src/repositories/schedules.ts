@@ -1,7 +1,7 @@
 import { prisma, paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
-import type { Schedule, Session, ScheduleStatus, Gender } from '@prisma/client'
+import type { Schedule, Session, ScheduleStatus, Gender, SessionStatus, CancellationReason } from '@prisma/client'
 
-export type { Schedule, Session, ScheduleStatus }
+export type { Schedule, Session, ScheduleStatus, SessionStatus, CancellationReason }
 
 export interface ScheduleCreate {
   organizationId: string
@@ -28,6 +28,25 @@ export interface SessionUpdate {
   startTime?: string
   endTime?: string
   notes?: string | null
+}
+
+export interface SessionStatusUpdate {
+  status: SessionStatus
+  updatedById: string
+  actualStartTime?: Date
+  actualEndTime?: Date
+  notes?: string
+}
+
+export interface SessionCancellation {
+  cancelledById: string
+  reason: CancellationReason
+  notes?: string
+  isLateCancellation?: boolean
+}
+
+export interface SessionConfirmation {
+  confirmedById: string
 }
 
 export interface SessionWithDetails extends Session {
@@ -408,6 +427,281 @@ export class SessionRepository {
     } catch {
       return false
     }
+  }
+
+  async findById(sessionId: string, organizationId?: string): Promise<SessionWithDetails | null> {
+    const where: { id: string; schedule?: { organizationId: string } } = { id: sessionId }
+    if (organizationId) {
+      where.schedule = { organizationId }
+    }
+
+    const session = await prisma.session.findFirst({
+      where,
+      include: {
+        therapist: { select: { name: true, gender: true } },
+        patient: { select: { name: true } },
+        room: { select: { name: true, capabilities: true } },
+        statusUpdatedBy: { select: { email: true } },
+        cancelledBy: { select: { email: true } },
+        confirmedBy: { select: { email: true } }
+      }
+    })
+
+    if (!session) return null
+
+    return {
+      ...session,
+      therapistName: session.therapist?.name || undefined,
+      patientName: session.patient?.name || undefined,
+      therapistGender: session.therapist?.gender || undefined,
+      roomName: session.room?.name || undefined,
+      roomCapabilities: (session.room?.capabilities as string[]) || undefined,
+      therapist: undefined,
+      patient: undefined,
+      room: undefined
+    } as SessionWithDetails
+  }
+
+  async updateStatus(
+    sessionId: string,
+    organizationId: string,
+    data: SessionStatusUpdate
+  ): Promise<Session | null> {
+    try {
+      return await prisma.session.update({
+        where: {
+          id: sessionId,
+          schedule: { organizationId }
+        },
+        data: {
+          status: data.status,
+          statusUpdatedAt: new Date(),
+          statusUpdatedById: data.updatedById,
+          actualStartTime: data.actualStartTime,
+          actualEndTime: data.actualEndTime,
+          notes: data.notes !== undefined ? data.notes : undefined
+        }
+      })
+    } catch {
+      return null
+    }
+  }
+
+  async checkIn(sessionId: string, organizationId: string, userId: string): Promise<Session | null> {
+    return this.updateStatus(sessionId, organizationId, {
+      status: 'checked_in',
+      updatedById: userId,
+      actualStartTime: new Date()
+    })
+  }
+
+  async startSession(sessionId: string, organizationId: string, userId: string): Promise<Session | null> {
+    return this.updateStatus(sessionId, organizationId, {
+      status: 'in_progress',
+      updatedById: userId,
+      actualStartTime: new Date()
+    })
+  }
+
+  async completeSession(sessionId: string, organizationId: string, userId: string): Promise<Session | null> {
+    return this.updateStatus(sessionId, organizationId, {
+      status: 'completed',
+      updatedById: userId,
+      actualEndTime: new Date()
+    })
+  }
+
+  async cancelSession(
+    sessionId: string,
+    organizationId: string,
+    data: SessionCancellation
+  ): Promise<Session | null> {
+    try {
+      const status: SessionStatus = data.isLateCancellation ? 'late_cancel' : 'cancelled'
+
+      return await prisma.session.update({
+        where: {
+          id: sessionId,
+          schedule: { organizationId }
+        },
+        data: {
+          status,
+          statusUpdatedAt: new Date(),
+          statusUpdatedById: data.cancelledById,
+          cancellationReason: data.reason,
+          cancellationNotes: data.notes,
+          cancelledAt: new Date(),
+          cancelledById: data.cancelledById
+        }
+      })
+    } catch {
+      return null
+    }
+  }
+
+  async markNoShow(sessionId: string, organizationId: string, userId: string): Promise<Session | null> {
+    return this.updateStatus(sessionId, organizationId, {
+      status: 'no_show',
+      updatedById: userId
+    })
+  }
+
+  async confirmSession(
+    sessionId: string,
+    organizationId: string,
+    data: SessionConfirmation
+  ): Promise<Session | null> {
+    try {
+      return await prisma.session.update({
+        where: {
+          id: sessionId,
+          schedule: { organizationId }
+        },
+        data: {
+          status: 'confirmed',
+          statusUpdatedAt: new Date(),
+          statusUpdatedById: data.confirmedById,
+          confirmedAt: new Date(),
+          confirmedById: data.confirmedById
+        }
+      })
+    } catch {
+      return null
+    }
+  }
+
+  async findByStatus(
+    organizationId: string,
+    status: SessionStatus,
+    params: PaginationParams & { dateFrom?: Date; dateTo?: Date }
+  ): Promise<PaginatedResult<SessionWithDetails>> {
+    const { take, skip } = getPaginationOffsets(params)
+
+    const where: {
+      schedule: { organizationId: string }
+      status: SessionStatus
+      date?: { gte?: Date; lte?: Date }
+    } = {
+      schedule: { organizationId },
+      status
+    }
+
+    if (params.dateFrom || params.dateTo) {
+      where.date = {}
+      if (params.dateFrom) where.date.gte = params.dateFrom
+      if (params.dateTo) where.date.lte = params.dateTo
+    }
+
+    const [sessions, total] = await Promise.all([
+      prisma.session.findMany({
+        where,
+        include: {
+          therapist: { select: { name: true, gender: true } },
+          patient: { select: { name: true } },
+          room: { select: { name: true, capabilities: true } }
+        },
+        take,
+        skip,
+        orderBy: [{ date: 'asc' }, { startTime: 'asc' }]
+      }),
+      prisma.session.count({ where })
+    ])
+
+    const data = sessions.map(s => ({
+      ...s,
+      therapistName: s.therapist?.name || undefined,
+      patientName: s.patient?.name || undefined,
+      therapistGender: s.therapist?.gender || undefined,
+      roomName: s.room?.name || undefined,
+      roomCapabilities: (s.room?.capabilities as string[]) || undefined,
+      therapist: undefined,
+      patient: undefined,
+      room: undefined
+    })) as SessionWithDetails[]
+
+    return paginate(data, total, params)
+  }
+
+  async getStatusCounts(organizationId: string, dateFrom?: Date, dateTo?: Date): Promise<Record<SessionStatus, number>> {
+    const where: {
+      schedule: { organizationId: string }
+      date?: { gte?: Date; lte?: Date }
+    } = {
+      schedule: { organizationId }
+    }
+
+    if (dateFrom || dateTo) {
+      where.date = {}
+      if (dateFrom) where.date.gte = dateFrom
+      if (dateTo) where.date.lte = dateTo
+    }
+
+    const counts = await prisma.session.groupBy({
+      by: ['status'],
+      where,
+      _count: { status: true }
+    })
+
+    // Initialize all statuses to 0
+    const result: Record<SessionStatus, number> = {
+      scheduled: 0,
+      confirmed: 0,
+      checked_in: 0,
+      in_progress: 0,
+      completed: 0,
+      cancelled: 0,
+      late_cancel: 0,
+      no_show: 0
+    }
+
+    // Fill in actual counts
+    for (const { status, _count } of counts) {
+      result[status] = _count.status
+    }
+
+    return result
+  }
+
+  async findTodaysSessions(organizationId: string, therapistId?: string): Promise<SessionWithDetails[]> {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    const where: {
+      schedule: { organizationId: string; status: 'published' }
+      date: { gte: Date; lt: Date }
+      therapistId?: string
+    } = {
+      schedule: { organizationId, status: 'published' },
+      date: { gte: today, lt: tomorrow }
+    }
+
+    if (therapistId) {
+      where.therapistId = therapistId
+    }
+
+    const sessions = await prisma.session.findMany({
+      where,
+      include: {
+        therapist: { select: { name: true, gender: true } },
+        patient: { select: { name: true } },
+        room: { select: { name: true, capabilities: true } }
+      },
+      orderBy: [{ startTime: 'asc' }]
+    })
+
+    return sessions.map(s => ({
+      ...s,
+      therapistName: s.therapist?.name || undefined,
+      patientName: s.patient?.name || undefined,
+      therapistGender: s.therapist?.gender || undefined,
+      roomName: s.room?.name || undefined,
+      roomCapabilities: (s.room?.capabilities as string[]) || undefined,
+      therapist: undefined,
+      patient: undefined,
+      room: undefined
+    })) as SessionWithDetails[]
   }
 }
 

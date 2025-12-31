@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useSchedulesStore } from '@/stores/schedules'
 import { useAvailabilityStore } from '@/stores/availability'
 import { staffService } from '@/services/api'
-import { Alert, Badge } from '@/components/ui'
+import { Alert, Badge, SessionStatusBadge } from '@/components/ui'
 import { AvailabilityCalendar, TimeOffRequestModal } from '@/components/availability'
 import { useLabels } from '@/composables/useLabels'
 import type { Staff, StaffAvailability, Session } from '@/types'
@@ -245,6 +245,12 @@ onMounted(loadData)
                         <span class="patient-name">{{ session.patientName }}</span>
                         <span v-if="session.roomName" class="room-name">{{ session.roomName }}</span>
                       </div>
+                      <SessionStatusBadge
+                        v-if="session.status"
+                        :status="session.status"
+                        size="sm"
+                        class="session-status"
+                      />
                     </div>
                   </div>
                 </div>
@@ -508,11 +514,17 @@ onMounted(loadData)
 
 .session-card {
   display: flex;
+  align-items: flex-start;
   gap: 16px;
   padding: 16px;
   background: var(--background-color);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
+}
+
+.session-status {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .session-time {

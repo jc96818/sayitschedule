@@ -47,6 +47,29 @@ enum AvailabilityStatus {
   rejected
 }
 
+// Session status for tracking appointment lifecycle
+enum SessionStatus {
+  scheduled
+  confirmed
+  checked_in
+  in_progress
+  completed
+  cancelled
+  late_cancel
+  no_show
+}
+
+// Cancellation reasons for tracking why sessions were cancelled
+enum CancellationReason {
+  patient_request
+  caregiver_request
+  therapist_unavailable
+  weather
+  illness
+  scheduling_conflict
+  other
+}
+
 // BAA (Business Associate Agreement) status
 enum BaaStatus {
   not_started
@@ -147,7 +170,79 @@ model Organization {
   customHolidays CustomHoliday[]
   baaAgreements  BaaAgreement[]
 
+  // Settings and features
+  settings       OrganizationSettings?
+  features       OrganizationFeatures?
+
   @@map("organizations")
+}
+
+// Organization Settings - Business configuration
+model OrganizationSettings {
+  id                    String       @id @default(cuid())
+  organizationId        String       @unique @map("organization_id")
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Business Hours (JSON structure)
+  // { monday: { open: true, start: "08:00", end: "18:00" }, tuesday: {...}, ... }
+  businessHours         Json         @default("{}") @map("business_hours")
+  timezone              String       @default("America/New_York") @db.VarChar(50)
+
+  // Session Defaults
+  defaultSessionDuration Int         @default(60) @map("default_session_duration")  // minutes
+  slotInterval          Int          @default(30) @map("slot_interval")  // scheduling grid interval in minutes
+
+  // Cancellation Policy
+  lateCancelWindowHours Int          @default(24) @map("late_cancel_window_hours")
+
+  createdAt             DateTime     @default(now()) @map("created_at")
+  updatedAt             DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@map("organization_settings")
+}
+
+// Organization Features - Feature toggles for tiered pricing
+model OrganizationFeatures {
+  id                    String       @id @default(cuid())
+  organizationId        String       @unique @map("organization_id")
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FEATURE TOGGLES - Control access to premium/optional features
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ─── Reminder Features ───
+  emailRemindersEnabled Boolean      @default(true) @map("email_reminders_enabled")
+  smsRemindersEnabled   Boolean      @default(false) @map("sms_reminders_enabled")
+  reminderHours         Json         @default("[24, 2]") @map("reminder_hours")
+
+  // ─── Patient/Caregiver Portal ───
+  patientPortalEnabled  Boolean      @default(false) @map("patient_portal_enabled")
+  portalAllowCancel     Boolean      @default(true) @map("portal_allow_cancel")
+  portalAllowReschedule Boolean      @default(false) @map("portal_allow_reschedule")
+  portalRequireConfirmation Boolean  @default(true) @map("portal_require_confirmation")
+
+  // ─── Reporting Features ───
+  advancedReportsEnabled Boolean     @default(false) @map("advanced_reports_enabled")
+  reportExportEnabled   Boolean      @default(true) @map("report_export_enabled")
+
+  // ─── Voice Features ───
+  voiceCommandsEnabled  Boolean      @default(true) @map("voice_commands_enabled")
+  medicalTranscribeEnabled Boolean   @default(false) @map("medical_transcribe_enabled")
+
+  // ─── Integration Features (Phase 2) ───
+  apiAccessEnabled      Boolean      @default(false) @map("api_access_enabled")
+  webhooksEnabled       Boolean      @default(false) @map("webhooks_enabled")
+
+  // ─── Limits ───
+  maxStaff              Int?         @map("max_staff")
+  maxPatients           Int?         @map("max_patients")
+  maxRemindersPerMonth  Int?         @map("max_reminders_per_month")
+
+  createdAt             DateTime     @default(now()) @map("created_at")
+  updatedAt             DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@map("organization_features")
 }
 
 // Users
@@ -174,6 +269,11 @@ model User {
   schedulesCreated   Schedule[]
   auditLogs          AuditLog[]
   passwordResetTokens PasswordResetToken[]
+
+  // Session status relations
+  sessionsStatusUpdated  Session[] @relation("SessionStatusUpdater")
+  sessionsCancelled      Session[] @relation("SessionCanceller")
+  sessionsConfirmed      Session[] @relation("SessionConfirmer")
 
   @@map("users")
 }
@@ -294,6 +394,26 @@ model Session {
   endTime     String   @map("end_time") @db.VarChar(5)
   notes       String?
   createdAt   DateTime @default(now()) @map("created_at")
+
+  // Session status tracking
+  status            SessionStatus       @default(scheduled)
+  actualStartTime   DateTime?           @map("actual_start_time")
+  actualEndTime     DateTime?           @map("actual_end_time")
+  statusUpdatedAt   DateTime?           @map("status_updated_at")
+  statusUpdatedById String?             @map("status_updated_by_id")
+  statusUpdatedBy   User?               @relation("SessionStatusUpdater", fields: [statusUpdatedById], references: [id])
+
+  // Cancellation details
+  cancellationReason CancellationReason? @map("cancellation_reason")
+  cancellationNotes  String?             @map("cancellation_notes")
+  cancelledAt        DateTime?           @map("cancelled_at")
+  cancelledById      String?             @map("cancelled_by_id")
+  cancelledBy        User?               @relation("SessionCanceller", fields: [cancelledById], references: [id])
+
+  // Confirmation tracking (for patient portal)
+  confirmedAt        DateTime?           @map("confirmed_at")
+  confirmedById      String?             @map("confirmed_by_id")
+  confirmedBy        User?               @relation("SessionConfirmer", fields: [confirmedById], references: [id])
 
   @@map("sessions")
 }

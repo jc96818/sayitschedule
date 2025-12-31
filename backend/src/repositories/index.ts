@@ -12,9 +12,11 @@ export * from './audit.js'
 export * from './baa.js'
 export * from './passwordResetTokens.js'
 export * from './leads.js'
+export * from './organizationSettings.js'
+export * from './organizationFeatures.js'
 
 // Re-export common types from Prisma
-export type { Gender, Status, UserRole, ScheduleStatus, RuleCategory, BaaStatus, AvailabilityStatus, TokenType, LeadStatus } from '@prisma/client'
+export type { Gender, Status, UserRole, ScheduleStatus, RuleCategory, BaaStatus, AvailabilityStatus, TokenType, LeadStatus, SessionStatus, CancellationReason } from '@prisma/client'
 
 // Import singleton instances
 import { organizationRepository } from './organizations.js'
@@ -29,6 +31,8 @@ import { auditRepository } from './audit.js'
 import { baaAgreementRepository } from './baa.js'
 import { passwordResetTokenRepository } from './passwordResetTokens.js'
 import { leadRepository } from './leads.js'
+import { organizationSettingsRepository } from './organizationSettings.js'
+import { organizationFeaturesRepository } from './organizationFeatures.js'
 
 // Export singleton instances as default repositories
 export const repositories = {
@@ -43,7 +47,9 @@ export const repositories = {
   audit: auditRepository,
   baaAgreements: baaAgreementRepository,
   passwordResetTokens: passwordResetTokenRepository,
-  leads: leadRepository
+  leads: leadRepository,
+  organizationSettings: organizationSettingsRepository,
+  organizationFeatures: organizationFeaturesRepository
 }
 
 export default repositories

@@ -12,6 +12,13 @@ import type {
   Room,
   Schedule,
   Session,
+  SessionStatus,
+  CancellationReason,
+  SessionStatusCounts,
+  OrganizationSettings,
+  OrganizationFeatures,
+  FeatureStatuses,
+  BusinessHours,
   StaffAvailability,
   AvailabilityStatus,
   ApiResponse,
@@ -974,6 +981,135 @@ export const superAdminLeadService = {
 
   async getStats(): Promise<ApiResponse<LeadStats>> {
     const { data } = await api.get('/leads/stats/counts')
+    return data
+  }
+}
+
+// Session Service (for session status management)
+export const sessionService = {
+  async getToday(): Promise<ApiResponse<Session[]>> {
+    const { data } = await api.get('/sessions/today')
+    return data
+  },
+
+  async getStatusCounts(params?: { dateFrom?: string; dateTo?: string }): Promise<ApiResponse<SessionStatusCounts>> {
+    const { data } = await api.get('/sessions/status-counts', { params })
+    return data
+  },
+
+  async getByStatus(
+    status: SessionStatus,
+    params?: { page?: number; limit?: number; dateFrom?: string; dateTo?: string }
+  ): Promise<PaginatedResponse<Session>> {
+    const { data } = await api.get(`/sessions/by-status/${status}`, { params })
+    return data
+  },
+
+  async get(id: string): Promise<ApiResponse<Session>> {
+    const { data } = await api.get(`/sessions/${id}`)
+    return data
+  },
+
+  async updateStatus(id: string, status: SessionStatus, notes?: string): Promise<ApiResponse<Session>> {
+    const { data } = await api.put(`/sessions/${id}/status`, { status, notes })
+    return data
+  },
+
+  async checkIn(id: string): Promise<ApiResponse<Session>> {
+    const { data } = await api.post(`/sessions/${id}/check-in`)
+    return data
+  },
+
+  async start(id: string): Promise<ApiResponse<Session>> {
+    const { data } = await api.post(`/sessions/${id}/start`)
+    return data
+  },
+
+  async complete(id: string): Promise<ApiResponse<Session>> {
+    const { data } = await api.post(`/sessions/${id}/complete`)
+    return data
+  },
+
+  async cancel(id: string, reason: CancellationReason, notes?: string): Promise<ApiResponse<Session, { isLateCancellation: boolean; message: string }>> {
+    const { data } = await api.post(`/sessions/${id}/cancel`, { reason, notes })
+    return data
+  },
+
+  async markNoShow(id: string): Promise<ApiResponse<Session>> {
+    const { data } = await api.post(`/sessions/${id}/no-show`)
+    return data
+  },
+
+  async confirm(id: string): Promise<ApiResponse<Session>> {
+    const { data } = await api.post(`/sessions/${id}/confirm`)
+    return data
+  }
+}
+
+// Settings Service (organization settings and features)
+export const settingsService = {
+  async getSettings(): Promise<ApiResponse<OrganizationSettings>> {
+    const { data } = await api.get('/settings')
+    return data
+  },
+
+  async updateSettings(settings: {
+    businessHours?: BusinessHours
+    timezone?: string
+    defaultSessionDuration?: number
+    slotInterval?: number
+    lateCancelWindowHours?: number
+  }): Promise<ApiResponse<OrganizationSettings>> {
+    const { data } = await api.put('/settings', settings)
+    return data
+  },
+
+  async getBusinessHours(): Promise<ApiResponse<BusinessHours>> {
+    const { data } = await api.get('/settings/business-hours')
+    return data
+  },
+
+  async updateBusinessHours(businessHours: BusinessHours): Promise<ApiResponse<OrganizationSettings>> {
+    const { data } = await api.put('/settings/business-hours', businessHours)
+    return data
+  },
+
+  async getFeatures(): Promise<ApiResponse<OrganizationFeatures>> {
+    const { data } = await api.get('/settings/features')
+    return data
+  },
+
+  async getFeatureStatuses(): Promise<ApiResponse<FeatureStatuses>> {
+    const { data } = await api.get('/settings/features/status')
+    return data
+  },
+
+  async updateFeatures(features: Partial<OrganizationFeatures>): Promise<ApiResponse<OrganizationFeatures>> {
+    const { data } = await api.put('/settings/features', features)
+    return data
+  },
+
+  async getFeatureTiers(): Promise<ApiResponse<{
+    basic: Partial<OrganizationFeatures>
+    professional: Partial<OrganizationFeatures>
+    enterprise: Partial<OrganizationFeatures>
+  }>> {
+    const { data } = await api.get('/settings/features/tiers')
+    return data
+  },
+
+  async applyTier(tier: 'basic' | 'professional' | 'enterprise'): Promise<ApiResponse<OrganizationFeatures, { tier: string; message: string }>> {
+    const { data } = await api.post('/settings/features/apply-tier', { tier })
+    return data
+  },
+
+  async getPortalConfig(): Promise<ApiResponse<{
+    enabled: boolean
+    allowCancel: boolean
+    allowReschedule: boolean
+    requireConfirmation: boolean
+  }>> {
+    const { data } = await api.get('/settings/features/portal')
     return data
   }
 }

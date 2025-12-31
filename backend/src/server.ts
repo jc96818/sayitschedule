@@ -17,6 +17,7 @@ import { patientRoutes } from './routes/patients.js'
 import { ruleRoutes } from './routes/rules.js'
 import { roomRoutes } from './routes/rooms.js'
 import { scheduleRoutes } from './routes/schedules.js'
+import { sessionRoutes } from './routes/sessions.js'
 import { userRoutes } from './routes/users.js'
 import { voiceRoutes } from './routes/voice.js'
 import { transcriptionRoutes } from './routes/transcription.js'
@@ -27,6 +28,7 @@ import { baaRoutes } from './routes/baa.js'
 import { staffAvailabilityRoutes, availabilityAdminRoutes } from './routes/staffAvailability.js'
 import { leadRoutes } from './routes/leads.js'
 import { templateRoutes } from './routes/templates.js'
+import { settingsRoutes } from './routes/settings.js'
 import { organizationMiddleware } from './middleware/organization.js'
 import { checkDbHealth } from './db/index.js'
 import { getJwtExpiresIn } from './config/security.js'
@@ -82,6 +84,7 @@ async function start() {
   await server.register(ruleRoutes, { prefix: '/api/rules' })
   await server.register(roomRoutes, { prefix: '/api/rooms' })
   await server.register(scheduleRoutes, { prefix: '/api/schedules' })
+  await server.register(sessionRoutes, { prefix: '/api/sessions' })
   await server.register(userRoutes, { prefix: '/api/users' })
   await server.register(voiceRoutes, { prefix: '/api/voice' })
   await server.register(transcriptionRoutes, { prefix: '/api/transcription' })
@@ -91,6 +94,7 @@ async function start() {
   await server.register(baaRoutes, { prefix: '/api/baa' })
   await server.register(leadRoutes, { prefix: '/api/leads' })
   await server.register(templateRoutes, { prefix: '/api/templates' })
+  await server.register(settingsRoutes, { prefix: '/api/settings' })
 
   // Health check - basic (for load balancer)
   server.get('/api/health', async () => {
