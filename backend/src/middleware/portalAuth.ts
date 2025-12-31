@@ -6,6 +6,7 @@
 
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { portalAuthService, type PortalUser } from '../services/portalAuth.js'
+import { organizationFeaturesRepository } from '../repositories/organizationFeatures.js'
 
 // Extend FastifyRequest to include portal user
 declare module 'fastify' {
@@ -43,6 +44,35 @@ export async function portalAuthenticate(
 
   // Attach user to request
   request.portalUser = user
+}
+
+/**
+ * Require that the patient portal feature is enabled for the organization.
+ * Intended to run after `portalAuthenticate`.
+ */
+export async function requirePatientPortalEnabled(
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  if (!request.portalUser) {
+    return reply.code(401).send({
+      error: 'Unauthorized',
+      message: 'Portal user not authenticated'
+    })
+  }
+
+  const enabled = await organizationFeaturesRepository.isPatientPortalEnabled(
+    request.portalUser.organizationId
+  )
+
+  if (!enabled) {
+    return reply.code(403).send({
+      error: 'Feature Not Available',
+      message: 'The Patient Portal feature is not enabled for this organization.',
+      feature: 'patientPortal',
+      upgradeRequired: true
+    })
+  }
 }
 
 /**

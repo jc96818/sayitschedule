@@ -7,7 +7,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { portalAuthService } from '../services/portalAuth.js'
-import { portalAuthenticate, getPortalUser } from '../middleware/portalAuth.js'
+import { portalAuthenticate, requirePatientPortalEnabled, getPortalUser } from '../middleware/portalAuth.js'
 import { prisma } from '../repositories/base.js'
 import { organizationSettingsRepository } from '../repositories/organizationSettings.js'
 import { auditRepository } from '../repositories/audit.js'
@@ -146,7 +146,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
    */
   fastify.get(
     '/me',
-    { preHandler: [portalAuthenticate] },
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const user = getPortalUser(request)
 
@@ -196,7 +196,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
    */
   fastify.get(
     '/appointments',
-    { preHandler: [portalAuthenticate] },
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const user = getPortalUser(request)
 
@@ -204,7 +204,11 @@ export async function portalRoutes(fastify: FastifyInstance) {
         where: {
           patientId: user.patientId,
           date: { gte: new Date() },
-          status: { notIn: ['cancelled', 'late_cancel'] }
+          status: { notIn: ['cancelled', 'late_cancel'] },
+          schedule: {
+            organizationId: user.organizationId,
+            status: 'published'
+          }
         },
         include: {
           therapist: {
@@ -242,7 +246,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: SessionIdParams }>(
     '/appointments/:sessionId',
-    { preHandler: [portalAuthenticate] },
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
     async (
       request: FastifyRequest<{ Params: SessionIdParams }>,
       reply: FastifyReply
@@ -253,7 +257,11 @@ export async function portalRoutes(fastify: FastifyInstance) {
       const session = await prisma.session.findFirst({
         where: {
           id: sessionId,
-          patientId: user.patientId
+          patientId: user.patientId,
+          schedule: {
+            organizationId: user.organizationId,
+            status: 'published'
+          }
         },
         include: {
           therapist: {
@@ -294,7 +302,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: SessionIdParams }>(
     '/appointments/:sessionId/confirm',
-    { preHandler: [portalAuthenticate] },
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
     async (
       request: FastifyRequest<{ Params: SessionIdParams }>,
       reply: FastifyReply
@@ -307,7 +315,11 @@ export async function portalRoutes(fastify: FastifyInstance) {
         where: {
           id: sessionId,
           patientId: user.patientId,
-          status: 'scheduled'
+          status: 'scheduled',
+          schedule: {
+            organizationId: user.organizationId,
+            status: 'published'
+          }
         }
       })
 
@@ -323,14 +335,15 @@ export async function portalRoutes(fastify: FastifyInstance) {
         where: { id: sessionId },
         data: {
           status: 'confirmed',
-          confirmedAt: new Date()
+          confirmedAt: new Date(),
+          statusUpdatedAt: new Date()
           // Note: confirmedById is for staff users, portal confirmations use the contact
         }
       })
 
       // Audit log (using system user since portal users aren't in users table)
       await auditRepository.log(
-        'portal',
+        null,
         'session.confirmed_by_patient',
         'session',
         sessionId,
@@ -351,7 +364,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: SessionIdParams; Body: CancelBody }>(
     '/appointments/:sessionId/cancel',
-    { preHandler: [portalAuthenticate] },
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
     async (
       request: FastifyRequest<{ Params: SessionIdParams; Body: CancelBody }>,
       reply: FastifyReply
@@ -360,12 +373,24 @@ export async function portalRoutes(fastify: FastifyInstance) {
       const { sessionId } = request.params
       const { reason } = request.body || {}
 
+      const contact = await prisma.patientContact.findUnique({
+        where: { id: user.contactId },
+        select: { relationship: true }
+      })
+      const cancellationReason: 'patient_request' | 'caregiver_request' = contact?.relationship && contact.relationship !== 'self'
+        ? 'caregiver_request'
+        : 'patient_request'
+
       // Find the session
       const session = await prisma.session.findFirst({
         where: {
           id: sessionId,
           patientId: user.patientId,
-          status: { in: ['scheduled', 'confirmed'] }
+          status: { in: ['scheduled', 'confirmed'] },
+          schedule: {
+            organizationId: user.organizationId,
+            status: 'published'
+          }
         },
         include: {
           schedule: true
@@ -397,15 +422,16 @@ export async function portalRoutes(fastify: FastifyInstance) {
         where: { id: sessionId },
         data: {
           status: isLateCancel ? 'late_cancel' : 'cancelled',
-          cancellationReason: 'patient_request',
+          cancellationReason,
           cancellationNotes: reason,
-          cancelledAt: new Date()
+          cancelledAt: new Date(),
+          statusUpdatedAt: new Date()
         }
       })
 
       // Audit log
       await auditRepository.log(
-        'portal',
+        null,
         isLateCancel ? 'session.late_cancelled_by_patient' : 'session.cancelled_by_patient',
         'session',
         sessionId,
@@ -414,6 +440,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
           contactId: user.contactId,
           patientId: user.patientId,
           isLateCancel,
+          cancellationReason,
           reason
         }
       )
@@ -434,7 +461,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
    */
   fastify.get(
     '/appointments/history',
-    { preHandler: [portalAuthenticate] },
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const user = getPortalUser(request)
 
@@ -444,7 +471,11 @@ export async function portalRoutes(fastify: FastifyInstance) {
           OR: [
             { date: { lt: new Date() } },
             { status: { in: ['completed', 'cancelled', 'late_cancel', 'no_show'] } }
-          ]
+          ],
+          schedule: {
+            organizationId: user.organizationId,
+            status: 'published'
+          }
         },
         include: {
           therapist: {

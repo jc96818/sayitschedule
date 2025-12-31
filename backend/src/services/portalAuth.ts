@@ -8,6 +8,7 @@
 import { createHash, randomBytes } from 'crypto'
 import { prisma } from '../repositories/base.js'
 import type { PatientContact } from '@prisma/client'
+import { organizationFeaturesRepository } from '../repositories/organizationFeatures.js'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -154,6 +155,19 @@ export class PortalAuthService {
       }
     }
 
+    // If portal is disabled for this organization, do not send a token.
+    // Return a generic success message to avoid enumerating accounts.
+    const portalEnabled = await organizationFeaturesRepository.isPatientPortalEnabled(
+      contact.patient.organizationId
+    )
+    if (!portalEnabled) {
+      return {
+        success: true,
+        message: `If an account exists for this ${channel === 'email' ? 'email' : 'phone number'}, you will receive a login ${channel === 'email' ? 'link' : 'code'} shortly.`,
+        channel
+      }
+    }
+
     // Generate token (magic link for email, OTP for SMS)
     const token = channel === 'sms' ? generateOTP() : generateToken()
     const tokenHash = hashToken(token)
@@ -241,6 +255,17 @@ export class PortalAuthService {
       }
     }
 
+    // Enforce portal feature flag per organization.
+    const portalEnabled = await organizationFeaturesRepository.isPatientPortalEnabled(
+      loginToken.contact.patient.organizationId
+    )
+    if (!portalEnabled) {
+      return {
+        success: false,
+        message: 'Patient portal is not enabled for this organization.'
+      }
+    }
+
     // Mark token as used
     await prisma.portalLoginToken.update({
       where: { id: loginToken.id },
@@ -299,6 +324,19 @@ export class PortalAuthService {
     })
 
     if (!session) {
+      return null
+    }
+
+    // If contact was disabled after session creation, treat session as invalid.
+    if (!session.contact.canAccessPortal) {
+      return null
+    }
+
+    // Enforce portal feature flag per organization. If disabled, treat as invalid.
+    const portalEnabled = await organizationFeaturesRepository.isPatientPortalEnabled(
+      session.contact.patient.organizationId
+    )
+    if (!portalEnabled) {
       return null
     }
 

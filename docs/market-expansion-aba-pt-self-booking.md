@@ -40,14 +40,16 @@ Document findings from a quick implementation review of the current Say It Sched
 
 ## Where “Patient Participation” Is Partially Implemented (But Not Complete)
 
-### Portal: Configuration Exists, Portal Product Does Not
-- There is a portal configuration endpoint (`GET /settings/features/portal`) and feature flags (`patientPortalEnabled`, etc.).
-- There is no portal route group in the frontend router, and no portal UI pages.
-- “Confirm session” exists as `POST /api/sessions/:id/confirm`, but it is protected by staff JWT auth (normal `authenticate`), so it is not usable by a real patient/caregiver without additional portal auth.
+### Portal: Backend Exists, Frontend Is Not Yet Implemented
+- Portal feature flags and configuration endpoints exist (e.g. `GET /api/settings/features/portal`).
+- Portal backend routes now exist under `/api/portal` (auth + view/confirm/cancel appointments) with a separate auth mechanism from staff.
+- There is still no portal route group/UI in the frontend router, so portal UX is not yet shipped.
 
-### Patient/Client Contact Data Is Not in the Backend Model
-- The frontend `Patient` type includes fields like `guardianName/Phone/Email`, `sessionDuration`, and `genderPreference`.
-- The backend `Patient` model does not currently store guardian/contact fields or session duration. These are currently “UI-only” and not persisted.
+### Patient/Client Contact Data Is Emerging in the Backend Model
+- The system is transitioning toward persisted contact data:
+  - A `PatientContact` model exists for portal/reminder contacts.
+  - `Patient` now supports additional contact and preference fields in the data model.
+- Remaining gap: connect portal auth and self-booking UX to this data (and ensure admin workflows exist to manage contacts and grant portal access).
 
 ### AI Scheduler Is Still Therapy-First
 - The AI schedule generation prompts and data types assume a therapy weekly schedule (“therapists/patients”, “sessions per week”).
@@ -75,6 +77,8 @@ Implement a canonical availability + booking flow that does not depend on AI or 
   - staff (optional)
   - room/resource constraints (optional)
 - Prevent double-booking with a short-lived “hold” during checkout.
+
+Implementation note: the backend already includes an availability service and hold/booking endpoints; the remaining work is exposing the correct subset via the portal (or a public booking UI) and resolving the schedule/week container constraint for bookings.
 
 #### 2) Portal Authentication (Separate From Staff Auth)
 Add a portal identity model so patients/caregivers can act without a staff JWT:
@@ -177,4 +181,3 @@ Keep AI prominent while maintaining deterministic correctness:
 3. Implement availability + hold + book APIs first (everything else depends on this).
 4. Add portal route group + minimal UI.
 5. Rework AI usage toward slot ranking and natural-language booking requests (typed-first; voice optional).
-

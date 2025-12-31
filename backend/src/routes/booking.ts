@@ -12,7 +12,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { authenticate, requireRole } from '../middleware/auth.js'
+import { requireAdmin, requireAdminOrAssistant } from '../middleware/auth.js'
 import { availabilityService } from '../services/availability.js'
 import { bookingRepository } from '../repositories/booking.js'
 import { auditRepository } from '../repositories/audit.js'
@@ -100,7 +100,7 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
    */
   fastify.get<{ Querystring: AvailabilityQueryParams }>(
     '/availability',
-    { preHandler: [authenticate] },
+    { preHandler: [requireAdminOrAssistant()] },
     async (request: FastifyRequest<{ Querystring: AvailabilityQueryParams }>, reply: FastifyReply) => {
       const organizationId = getOrganizationId(request, reply)
       if (!organizationId) return
@@ -162,7 +162,7 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
    */
   fastify.get<{ Params: StaffAvailabilityParams; Querystring: StaffAvailabilityQuery }>(
     '/staff/:staffId/availability',
-    { preHandler: [authenticate] },
+    { preHandler: [requireAdminOrAssistant()] },
     async (
       request: FastifyRequest<{ Params: StaffAvailabilityParams; Querystring: StaffAvailabilityQuery }>,
       reply: FastifyReply
@@ -219,7 +219,7 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Body: CreateHoldBody }>(
     '/hold',
-    { preHandler: [authenticate] },
+    { preHandler: [requireAdminOrAssistant()] },
     async (request: FastifyRequest<{ Body: CreateHoldBody }>, reply: FastifyReply) => {
       const organizationId = getOrganizationId(request, reply)
       if (!organizationId) return
@@ -281,7 +281,7 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
    */
   fastify.delete<{ Params: HoldIdParams }>(
     '/hold/:holdId',
-    { preHandler: [authenticate] },
+    { preHandler: [requireAdminOrAssistant()] },
     async (request: FastifyRequest<{ Params: HoldIdParams }>, reply: FastifyReply) => {
       const { holdId } = request.params
 
@@ -314,7 +314,7 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: HoldIdParams; Body: ExtendHoldBody }>(
     '/hold/:holdId/extend',
-    { preHandler: [authenticate] },
+    { preHandler: [requireAdminOrAssistant()] },
     async (
       request: FastifyRequest<{ Params: HoldIdParams; Body: ExtendHoldBody }>,
       reply: FastifyReply
@@ -352,7 +352,7 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Body: BookFromHoldBody }>(
     '/book',
-    { preHandler: [authenticate] },
+    { preHandler: [requireAdminOrAssistant()] },
     async (request: FastifyRequest<{ Body: BookFromHoldBody }>, reply: FastifyReply) => {
       const organizationId = getOrganizationId(request, reply)
       if (!organizationId) return
@@ -414,7 +414,7 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Body: BookDirectBody }>(
     '/book-direct',
-    { preHandler: [requireRole('admin', 'admin_assistant')] },
+    { preHandler: [requireAdminOrAssistant()] },
     async (request: FastifyRequest<{ Body: BookDirectBody }>, reply: FastifyReply) => {
       const organizationId = getOrganizationId(request, reply)
       if (!organizationId) return
@@ -488,7 +488,7 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
    */
   fastify.get<{ Querystring: { dateFrom?: string; dateTo?: string } }>(
     '/holds',
-    { preHandler: [requireRole('admin', 'admin_assistant')] },
+    { preHandler: [requireAdminOrAssistant()] },
     async (
       request: FastifyRequest<{ Querystring: { dateFrom?: string; dateTo?: string } }>,
       reply: FastifyReply
@@ -524,7 +524,7 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
    */
   fastify.post(
     '/cleanup-holds',
-    { preHandler: [requireRole('admin')] },
+    { preHandler: [requireAdmin()] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const organizationId = getOrganizationId(request, reply)
       if (!organizationId) return
@@ -566,7 +566,7 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
     Querystring: { staffId: string; date: string; startTime: string; endTime: string; excludeSessionId?: string }
   }>(
     '/check-availability',
-    { preHandler: [authenticate] },
+    { preHandler: [requireAdminOrAssistant()] },
     async (
       request: FastifyRequest<{
         Querystring: { staffId: string; date: string; startTime: string; endTime: string; excludeSessionId?: string }

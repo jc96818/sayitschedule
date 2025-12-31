@@ -5,7 +5,7 @@ export type { AuditLog }
 
 export interface AuditLogCreate {
   organizationId?: string | null
-  userId: string
+  userId?: string | null
   action: string
   entityType: string
   entityId: string
@@ -77,7 +77,7 @@ export class AuditRepository {
     return prisma.auditLog.create({
       data: {
         organizationId: data.organizationId,
-        userId: data.userId,
+        userId: data.userId ?? null,
         action: data.action,
         entityType: data.entityType,
         entityId: data.entityId,
@@ -87,7 +87,7 @@ export class AuditRepository {
   }
 
   async log(
-    userId: string,
+    userId: string | null,
     action: string,
     entityType: string,
     entityId: string,
@@ -109,7 +109,7 @@ export const auditRepository = new AuditRepository()
 
 // Convenience function for logging
 export async function logAudit(
-  userId: string,
+  userId: string | null,
   action: string,
   entityType: string,
   entityId: string,
