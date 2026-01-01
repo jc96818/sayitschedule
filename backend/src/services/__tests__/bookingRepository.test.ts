@@ -15,6 +15,18 @@ vi.mock('../availability.js', () => ({
   }
 }))
 
+vi.mock('../../repositories/organizationSettings.js', () => ({
+  organizationSettingsRepository: {
+    findByOrganizationId: vi.fn().mockResolvedValue({
+      timezone: 'America/New_York',
+      defaultSessionDuration: 60,
+      slotInterval: 30,
+      lateCancelWindowHours: 24,
+      businessHours: {}
+    })
+  }
+}))
+
 // Helper type for mock transaction client
 interface MockTxClient {
   appointmentHold: {

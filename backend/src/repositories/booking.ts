@@ -2,11 +2,18 @@
  * Booking Repository
  *
  * Handles appointment holds and booking operations with race condition protection.
+ *
+ * TIMEZONE HANDLING:
+ * Dates are stored in UTC. The `date` field represents the calendar date in the
+ * organization's timezone. Time slots (startTime/endTime) are stored as HH:mm
+ * strings in the organization's local time.
  */
 
 import { prisma } from './base.js'
 import type { AppointmentHold, BookingSource } from '@prisma/client'
 import { availabilityService } from '../services/availability.js'
+import { organizationSettingsRepository } from './organizationSettings.js'
+import { formatLocalDate, getLocalDayOfWeek } from '../utils/timezone.js'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -66,28 +73,56 @@ export interface BookingResult {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Get the Monday of the week for a given date
+ * Get the Monday of the week for a given date, respecting the organization's timezone.
+ *
+ * This ensures that week boundaries are calculated correctly regardless of
+ * the server's timezone. For example, a session at 11pm Monday in New York
+ * would be Tuesday in UTC, but should still belong to the Monday week.
  */
-function getWeekStartDate(date: Date): Date {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Adjust when day is Sunday
-  d.setDate(diff)
-  d.setHours(0, 0, 0, 0)
-  return d
+function getWeekStartDate(date: Date, timezone: string): Date {
+  // Get the local date string for this date in the org's timezone
+  const localDateStr = formatLocalDate(date, timezone)
+  const dayOfWeek = getLocalDayOfWeek(localDateStr, timezone)
+
+  // Map day names to offsets from Monday (Monday=0, Sunday=6)
+  const dayOffsets: Record<string, number> = {
+    monday: 0,
+    tuesday: 1,
+    wednesday: 2,
+    thursday: 3,
+    friday: 4,
+    saturday: 5,
+    sunday: 6
+  }
+
+  const offset = dayOffsets[dayOfWeek] ?? 0
+
+  // Parse the local date parts
+  const [year, month, day] = localDateStr.split('-').map(Number)
+
+  // Calculate Monday's date
+  const mondayDate = new Date(Date.UTC(year, month - 1, day - offset))
+  mondayDate.setUTCHours(0, 0, 0, 0)
+
+  return mondayDate
 }
 
 /**
  * Find or create a schedule for the given date's week.
  * Used by booking flows when a schedule isn't explicitly selected.
+ *
+ * TIMEZONE: Uses the organization's timezone to determine week boundaries.
  */
 async function findOrCreateSchedule(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
   organizationId: string,
   date: Date,
-  createdByUserId?: string
+  createdByUserId?: string,
+  timezone?: string
 ): Promise<string> {
-  const weekStart = getWeekStartDate(date)
+  // Get timezone if not provided
+  const tz = timezone || (await organizationSettingsRepository.findByOrganizationId(organizationId)).timezone
+  const weekStart = getWeekStartDate(date, tz)
 
   async function resolveScheduleCreatedById(): Promise<string> {
     if (createdByUserId) {

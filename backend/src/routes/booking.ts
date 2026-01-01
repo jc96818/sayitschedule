@@ -9,6 +9,10 @@
  * - POST /booking/hold/:holdId/extend - Extend a hold's expiration
  * - POST /booking/book - Book from a hold
  * - POST /booking/book-direct - Book directly (admin/staff only)
+ *
+ * TIMEZONE HANDLING:
+ * Date strings (YYYY-MM-DD) are interpreted in the organization's configured timezone.
+ * Time strings (HH:mm) are in the organization's local time.
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
@@ -16,7 +20,9 @@ import { requireAdmin, requireAdminOrAssistant } from '../middleware/auth.js'
 import { availabilityService } from '../services/availability.js'
 import { bookingRepository } from '../repositories/booking.js'
 import { auditRepository } from '../repositories/audit.js'
+import { organizationSettingsRepository } from '../repositories/organizationSettings.js'
 import { BookingSource } from '@prisma/client'
+import { parseLocalDateTime } from '../utils/timezone.js'
 
 /**
  * Helper to get organizationId from request context, returning 403 if not available
@@ -114,11 +120,17 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
         })
       }
 
-      // Parse dates
-      const from = new Date(dateFrom)
-      const to = new Date(dateTo)
+      // Get timezone for date parsing
+      const settings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+      const timezone = settings.timezone
 
-      if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+      // Parse dates in the organization's timezone
+      let from: Date
+      let to: Date
+      try {
+        from = parseLocalDateTime(dateFrom, '00:00', timezone)
+        to = parseLocalDateTime(dateTo, '23:59', timezone)
+      } catch {
         return reply.code(400).send({
           error: 'Invalid date format',
           message: 'Dates must be in YYYY-MM-DD format'
@@ -180,8 +192,15 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
         })
       }
 
-      const dateObj = new Date(date)
-      if (isNaN(dateObj.getTime())) {
+      // Get timezone for date parsing
+      const settings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+      const timezone = settings.timezone
+
+      // Parse date in the organization's timezone
+      let dateObj: Date
+      try {
+        dateObj = parseLocalDateTime(date, '12:00', timezone) // noon to avoid edge cases
+      } catch {
         return reply.code(400).send({
           error: 'Invalid date format',
           message: 'Date must be in YYYY-MM-DD format'
@@ -234,8 +253,15 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
         })
       }
 
-      const dateObj = new Date(date)
-      if (isNaN(dateObj.getTime())) {
+      // Get timezone for date parsing
+      const settings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+      const timezone = settings.timezone
+
+      // Parse date in the organization's timezone
+      let dateObj: Date
+      try {
+        dateObj = parseLocalDateTime(date, startTime, timezone)
+      } catch {
         return reply.code(400).send({
           error: 'Invalid date format',
           message: 'Date must be in YYYY-MM-DD format'
@@ -429,8 +455,15 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
         })
       }
 
-      const dateObj = new Date(date)
-      if (isNaN(dateObj.getTime())) {
+      // Get timezone for date parsing
+      const settings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+      const timezone = settings.timezone
+
+      // Parse date in the organization's timezone
+      let dateObj: Date
+      try {
+        dateObj = parseLocalDateTime(date, startTime, timezone)
+      } catch {
         return reply.code(400).send({
           error: 'Invalid date format',
           message: 'Date must be in YYYY-MM-DD format'
@@ -586,8 +619,15 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
         })
       }
 
-      const dateObj = new Date(date)
-      if (isNaN(dateObj.getTime())) {
+      // Get timezone for date parsing
+      const settings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+      const timezone = settings.timezone
+
+      // Parse date in the organization's timezone
+      let dateObj: Date
+      try {
+        dateObj = parseLocalDateTime(date, startTime, timezone)
+      } catch {
         return reply.code(400).send({
           error: 'Invalid date format',
           message: 'Date must be in YYYY-MM-DD format'
