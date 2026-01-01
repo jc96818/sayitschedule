@@ -197,9 +197,9 @@ Status values:
 
 | Category | Article Title | Suggested Slug | Audience | Prereqs (keys) | Source UI | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| getting-started | What is Say It Schedule? | `/help/getting-started/overview` | admin, assistant, staff |  | App |  | unassigned |
-| getting-started | Roles & permissions | `/help/getting-started/roles` | admin, assistant, staff |  | App |  | unassigned |
-| getting-started | Glossary (labels + terms) | `/help/getting-started/glossary` | admin, assistant, staff |  | App |  | unassigned |
+| getting-started | What is Say It Schedule? | `/help/getting-started/overview` | admin, assistant, staff |  | App | Claude | ready |
+| getting-started | Roles & permissions | `/help/getting-started/roles` | admin, assistant, staff |  | App | Claude | ready |
+| getting-started | Glossary (labels + terms) | `/help/getting-started/glossary` | admin, assistant, staff |  | App | Claude | ready |
 | people | Add and manage {{labels.staff.plural}} | `/help/people/staff` | admin, assistant |  | `/app/staff` |  | unassigned |
 | people | {{labels.staff.singular}} profile fields | `/help/people/staff-profile` | admin, assistant |  | `/app/staff/:id` |  | unassigned |
 | people | Add and manage {{labels.patient.plural}} | `/help/people/patients` | admin, assistant |  | `/app/patients` |  | unassigned |
@@ -215,7 +215,7 @@ Status values:
 | voice | Voice commands overview | `/help/voice/overview` | admin, assistant | `features.voiceCommandsEnabled` | Voice flows |  | unassigned |
 | voice | Voice transcription settings | `/help/voice/transcription-settings` | admin, assistant |  | `/app/settings` |  | unassigned |
 | settings | Organization branding | `/help/settings/branding` | admin, assistant |  | `/app/settings` |  | unassigned |
-| settings | Custom labels | `/help/settings/custom-labels` | admin, assistant |  | `/app/settings` |  | unassigned |
+| settings | Custom labels | `/help/settings/custom-labels` | admin, assistant |  | `/app/settings` | Claude | ready |
 | settings | Suggested {{labels.certification.plural}} | `/help/settings/suggested-certifications` | admin, assistant |  | `/app/settings` |  | unassigned |
 | settings | Suggested {{labels.equipment.plural}} | `/help/settings/suggested-equipment` | admin, assistant |  | `/app/settings` |  | unassigned |
 | settings | Patient portal overview | `/help/settings/patient-portal` | admin, assistant | `features.patientPortalEnabled` | `/app/settings` |  | unassigned |
