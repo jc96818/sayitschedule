@@ -9,6 +9,11 @@
  * - Existing sessions
  * - Active appointment holds
  * - Room conflicts (optional)
+ *
+ * TIMEZONE HANDLING:
+ * All date/time calculations are performed in the organization's configured timezone.
+ * The database stores dates in UTC, but business logic (business hours, availability)
+ * operates in local time. The timezone utilities handle the conversion.
  */
 
 import { prisma } from '../repositories/base.js'
@@ -19,7 +24,13 @@ import {
   type BusinessHours,
   type BusinessHoursDay
 } from '../repositories/organizationSettings.js'
-import { timeToMinutes, sessionsOverlap, getDayOfWeek } from './scheduler.js'
+import { sessionsOverlap } from './scheduler.js'
+import {
+  formatLocalDate,
+  getLocalDayOfWeek,
+  getLocalDateRange,
+  timeToMinutes
+} from '../utils/timezone.js'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -79,28 +90,6 @@ function minutesToTime(minutes: number): string {
   const hours = Math.floor(minutes / 60)
   const mins = minutes % 60
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
-}
-
-/**
- * Format a Date object to YYYY-MM-DD string
- */
-function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0]
-}
-
-/**
- * Generate array of dates between two dates (inclusive)
- */
-function getDateRange(from: Date, to: Date): Date[] {
-  const dates: Date[] = []
-  const current = new Date(from)
-
-  while (current <= to) {
-    dates.push(new Date(current))
-    current.setDate(current.getDate() + 1)
-  }
-
-  return dates
 }
 
 /**
@@ -213,6 +202,9 @@ function generateTimeSlots(
 export class AvailabilityService {
   /**
    * Get available time slots for booking
+   *
+   * TIMEZONE: All date comparisons use the organization's configured timezone.
+   * Input dates are expected in UTC but represent the local date range the user wants.
    */
   async getAvailableSlots(query: AvailabilityQuery): Promise<AvailabilityResult> {
     const {
@@ -225,14 +217,19 @@ export class AvailabilityService {
       patientId
     } = query
 
-    // Get organization settings for defaults
+    // Get organization settings for defaults and timezone
     const settings = await organizationSettingsRepository.findByOrganizationId(organizationId)
     const duration = durationMinutes || settings.defaultSessionDuration
     const slotInterval = settings.slotInterval
     const businessHours = settings.businessHours as unknown as BusinessHours
+    const timezone = settings.timezone
 
-    // Get all dates in the range
-    const dates = getDateRange(dateFrom, dateTo)
+    // Convert UTC dates to local date strings for iteration
+    const fromDateStr = formatLocalDate(dateFrom, timezone)
+    const toDateStr = formatLocalDate(dateTo, timezone)
+
+    // Get all local dates in the range
+    const dateStrings = getLocalDateRange(fromDateStr, toDateStr, timezone)
 
     // Get staff members (filtered if staffId provided)
     const staffMembers = staffId
@@ -245,7 +242,7 @@ export class AvailabilityService {
       return {
         slots: [],
         query: {
-          dateRange: { from: formatDate(dateFrom), to: formatDate(dateTo) },
+          dateRange: { from: fromDateStr, to: toDateStr },
           duration,
           staffFilter: staffId,
           roomFilter: roomId
@@ -261,12 +258,14 @@ export class AvailabilityService {
     )
 
     // Build a map of staff ID -> date -> availability override
+    // Use timezone-aware date formatting for the map keys
     const overrideMap = new Map<string, Map<string, typeof availabilityOverrides[0]>>()
     for (const override of availabilityOverrides) {
       if (!overrideMap.has(override.staffId)) {
         overrideMap.set(override.staffId, new Map())
       }
-      overrideMap.get(override.staffId)!.set(formatDate(override.date), override)
+      const overrideDateStr = formatLocalDate(override.date, timezone)
+      overrideMap.get(override.staffId)!.set(overrideDateStr, override)
     }
 
     // Get existing sessions for the date range
@@ -282,16 +281,17 @@ export class AvailabilityService {
     })
 
     // Build session map: staffId -> date -> sessions
+    // Use timezone-aware date formatting for the map keys
     const sessionMap = new Map<string, Map<string, typeof existingSessions>>()
     for (const session of existingSessions) {
       if (!sessionMap.has(session.therapistId)) {
         sessionMap.set(session.therapistId, new Map())
       }
-      const dateStr = formatDate(session.date)
-      if (!sessionMap.get(session.therapistId)!.has(dateStr)) {
-        sessionMap.get(session.therapistId)!.set(dateStr, [])
+      const sessionDateStr = formatLocalDate(session.date, timezone)
+      if (!sessionMap.get(session.therapistId)!.has(sessionDateStr)) {
+        sessionMap.get(session.therapistId)!.set(sessionDateStr, [])
       }
-      sessionMap.get(session.therapistId)!.get(dateStr)!.push(session)
+      sessionMap.get(session.therapistId)!.get(sessionDateStr)!.push(session)
     }
 
     // Get active appointment holds
@@ -306,17 +306,18 @@ export class AvailabilityService {
     })
 
     // Build holds map: staffId -> date -> holds
+    // Use timezone-aware date formatting for the map keys
     const holdMap = new Map<string, Map<string, typeof activeHolds>>()
     for (const hold of activeHolds) {
       if (hold.staffId) {
         if (!holdMap.has(hold.staffId)) {
           holdMap.set(hold.staffId, new Map())
         }
-        const dateStr = formatDate(hold.date)
-        if (!holdMap.get(hold.staffId)!.has(dateStr)) {
-          holdMap.get(hold.staffId)!.set(dateStr, [])
+        const holdDateStr = formatLocalDate(hold.date, timezone)
+        if (!holdMap.get(hold.staffId)!.has(holdDateStr)) {
+          holdMap.get(hold.staffId)!.set(holdDateStr, [])
         }
-        holdMap.get(hold.staffId)!.get(dateStr)!.push(hold)
+        holdMap.get(hold.staffId)!.get(holdDateStr)!.push(hold)
       }
     }
 
@@ -332,9 +333,9 @@ export class AvailabilityService {
     for (const staff of activeStaff) {
       const defaultHours = staff.defaultHours as Record<string, { start: string; end: string } | null> | null
 
-      for (const date of dates) {
-        const dateStr = formatDate(date)
-        const dayOfWeek = getDayOfWeek(dateStr)
+      for (const dateStr of dateStrings) {
+        // Use timezone-aware day of week calculation
+        const dayOfWeek = getLocalDayOfWeek(dateStr, timezone)
 
         // Check organization business hours for this day
         const bizHoursDay = businessHours[dayOfWeek as keyof BusinessHours] as BusinessHoursDay
@@ -406,7 +407,7 @@ export class AvailabilityService {
         // Add patient's other sessions if checking patient availability
         if (patientId) {
           const patientSessionsOnDate = patientSessions.filter(
-            s => formatDate(s.date) === dateStr
+            s => formatLocalDate(s.date, timezone) === dateStr
           )
           for (const session of patientSessionsOnDate) {
             blockedSlots.push({
@@ -444,7 +445,7 @@ export class AvailabilityService {
     return {
       slots: allSlots,
       query: {
-        dateRange: { from: formatDate(dateFrom), to: formatDate(dateTo) },
+        dateRange: { from: fromDateStr, to: toDateStr },
         duration,
         staffFilter: staffId,
         roomFilter: roomId
@@ -454,6 +455,9 @@ export class AvailabilityService {
 
   /**
    * Get detailed availability for a single staff member on a single day
+   *
+   * TIMEZONE: Uses the organization's configured timezone for day-of-week
+   * and business hours calculations.
    */
   async getStaffDayAvailability(
     organizationId: string,
@@ -468,12 +472,15 @@ export class AvailabilityService {
       return null
     }
 
-    const dateStr = formatDate(date)
-    const dayOfWeek = getDayOfWeek(dateStr)
-
-    // Get settings
+    // Get settings including timezone
     const settings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+    const timezone = settings.timezone
     const businessHours = settings.businessHours as unknown as BusinessHours
+
+    // Use timezone-aware date formatting
+    const dateStr = formatLocalDate(date, timezone)
+    const dayOfWeek = getLocalDayOfWeek(dateStr, timezone)
+
     const bizHoursDay = businessHours[dayOfWeek as keyof BusinessHours] as BusinessHoursDay
 
     // Get availability override

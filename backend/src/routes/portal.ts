@@ -3,6 +3,11 @@
  *
  * Patient/caregiver-facing portal endpoints.
  * These use a separate auth system from staff endpoints.
+ *
+ * TIMEZONE HANDLING:
+ * All date/time operations respect the organization's configured timezone.
+ * When users specify dates/times, they are interpreted in the org's timezone.
+ * Lead time and booking window calculations use the org's current local time.
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
@@ -15,6 +20,13 @@ import { organizationFeaturesRepository } from '../repositories/organizationFeat
 import { auditRepository } from '../repositories/audit.js'
 import { availabilityService } from '../services/availability.js'
 import { bookingRepository } from '../repositories/booking.js'
+import {
+  parseLocalDateTime,
+  formatLocalDate,
+  getCurrentLocalDateTime,
+  hoursUntilLocalDateTime,
+  addDaysToLocalDate
+} from '../utils/timezone.js'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REQUEST TYPES
@@ -72,22 +84,30 @@ function parsePositiveInt(value: unknown, fallback: number): number {
   return Math.floor(n)
 }
 
-function buildLocalDateTime(dateStr: string, timeStr: string): Date | null {
-  const date = new Date(dateStr)
-  if (isNaN(date.getTime())) return null
-  const [h, m] = timeStr.split(':').map(Number)
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return null
-  date.setHours(h, m, 0, 0)
-  return date
+/**
+ * Build a UTC Date from a local date string and time string in the given timezone.
+ * Returns null if the input is invalid.
+ */
+function buildLocalDateTime(dateStr: string, timeStr: string, timezone: string): Date | null {
+  try {
+    return parseLocalDateTime(dateStr, timeStr, timezone)
+  } catch {
+    return null
+  }
 }
 
-function buildDateTimeFromDate(date: Date, timeStr: string): Date | null {
-  const dt = new Date(date)
-  if (isNaN(dt.getTime())) return null
-  const [h, m] = timeStr.split(':').map(Number)
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return null
-  dt.setHours(h, m, 0, 0)
-  return dt
+/**
+ * Build a UTC Date from a UTC Date (for the date part) and a local time string.
+ * The date is first converted to a local date string in the timezone, then
+ * combined with the time.
+ */
+function buildDateTimeFromDate(date: Date, timeStr: string, timezone: string): Date | null {
+  try {
+    const dateStr = formatLocalDate(date, timezone)
+    return parseLocalDateTime(dateStr, timeStr, timezone)
+  } catch {
+    return null
+  }
 }
 
 function mapPortalSession(
@@ -630,14 +650,12 @@ export async function portalRoutes(fastify: FastifyInstance) {
       const settings = await organizationSettingsRepository.findByOrganizationId(
         user.organizationId
       )
+      const timezone = settings.timezone
 
-      const sessionDateTime = new Date(session.date)
-      const [hours, minutes] = session.startTime.split(':').map(Number)
-      sessionDateTime.setHours(hours, minutes, 0, 0)
-
-      const hoursUntilSession =
-        (sessionDateTime.getTime() - Date.now()) / (1000 * 60 * 60)
-      const isLateCancel = hoursUntilSession < settings.lateCancelWindowHours
+      // Calculate hours until session using timezone-aware date handling
+      const sessionDateStr = formatLocalDate(session.date, timezone)
+      const hoursUntil = hoursUntilLocalDateTime(sessionDateStr, session.startTime, timezone)
+      const isLateCancel = hoursUntil < settings.lateCancelWindowHours
 
       // Update status
       await prisma.session.update({
@@ -796,6 +814,9 @@ export async function portalRoutes(fastify: FastifyInstance) {
   /**
    * GET /portal/booking/availability
    * Get available time slots for the patient to book
+   *
+   * TIMEZONE: All date calculations use the organization's timezone.
+   * Lead time and max future days are calculated from "now" in local time.
    */
   fastify.get<{ Querystring: AvailabilityQuery }>(
     '/booking/availability',
@@ -821,41 +842,50 @@ export async function portalRoutes(fastify: FastifyInstance) {
       const settings = await organizationSettingsRepository.findByOrganizationId(
         user.organizationId
       )
+      const timezone = settings.timezone
 
-      // Validate date constraints
-      const fromDate = new Date(dateFrom)
-      const toDate = new Date(dateTo)
-      const now = new Date()
+      // Get current local time for lead time calculation
+      const nowLocal = getCurrentLocalDateTime(timezone)
 
-      // Enforce lead time
-      const minBookingDateTime = new Date(now)
-      minBookingDateTime.setHours(minBookingDateTime.getHours() + features.selfBookingLeadTimeHours)
+      // Calculate the minimum booking time (now + lead time hours)
+      // We need to find the earliest slot that is at least leadTimeHours from now
+      const minBookingDateTime = new Date()
+      minBookingDateTime.setTime(minBookingDateTime.getTime() + features.selfBookingLeadTimeHours * 60 * 60 * 1000)
 
-      if (fromDate < minBookingDateTime) {
-        fromDate.setTime(minBookingDateTime.getTime())
+      // Calculate the maximum booking date (today + maxFutureDays in local time)
+      const maxBookingDateStr = addDaysToLocalDate(nowLocal.date, features.selfBookingMaxFutureDays, timezone)
+
+      // Clamp the requested date range to allowed bounds
+      let effectiveFromDate = dateFrom
+      let effectiveToDate = dateTo
+
+      // If fromDate is in the past relative to min booking time, adjust it
+      const fromDateTime = buildLocalDateTime(dateFrom, '00:00', timezone)
+      if (fromDateTime && fromDateTime < minBookingDateTime) {
+        effectiveFromDate = formatLocalDate(minBookingDateTime, timezone)
       }
 
-      // Enforce max future days
-      const maxBookingDateTime = new Date(now)
-      maxBookingDateTime.setDate(maxBookingDateTime.getDate() + features.selfBookingMaxFutureDays)
-      maxBookingDateTime.setHours(23, 59, 59, 999)
-
-      if (toDate > maxBookingDateTime) {
-        toDate.setTime(maxBookingDateTime.getTime())
+      // If toDate is beyond max booking date, clamp it
+      if (effectiveToDate > maxBookingDateStr) {
+        effectiveToDate = maxBookingDateStr
       }
 
       // If the range is now invalid, return empty
-      if (fromDate > toDate) {
+      if (effectiveFromDate > effectiveToDate) {
         return reply.send({
           data: [],
           meta: {
             leadTimeHours: features.selfBookingLeadTimeHours,
             maxFutureDays: features.selfBookingMaxFutureDays,
-            earliestDate: minBookingDateTime.toISOString().split('T')[0],
-            latestDate: maxBookingDateTime.toISOString().split('T')[0]
+            earliestDate: formatLocalDate(minBookingDateTime, timezone),
+            latestDate: maxBookingDateStr
           }
         })
       }
+
+      // Parse dates for availability service (needs Date objects)
+      const fromDate = parseLocalDateTime(effectiveFromDate, '00:00', timezone)
+      const toDate = parseLocalDateTime(effectiveToDate, '23:59', timezone)
 
       // Get available slots
       const result = await availabilityService.getAvailableSlots({
@@ -866,9 +896,10 @@ export async function portalRoutes(fastify: FastifyInstance) {
         staffId
       })
 
+      // Filter out slots that are before the minimum booking time
       const filteredSlots = result.slots.filter((slot) => {
         if (!slot.staffId || !slot.staffName) return false
-        const slotStart = buildLocalDateTime(slot.date, slot.startTime)
+        const slotStart = buildLocalDateTime(slot.date, slot.startTime, timezone)
         if (!slotStart) return false
         return slotStart >= minBookingDateTime
       })
@@ -886,8 +917,8 @@ export async function portalRoutes(fastify: FastifyInstance) {
         meta: {
           leadTimeHours: features.selfBookingLeadTimeHours,
           maxFutureDays: features.selfBookingMaxFutureDays,
-          earliestDate: minBookingDateTime.toISOString().split('T')[0],
-          latestDate: maxBookingDateTime.toISOString().split('T')[0]
+          earliestDate: formatLocalDate(minBookingDateTime, timezone),
+          latestDate: maxBookingDateStr
         }
       })
     }
@@ -923,6 +954,8 @@ export async function portalRoutes(fastify: FastifyInstance) {
   /**
    * POST /portal/booking/hold
    * Create a temporary hold on a time slot
+   *
+   * TIMEZONE: Date validation uses the organization's timezone.
    */
   fastify.post<{ Body: CreateHoldBody }>(
     '/booking/hold',
@@ -941,7 +974,13 @@ export async function portalRoutes(fastify: FastifyInstance) {
         })
       }
 
-      const slotStart = buildLocalDateTime(date, startTime)
+      // Get settings for timezone
+      const settings = await organizationSettingsRepository.findByOrganizationId(
+        user.organizationId
+      )
+      const timezone = settings.timezone
+
+      const slotStart = buildLocalDateTime(date, startTime, timezone)
       if (!slotStart) {
         return reply.code(400).send({
           error: 'Invalid date/time',
@@ -954,11 +993,9 @@ export async function portalRoutes(fastify: FastifyInstance) {
         user.organizationId
       )
 
-      const now = new Date()
-
-      // Check lead time
-      const minBookingDateTime = new Date(now)
-      minBookingDateTime.setHours(minBookingDateTime.getHours() + features.selfBookingLeadTimeHours)
+      // Calculate minimum booking time (now + lead time hours)
+      const minBookingDateTime = new Date()
+      minBookingDateTime.setTime(minBookingDateTime.getTime() + features.selfBookingLeadTimeHours * 60 * 60 * 1000)
 
       if (slotStart < minBookingDateTime) {
         return reply.code(400).send({
@@ -967,10 +1004,10 @@ export async function portalRoutes(fastify: FastifyInstance) {
         })
       }
 
-      // Check max future days
-      const maxBookingDateTime = new Date(now)
-      maxBookingDateTime.setDate(maxBookingDateTime.getDate() + features.selfBookingMaxFutureDays)
-      maxBookingDateTime.setHours(23, 59, 59, 999)
+      // Calculate maximum booking date (today + maxFutureDays in local time)
+      const nowLocal = getCurrentLocalDateTime(timezone)
+      const maxBookingDateStr = addDaysToLocalDate(nowLocal.date, features.selfBookingMaxFutureDays, timezone)
+      const maxBookingDateTime = parseLocalDateTime(maxBookingDateStr, '23:59', timezone)
 
       if (slotStart > maxBookingDateTime) {
         return reply.code(400).send({
@@ -1122,12 +1159,16 @@ export async function portalRoutes(fastify: FastifyInstance) {
         })
       }
 
-      // Check if this needs approval
+      // Check if this needs approval and validate timing constraints
       const features = await organizationFeaturesRepository.findByOrganizationId(
         user.organizationId
       )
+      const settings = await organizationSettingsRepository.findByOrganizationId(
+        user.organizationId
+      )
+      const timezone = settings.timezone
 
-      const slotStart = buildDateTimeFromDate(hold.date, hold.startTime)
+      const slotStart = buildDateTimeFromDate(hold.date, hold.startTime, timezone)
       if (!slotStart) {
         return reply.code(400).send({
           error: 'Invalid hold',
@@ -1135,9 +1176,9 @@ export async function portalRoutes(fastify: FastifyInstance) {
         })
       }
 
-      const now = new Date()
-      const minBookingDateTime = new Date(now)
-      minBookingDateTime.setHours(minBookingDateTime.getHours() + features.selfBookingLeadTimeHours)
+      // Calculate minimum booking time (now + lead time hours)
+      const minBookingDateTime = new Date()
+      minBookingDateTime.setTime(minBookingDateTime.getTime() + features.selfBookingLeadTimeHours * 60 * 60 * 1000)
 
       if (slotStart < minBookingDateTime) {
         return reply.code(400).send({
@@ -1146,9 +1187,10 @@ export async function portalRoutes(fastify: FastifyInstance) {
         })
       }
 
-      const maxBookingDateTime = new Date(now)
-      maxBookingDateTime.setDate(maxBookingDateTime.getDate() + features.selfBookingMaxFutureDays)
-      maxBookingDateTime.setHours(23, 59, 59, 999)
+      // Calculate maximum booking date (today + maxFutureDays in local time)
+      const nowLocal = getCurrentLocalDateTime(timezone)
+      const maxBookingDateStr = addDaysToLocalDate(nowLocal.date, features.selfBookingMaxFutureDays, timezone)
+      const maxBookingDateTime = parseLocalDateTime(maxBookingDateStr, '23:59', timezone)
 
       if (slotStart > maxBookingDateTime) {
         return reply.code(400).send({
