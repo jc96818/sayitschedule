@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { usePortalAuthStore } from '@/stores/portalAuth'
 import { portalAppointmentsService } from '@/services/api'
 import type { PortalSession } from '@/types'
 
+const router = useRouter()
 const portalStore = usePortalAuthStore()
 
 // State
@@ -23,6 +25,7 @@ const pastLoading = ref(false)
 // Computed
 const branding = computed(() => portalStore.branding)
 const canCancel = computed(() => portalStore.canCancel)
+const canReschedule = computed(() => portalStore.canReschedule)
 const staffLabelSingular = computed(() => branding.value?.staffLabelSingular || 'Therapist')
 const roomLabelSingular = computed(() => branding.value?.roomLabelSingular || 'Location')
 const displayedAppointments = computed(() => {
@@ -125,6 +128,14 @@ async function cancelAppointment(sessionId: string) {
   }
 }
 
+function startReschedule(sessionId: string) {
+  // Navigate to booking page with reschedule context
+  router.push({
+    name: 'portal-booking',
+    query: { rescheduleFrom: sessionId }
+  })
+}
+
 function switchTab(tab: 'upcoming' | 'past') {
   activeTab.value = tab
   if (tab === 'past' && pastAppointments.value.length === 0) {
@@ -212,6 +223,13 @@ onMounted(() => {
               @click="confirmAppointment(appointment.id)"
             >
               {{ confirmingId === appointment.id ? 'Confirming...' : 'Confirm' }}
+            </button>
+            <button
+              v-if="appointment.canReschedule && canReschedule"
+              class="action-btn reschedule"
+              @click="startReschedule(appointment.id)"
+            >
+              Reschedule
             </button>
             <button
               v-if="appointment.canCancel && canCancel"
@@ -449,6 +467,16 @@ h1 {
 
 .action-btn.confirm:hover:not(:disabled) {
   background: var(--primary-hover, #1d4ed8);
+}
+
+.action-btn.reschedule {
+  background: white;
+  color: var(--primary-color, #2563eb);
+  border: 1px solid var(--primary-color, #2563eb);
+}
+
+.action-btn.reschedule:hover:not(:disabled) {
+  background: var(--primary-light, #dbeafe);
 }
 
 .action-btn.cancel {
