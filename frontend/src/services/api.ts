@@ -27,7 +27,10 @@ import type {
   MfaVerifyResponse,
   MfaStatusResponse,
   ParsedMultiRuleResponse,
-  RuleAnalysisResult
+  RuleAnalysisResult,
+  HelpCategory,
+  HelpArticle,
+  HelpSearchResult
 } from '@/types'
 
 // Transcription settings types
@@ -1110,6 +1113,24 @@ export const settingsService = {
     requireConfirmation: boolean
   }>> {
     const { data } = await api.get('/settings/features/portal')
+    return data
+  }
+}
+
+// Help / Knowledge Base
+export const helpService = {
+  async listCategories(): Promise<ApiResponse<HelpCategory[]>> {
+    const { data } = await api.get('/help/categories')
+    return data
+  },
+
+  async getArticle(category: string, article: string): Promise<ApiResponse<HelpArticle>> {
+    const { data } = await api.get(`/help/articles/${encodeURIComponent(category)}/${encodeURIComponent(article)}`)
+    return data
+  },
+
+  async search(q: string, opts?: { limit?: number }): Promise<ApiResponse<HelpSearchResult[]>> {
+    const { data } = await api.get('/help/search', { params: { q, limit: opts?.limit } })
     return data
   }
 }

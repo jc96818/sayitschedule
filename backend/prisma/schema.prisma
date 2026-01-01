@@ -759,3 +759,58 @@ model AppointmentHold {
   @@index([expiresAt])
   @@map("appointment_holds")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HELP / KNOWLEDGE BASE (global content)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum HelpArticleStatus {
+  draft
+  published
+  archived
+}
+
+model HelpCategory {
+  id          String   @id @default(cuid())
+  slug        String   @unique @db.VarChar(100)
+  title       String   @db.VarChar(200)
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  articles    HelpArticle[]
+
+  @@map("help_categories")
+}
+
+model HelpArticle {
+  id          String            @id @default(cuid())
+  slug        String            @unique @db.VarChar(200)
+  title       String            @db.VarChar(200)
+  summary     String?
+  status      HelpArticleStatus @default(published)
+
+  categoryId  String            @map("category_id")
+  category    HelpCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  bodyMarkdown String           @map("body_markdown")
+  bodyText     String           @map("body_text")
+
+  tags         String[]         @default([]) @db.Text
+  aliases      String[]         @default([]) @db.Text
+  audienceRoles String[]        @default([]) @map("audience_roles") @db.Text
+
+  prerequisitesFeatures String[] @default([]) @map("prerequisites_features") @db.Text
+  prerequisitesSettings String[] @default([]) @map("prerequisites_settings") @db.Text
+  prerequisitesOrg      String[] @default([]) @map("prerequisites_org") @db.Text
+
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at")
+
+  @@index([categoryId])
+  @@map("help_articles")
+}

@@ -31,6 +31,7 @@ import { templateRoutes } from './routes/templates.js'
 import { settingsRoutes } from './routes/settings.js'
 import bookingRoutes from './routes/booking.js'
 import portalRoutes from './routes/portal.js'
+import { helpRoutes } from './routes/help.js'
 import { organizationMiddleware } from './middleware/organization.js'
 import { checkDbHealth } from './db/index.js'
 import { getJwtExpiresIn } from './config/security.js'
@@ -99,6 +100,7 @@ async function start() {
   await server.register(settingsRoutes, { prefix: '/api/settings' })
   await server.register(bookingRoutes, { prefix: '/api/booking' })
   await server.register(portalRoutes, { prefix: '/api/portal' })
+  await server.register(helpRoutes, { prefix: '/api/help' })
 
   // Health check - basic (for load balancer)
   server.get('/api/health', async () => {

@@ -617,3 +617,45 @@ export interface PortalBookingSettings {
   earliestBookingDate: string
   latestBookingDate: string
 }
+
+// Help / Knowledge Base
+export interface HelpCategory {
+  slug: string
+  title: string
+  description: string | null
+  sortOrder: number
+  articles: Array<{
+    slug: string
+    title: string
+    summary: string | null
+  }>
+}
+
+export interface HelpArticle {
+  slug: string
+  title: string
+  summary: string | null
+  bodyMarkdown: string
+  tags: string[]
+  aliases: string[]
+  audienceRoles: string[]
+  prerequisites: {
+    features: string[]
+    settings: string[]
+    org: string[]
+  }
+  category: {
+    slug: string
+    title: string
+  }
+  updatedAt: string
+}
+
+export interface HelpSearchResult {
+  slug: string
+  title: string
+  summary: string | null
+  categorySlug: string
+  categoryTitle: string
+  rank: number
+}
