@@ -80,6 +80,15 @@ function buildLocalDateTime(dateStr: string, timeStr: string): Date | null {
   return date
 }
 
+function buildDateTimeFromDate(date: Date, timeStr: string): Date | null {
+  const dt = new Date(date)
+  if (isNaN(dt.getTime())) return null
+  const [h, m] = timeStr.split(':').map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null
+  dt.setHours(h, m, 0, 0)
+  return dt
+}
+
 function mapPortalSession(
   session: {
     id: string
@@ -222,6 +231,14 @@ export async function portalRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: LoginRequestBody }>(
     '/auth/request',
     async (request: FastifyRequest<{ Body: LoginRequestBody }>, reply: FastifyReply) => {
+      const organizationId = request.ctx.organizationId
+      if (!organizationId) {
+        return reply.code(404).send({
+          error: 'Organization not found',
+          message: 'Unable to determine organization from request'
+        })
+      }
+
       const { identifier, channel } = request.body
 
       if (!identifier || !channel) {
@@ -245,7 +262,8 @@ export async function portalRoutes(fastify: FastifyInstance) {
         identifier,
         channel,
         ipAddress,
-        userAgent
+        userAgent,
+        organizationId
       )
 
       // Always return 200 to prevent enumeration attacks
@@ -260,6 +278,14 @@ export async function portalRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: VerifyBody }>(
     '/auth/verify',
     async (request: FastifyRequest<{ Body: VerifyBody }>, reply: FastifyReply) => {
+      const organizationId = request.ctx.organizationId
+      if (!organizationId) {
+        return reply.code(404).send({
+          error: 'Organization not found',
+          message: 'Unable to determine organization from request'
+        })
+      }
+
       const { token } = request.body
 
       if (!token) {
@@ -272,7 +298,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
       const ipAddress = request.ip
       const userAgent = request.headers['user-agent']
 
-      const result = await portalAuthService.verifyToken(token, ipAddress, userAgent)
+      const result = await portalAuthService.verifyToken(token, ipAddress, userAgent, organizationId)
 
       if (!result.success) {
         return reply.code(401).send({
@@ -1093,6 +1119,36 @@ export async function portalRoutes(fastify: FastifyInstance) {
       const features = await organizationFeaturesRepository.findByOrganizationId(
         user.organizationId
       )
+
+      const slotStart = buildDateTimeFromDate(hold.date, hold.startTime)
+      if (!slotStart) {
+        return reply.code(400).send({
+          error: 'Invalid hold',
+          message: 'Hold has invalid date/time'
+        })
+      }
+
+      const now = new Date()
+      const minBookingDateTime = new Date(now)
+      minBookingDateTime.setHours(minBookingDateTime.getHours() + features.selfBookingLeadTimeHours)
+
+      if (slotStart < minBookingDateTime) {
+        return reply.code(400).send({
+          error: 'Booking too soon',
+          message: `Appointments must be booked at least ${features.selfBookingLeadTimeHours} hours in advance`
+        })
+      }
+
+      const maxBookingDateTime = new Date(now)
+      maxBookingDateTime.setDate(maxBookingDateTime.getDate() + features.selfBookingMaxFutureDays)
+      maxBookingDateTime.setHours(23, 59, 59, 999)
+
+      if (slotStart > maxBookingDateTime) {
+        return reply.code(400).send({
+          error: 'Booking too far ahead',
+          message: `Appointments can only be booked up to ${features.selfBookingMaxFutureDays} days in advance`
+        })
+      }
 
       // Book the appointment
       const result = await bookingRepository.bookFromHold({

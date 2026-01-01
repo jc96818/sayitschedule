@@ -126,12 +126,14 @@ export class PortalAuthService {
     identifier: string,
     channel: 'email' | 'sms',
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
+    expectedOrganizationId?: string | null
   ): Promise<AuthRequestResult> {
     // Find the contact by email or phone
     const contact = await prisma.patientContact.findFirst({
       where: {
         canAccessPortal: true,
+        ...(expectedOrganizationId ? { patient: { organizationId: expectedOrganizationId } } : {}),
         ...(channel === 'email'
           ? { email: { equals: identifier, mode: 'insensitive' } }
           : { phone: identifier }
@@ -224,7 +226,8 @@ export class PortalAuthService {
   async verifyToken(
     token: string,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
+    expectedOrganizationId?: string | null
   ): Promise<VerifyResult> {
     const tokenHash = hashToken(token)
 
@@ -233,7 +236,11 @@ export class PortalAuthService {
       where: {
         tokenHash,
         usedAt: null,
-        expiresAt: { gt: new Date() }
+        expiresAt: { gt: new Date() },
+        ...(expectedOrganizationId
+          ? { contact: { patient: { organizationId: expectedOrganizationId } } }
+          : {}
+        )
       },
       include: {
         contact: {
@@ -309,6 +316,69 @@ export class PortalAuthService {
         tokenHash,
         expiresAt: { gt: new Date() },
         revokedAt: null
+      },
+      include: {
+        contact: {
+          include: {
+            patient: {
+              include: {
+                organization: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!session) {
+      return null
+    }
+
+    // If contact was disabled after session creation, treat session as invalid.
+    if (!session.contact.canAccessPortal) {
+      return null
+    }
+
+    // Enforce portal feature flag per organization. If disabled, treat as invalid.
+    const portalEnabled = await organizationFeaturesRepository.isPatientPortalEnabled(
+      session.contact.patient.organizationId
+    )
+    if (!portalEnabled) {
+      return null
+    }
+
+    // Update last activity
+    await prisma.portalSession.update({
+      where: { id: session.id },
+      data: { lastActivityAt: new Date() }
+    })
+
+    return {
+      contactId: session.contact.id,
+      patientId: session.contact.patientId,
+      organizationId: session.contact.patient.organizationId,
+      name: session.contact.name,
+      email: session.contact.email,
+      phone: session.contact.phone
+    }
+  }
+
+  /**
+   * Validate a session token and enforce it belongs to the expected organization.
+   * This prevents cross-subdomain (tenant confusion) token reuse.
+   */
+  async validateSessionForOrganization(
+    sessionToken: string,
+    expectedOrganizationId: string
+  ): Promise<PortalUser | null> {
+    const tokenHash = hashToken(sessionToken)
+
+    const session = await prisma.portalSession.findFirst({
+      where: {
+        tokenHash,
+        expiresAt: { gt: new Date() },
+        revokedAt: null,
+        contact: { patient: { organizationId: expectedOrganizationId } }
       },
       include: {
         contact: {

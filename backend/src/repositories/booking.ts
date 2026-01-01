@@ -287,6 +287,7 @@ export class BookingRepository {
         const hold = await tx.appointmentHold.findFirst({
           where: {
             id: holdId,
+            organizationId,
             expiresAt: { gt: new Date() },
             releasedAt: null,
             convertedToSessionId: null
@@ -299,6 +300,23 @@ export class BookingRepository {
 
         if (!hold.staffId) {
           throw new Error('Hold does not have a staff member assigned')
+        }
+
+        // Double-check for conflicts within the transaction
+        // Use exclusive boundaries: start1 < end2 AND start2 < end1
+        const conflictingSession = await tx.session.findFirst({
+          where: {
+            therapistId: hold.staffId,
+            date: hold.date,
+            status: { notIn: ['cancelled', 'late_cancel'] },
+            schedule: { organizationId },
+            startTime: { lt: hold.endTime },
+            endTime: { gt: hold.startTime }
+          }
+        })
+
+        if (conflictingSession) {
+          throw new Error('Time slot is no longer available')
         }
 
         // Get or create schedule for this date

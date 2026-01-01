@@ -23,6 +23,7 @@ export async function portalAuthenticate(
   reply: FastifyReply
 ): Promise<void> {
   const authHeader = request.headers.authorization
+  const expectedOrganizationId = request.ctx?.organizationId
 
   if (!authHeader?.startsWith('Bearer ')) {
     return reply.code(401).send({
@@ -31,9 +32,16 @@ export async function portalAuthenticate(
     })
   }
 
+  if (!expectedOrganizationId) {
+    return reply.code(401).send({
+      error: 'Unauthorized',
+      message: 'Organization context required'
+    })
+  }
+
   const token = authHeader.substring(7)
 
-  const user = await portalAuthService.validateSession(token)
+  const user = await portalAuthService.validateSessionForOrganization(token, expectedOrganizationId)
 
   if (!user) {
     return reply.code(401).send({
