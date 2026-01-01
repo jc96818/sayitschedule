@@ -30,7 +30,7 @@ const navItems = computed(() => {
 
   // Only show booking if self-booking is enabled
   if (portalStore.canBook) {
-    items.push({ name: 'Book Appointment', route: 'portal-book', icon: 'plus' })
+    items.push({ name: 'Book Appointment', route: 'portal-booking', icon: 'plus' })
   }
 
   items.push({ name: 'Settings', route: 'portal-settings', icon: 'settings' })

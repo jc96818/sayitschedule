@@ -126,7 +126,7 @@ async function cancelAppointment(sessionId: string) {
 }
 
 function goToBooking() {
-  router.push({ name: 'portal-book' })
+  router.push({ name: 'portal-booking' })
 }
 
 onMounted(() => {
