@@ -50,12 +50,7 @@ The scheduling engine uses {{labels.patient.singular}} information to generate s
 2. Enter the following information:
    - **{{labels.patient.singular}} Name** (required)
    - **Gender** – select Male or Female
-   - **Date of Birth** (optional)
-   - **Guardian Name** (optional) – for minors or dependents
-   - **Guardian Phone** (optional)
-   - **Guardian Email** (optional)
    - **Sessions Per Week** – how many sessions this {{labels.patient.singular}} needs each week (default is 2)
-   - **Session Duration** – length of each session in minutes (30, 45, 60, or 90)
    - **{{labels.staff.singular}} Gender Preference** – restrict scheduling to a specific {{labels.staff.singular}} gender, or select "No Preference"
    - **Notes** (optional) – any special requirements or information
 3. Click **Add {{labels.patient.singular}}** to save.
@@ -73,29 +68,15 @@ The scheduling engine uses {{labels.patient.singular}} information to generate s
 
 ## How this changes with your settings
 
-<!-- help:when features.voiceCommandsEnabled -->
-### Voice commands enabled
+### Voice input vs. typed commands
 
-You can add {{labels.patient.plural}} by speaking naturally. The voice interface appears at the top of the {{labels.patient.plural}} page. Example commands:
+You can add {{labels.patient.plural}} by speaking naturally or by typing a command. The voice interface includes **Speak** and **Type** modes. Example commands:
 
 - "Add a new {{labels.patient.singular}} named Emily Carter, female"
 - "New {{labels.patient.singular}} Michael Brown, male, needs 3 sessions per week"
 - "Add {{labels.patient.singular}} Lisa Wong who requires an ABA certified {{labels.staff.singular}}"
 
-If voice transcription isn't available, you can switch to the **Type** mode to enter commands as text.
-<!-- help:end -->
-
-<!-- help:when-not features.voiceCommandsEnabled -->
-### Voice commands not enabled
-
-Voice input is not enabled for your organization. Use the **Add {{labels.patient.singular}}** button to open the form and enter {{labels.patient.singular}} details manually. An administrator can enable voice commands in Settings.
-<!-- help:end -->
-
-<!-- help:when features.patientPortalEnabled -->
-### Patient portal enabled
-
-When the patient portal is enabled, {{labels.patient.plural}} (or their guardians) can view their appointments, confirm sessions, and potentially book their own appointments through the portal. The guardian contact information you enter here is used for portal access and notifications.
-<!-- help:end -->
+If microphone access is blocked or voice transcription isn’t configured, use **Type** mode or the **Add {{labels.patient.singular}}** form.
 
 ## Related
 

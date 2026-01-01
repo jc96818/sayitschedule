@@ -34,9 +34,8 @@ The highest level of access. Super Admins manage the entire Say It Schedule plat
 - Create and manage multiple organizations
 - Access any organization's data by switching context
 - Manage business type templates (label presets)
-- View and manage all users across all organizations
+- Manage Super Admin users (platform administrators)
 - Manage BAA agreements for HIPAA compliance
-- Configure platform-wide settings
 
 **Navigation visible to Super Admins:**
 
@@ -50,7 +49,7 @@ When viewing an organization:
 
 On the Super Admin dashboard:
 - Organizations list
-- All users
+- Super Admin users
 - Business type templates
 - BAA management
 - Leads
@@ -95,7 +94,7 @@ Similar access to Admin, designed for staff who help with scheduling but may not
 - Access organization settings
 - Manage users or invite new team members
 - Import or export organization data
-- Access HIPAA BAA documents
+- Access the Admin section (Settings, Data Management, Users, HIPAA BAA)
 
 **Navigation visible to Admin Assistants:**
 
@@ -145,15 +144,17 @@ The most limited role, intended for {{labels.staff.plural}} who need to view the
 | Import/export data | Yes | Yes | No | No |
 | Manage organizations | Yes | No | No | No |
 
-## Changing a user's role
+## Steps
+
+### Change a user's role
 
 Only Admins and Super Admins can change user roles.
 
 1. Go to **Users** from the sidebar.
 2. Find the user you want to modify.
-3. Click on their row to open user details.
-4. Select a new role from the dropdown.
-5. Save changes.
+3. Click **Edit** for that user.
+4. Select a new role from the **Role** dropdown.
+5. Click **Save Changes**.
 
 ## Related
 

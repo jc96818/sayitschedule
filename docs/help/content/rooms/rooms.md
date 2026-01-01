@@ -82,23 +82,15 @@ When generating schedules, the scheduling engine matches {{labels.patient.singul
 
 ## How this changes with your settings
 
-<!-- help:when features.voiceCommandsEnabled -->
-### Voice commands enabled
+### Voice input vs. typed commands
 
-You can add {{labels.room.plural}} by speaking naturally. The voice interface appears at the top of the {{labels.room.plural}} page. Example commands:
+You can add {{labels.room.plural}} by speaking naturally or by typing a command. The voice interface includes **Speak** and **Type** modes. Example commands:
 
 - "Create {{labels.room.singular}} 101 with sensory equipment"
 - "Add a new {{labels.room.singular}} called Therapy Suite A with wheelchair access"
 - "New {{labels.room.singular}} B2 with sensory equipment, computer station, and wheelchair access"
 
-If voice transcription isn't available, you can switch to the **Type** mode to enter commands as text.
-<!-- help:end -->
-
-<!-- help:when-not features.voiceCommandsEnabled -->
-### Voice commands not enabled
-
-Voice input is not enabled for your organization. Use the **Add {{labels.room.singular}}** button to open the form and enter {{labels.room.singular}} details manually. An administrator can enable voice commands in Settings.
-<!-- help:end -->
+If microphone access is blocked or voice transcription isn’t configured, use **Type** mode or the **Add {{labels.room.singular}}** form.
 
 ## Related
 

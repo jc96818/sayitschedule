@@ -35,7 +35,7 @@ Preferences fall into two categories:
 
 | Field | Description | Impact on scheduling |
 |-------|-------------|---------------------|
-| **Sessions Per Week** | Number of sessions to schedule each week (1–7) | Determines how many sessions appear on the weekly schedule |
+| **Sessions Per Week** | Number of sessions to schedule each week (1–10) | Determines how many sessions appear on the weekly schedule |
 
 ### {{labels.staff.singular}} Requirements
 
@@ -110,13 +110,13 @@ Preferences fall into two categories:
 
 ## How this changes with your settings
 
-The scheduling engine respects all preferences when generating schedules. If preferences conflict or cannot be satisfied, the scheduler will:
+The scheduling engine uses these fields when generating schedules. If preferences conflict or cannot be satisfied, the scheduler generally tries to:
 
-1. First satisfy all **requirements** (required {{labels.certification.plural}}, required {{labels.room.singular}} capabilities).
-2. Then try to honor **preferences** (preferred {{labels.room.singular}}, preferred times).
+1. Satisfy **requirements** first (required {{labels.certification.plural}}, required {{labels.room.singular}} capabilities).
+2. Honor **preferences** when possible (preferred {{labels.room.singular}}, preferred times).
 3. If requirements cannot be met, the {{labels.patient.singular}} may not be fully scheduled.
 
-Check the schedule generation results for any warnings about unscheduled sessions or unmet requirements.
+If you’re not getting the outcome you expect, review the generated schedule and adjust requirements/preferences to better reflect what’s truly required vs. preferred.
 
 ## Related
 
@@ -130,5 +130,5 @@ Check the schedule generation results for any warnings about unscheduled session
 
 - **{{labels.patient.singular}} not appearing in schedule** – Verify the {{labels.patient.singular}} is Active and has a session frequency greater than 0. Check that at least one {{labels.staff.singular}} meets the required {{labels.certification.plural}} and gender preference.
 - **Wrong {{labels.room.singular}} assigned** – The preferred {{labels.room.singular}} may have been unavailable. Check {{labels.room.singular}} status and capabilities. Required capabilities take precedence over the preferred {{labels.room.singular}}.
-- **{{labels.certification.singular}} requirement not met** – Ensure at least one active {{labels.staff.singular}} has the required {{labels.certification.singular}}. If no {{labels.staff.singular}} has the {{labels.certification.singular}}, the {{labels.patient.singular}} cannot be scheduled.
+- **Certification requirement not met** – Ensure at least one active {{labels.staff.singular}} has the required {{labels.certification.plural}}. If no {{labels.staff.singular}} has the required {{labels.certification.plural}}, the {{labels.patient.singular}} cannot be scheduled.
 - **Cannot find capability** – {{labels.room.singular}} capabilities are free-form text. Make sure the capability name matches exactly (including underscores or spaces) between the {{labels.patient.singular}} requirement and the {{labels.room.singular}} setup.

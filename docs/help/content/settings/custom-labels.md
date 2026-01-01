@@ -67,7 +67,7 @@ When voice commands are enabled, the voice parser automatically recognizes your 
 - "Add a therapist named Dr. Smith"
 - "Show me all therapists"
 
-The system understands both your custom labels and common synonyms.
+Using your organization’s exact labels in voice/typed commands tends to produce the most reliable results.
 <!-- help:end -->
 
 ## Related

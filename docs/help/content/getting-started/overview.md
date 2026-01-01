@@ -21,13 +21,7 @@ aliases: [what is, overview, introduction, about]
 
 ## How it works
 
-Say It Schedule is a scheduling platform built for therapy practices and similar healthcare settings. It helps you manage {{labels.staff.plural}}, {{labels.patient.plural}}, and {{labels.room.plural}}, then generate optimized weekly schedules that respect availability, rules, and constraints.
-
-The app is designed around three core principles:
-
-1. **Voice-first workflow**: Speak your scheduling requests naturally instead of clicking through menus.
-2. **Rule-based scheduling**: Define your constraints once, and the system respects them every time.
-3. **Review before publish**: Every change goes through a clear review step before it affects the live schedule.
+Say It Schedule helps you manage {{labels.staff.plural}}, {{labels.patient.plural}}, and {{labels.room.plural}}, then generate weekly schedules based on availability and rules.
 
 ## Core features
 
@@ -50,34 +44,6 @@ Rules are constraints that the schedule generator respects automatically:
 
 - **Automatic generation**: The system creates schedules that satisfy as many rules as possible.
 - **Draft and publish workflow**: Review generated schedules before making them official.
-- **Conflict detection**: See warnings when rules can't all be satisfied.
-
-<!-- help:when features.voiceCommandsEnabled -->
-
-### Voice commands
-
-Speak naturally to make changes:
-
-- "Add a patient named Sarah who needs two sessions per week"
-- "Schedule Jordan on Tuesday at 2pm in Room 3"
-- "Move the Wednesday morning session to Thursday"
-
-The app interprets your request, shows you what it understood, and lets you confirm before making changes.
-
-<!-- help:end -->
-
-<!-- help:when features.patientPortalEnabled -->
-
-### Patient portal
-
-Give {{labels.patient.plural}} or their caregivers a way to:
-
-- View upcoming appointments
-- Confirm attendance
-- Cancel or reschedule (if enabled)
-- Book new appointments (if self-booking is enabled)
-
-<!-- help:end -->
 
 ## Who uses Say It Schedule?
 
@@ -89,7 +55,7 @@ The app supports different roles with different levels of access:
 | Admin Assistant | Day-to-day scheduling: manage people, rules, and schedules |
 | Staff | View their own schedule and request time off |
 
-## Getting started checklist
+## Steps
 
 If you're setting up Say It Schedule for the first time:
 
@@ -99,6 +65,20 @@ If you're setting up Say It Schedule for the first time:
 4. **Create rules**: Define the constraints that matter to your practice.
 5. **Generate your first schedule**: Let the system create a schedule based on your data and rules.
 6. **Review and publish**: Check the generated schedule and publish when ready.
+
+## How this changes with your settings
+
+<!-- help:when features.voiceCommandsEnabled -->
+### Voice commands
+
+If voice input is enabled and configured for your organization, you can speak (or type) commands in a voice input panel. The app will show what it understood before you confirm changes.
+<!-- help:end -->
+
+<!-- help:when features.patientPortalEnabled -->
+### Patient portal
+
+If the patient/caregiver portal is enabled, {{labels.patient.plural}} (or their caregivers) can sign in to view appointments and (optionally) request or book appointments depending on your self-booking settings.
+<!-- help:end -->
 
 ## Key concepts
 
@@ -115,3 +95,8 @@ For detailed definitions, see the [Glossary](/help/getting-started/glossary).
 - [/help/getting-started/roles](/help/getting-started/roles)
 - [/help/schedules/generate](/help/schedules/generate)
 - [/help/rules/overview](/help/rules/overview)
+
+## Troubleshooting
+
+- **You can’t find a page mentioned here**: Some pages are role-restricted. See [/help/getting-started/roles](/help/getting-started/roles).
+- **Voice input isn’t working**: Check microphone permissions and try **Type** mode; see `/help/troubleshooting/voice`.

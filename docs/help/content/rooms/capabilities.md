@@ -106,7 +106,7 @@ If no custom suggestions are configured, the system provides default suggestions
 
 ## Troubleshooting
 
-- **{{labels.patient.singular}} not getting required {{labels.room.singular}}** – Verify that at least one active {{labels.room.singular}} has all the required capabilities. If no {{labels.room.singular}} matches, the {{labels.patient.singular}} may be scheduled in an available {{labels.room.singular}} without all requirements, or may not be scheduled at all.
-- **Capability not matching** – Capabilities are case-sensitive and must match exactly. Check for typos, extra spaces, or different naming conventions (e.g., "wheelchair accessible" vs "wheelchair_accessible").
+- **{{labels.patient.singular}} not getting required {{labels.room.singular}}** – Verify that at least one active {{labels.room.singular}} has all the required capabilities. If no {{labels.room.singular}} matches, schedule generation won’t be able to place sessions in a {{labels.room.singular}} that meets those requirements.
+- **Capability not matching** – Capability names must match exactly. Check for typos, extra spaces, or different naming conventions (e.g., "wheelchair accessible" vs "wheelchair_accessible").
 - **Too few {{labels.room.plural}} available** – If you've added many required capabilities to {{labels.patient.plural}}, you may have limited the available {{labels.room.plural}} too much. Consider which capabilities are truly required vs. preferred.
 - **Preferred {{labels.room.singular}} not used** – The preferred {{labels.room.singular}} setting is a preference, not a requirement. If the {{labels.room.singular}} is already booked or doesn't meet required capabilities, another {{labels.room.singular}} will be used.

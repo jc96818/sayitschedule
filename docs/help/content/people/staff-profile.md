@@ -31,9 +31,9 @@ Each {{labels.staff.singular}} has a profile page that displays their personal i
 | Field | Description | Impact on scheduling |
 |-------|-------------|---------------------|
 | **Full Name** | The {{labels.staff.singular}}'s display name | Shown on schedules and in dropdowns |
-| **Gender** | Male, Female, or Other | Used for gender pairing rules if configured |
-| **Email** | Contact email address | Used for notifications (if enabled) |
-| **Phone** | Contact phone number | Used for SMS reminders (if enabled) |
+| **Gender** | Male or Female | Used for gender pairing rules if configured |
+| **Email** | Contact email address | Used for identification and communication |
+| **Phone** | Contact phone number | Used for identification and communication |
 | **Hire Date** | When the {{labels.staff.singular}} was hired | For reference only; does not affect scheduling |
 | **Status** | Active or Inactive | Inactive {{labels.staff.plural}} are excluded from scheduling |
 
@@ -41,7 +41,7 @@ Each {{labels.staff.singular}} has a profile page that displays their personal i
 
 {{labels.certification.plural}} are tags that describe a {{labels.staff.singular}}'s qualifications (e.g., "ABA Therapy", "Speech Therapy", "Pediatrics"). When generating schedules, the system matches {{labels.staff.singular}} {{labels.certification.plural}} to {{labels.patient.singular}} requirements.
 
-- If a {{labels.patient.singular}} requires a specific {{labels.certification.singular}}, only {{labels.staff.plural}} with that {{labels.certification.singular}} will be considered.
+- If a {{labels.patient.singular}} has required {{labels.certification.plural}}, only {{labels.staff.plural}} with those required {{labels.certification.plural}} will be considered.
 - {{labels.staff.plural}} without any {{labels.certification.plural}} can still be scheduled with {{labels.patient.plural}} who have no requirements.
 
 ### Default Working Hours
@@ -123,17 +123,7 @@ For staff users (non-admins), the request is submitted for approval. Administrat
 
 ## How this changes with your settings
 
-<!-- help:when features.emailRemindersEnabled -->
-### Email reminders enabled
-
-When email reminders are enabled, the {{labels.staff.singular}}'s email address is used to send appointment reminders and notifications.
-<!-- help:end -->
-
-<!-- help:when features.smsRemindersEnabled -->
-### SMS reminders enabled
-
-When SMS reminders are enabled, the {{labels.staff.singular}}'s phone number is used to send text message reminders.
-<!-- help:end -->
+This page is mostly the same for all organizations. The biggest differences you’ll see are your organization’s custom labels (for example, whether the app calls people “{{labels.staff.plural}}” or “Therapists”).
 
 ## Related
 

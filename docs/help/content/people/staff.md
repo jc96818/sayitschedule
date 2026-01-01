@@ -74,23 +74,15 @@ The {{labels.staff.plural}} page displays all {{labels.staff.plural}} in your or
 
 ## How this changes with your settings
 
-<!-- help:when features.voiceCommandsEnabled -->
-### Voice commands enabled
+### Voice input vs. typed commands
 
-You can add {{labels.staff.plural}} by speaking naturally. The voice interface appears at the top of the {{labels.staff.plural}} page. Example commands:
+You can add {{labels.staff.plural}} by speaking naturally or by typing a command. The voice interface includes **Speak** and **Type** modes. Example commands:
 
 - "Add a new {{labels.staff.singular}} named Sarah Johnson, female"
 - "New {{labels.staff.singular}} Adam Smith, male, certified in ABA therapy"
 - "Add {{labels.staff.singular}} Maria Garcia with speech therapy and pediatrics certifications"
 
-If voice transcription isn't available, you can switch to the **Type** mode to enter commands as text.
-<!-- help:end -->
-
-<!-- help:when-not features.voiceCommandsEnabled -->
-### Voice commands not enabled
-
-Voice input is not enabled for your organization. Use the **Add {{labels.staff.singular}}** button to open the form and enter {{labels.staff.singular}} details manually. An administrator can enable voice commands in Settings.
-<!-- help:end -->
+If microphone access is blocked or voice transcription isn’t configured, use **Type** mode or the **Add {{labels.staff.singular}}** form.
 
 ## Related
 

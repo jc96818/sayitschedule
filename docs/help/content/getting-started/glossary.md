@@ -21,7 +21,13 @@ aliases: [terminology, definitions, terms, vocabulary]
 
 ## How it works
 
-Say It Schedule uses consistent terminology throughout the app. Your organization may have customized the labels for core entities (like calling "Staff" by another name such as "Therapists"), but the underlying concepts remain the same. This glossary covers both the default terms and explains how custom labels work.
+Say It Schedule uses consistent underlying concepts throughout the app. Your organization may customize the labels shown in the UI (for example, calling {{labels.staff.plural}} “Therapists”), but the underlying entities remain the same.
+
+## Steps
+
+1. Use this glossary when you see a term you don’t recognize.
+2. If the UI wording doesn’t match your team’s terminology, check **Settings → Custom Labels** (admins) and then re-read the relevant definitions here.
+3. Follow the **Related** links for step-by-step guides.
 
 ## Core entities
 
@@ -57,8 +63,8 @@ The physical spaces where sessions occur. Each {{labels.room.singular}} has:
 ### Schedule
 
 A collection of sessions for a specific week. Schedules have two statuses:
-- **Draft**: Being worked on, not yet visible to all users.
-- **Published**: Finalized and visible to everyone.
+- **Draft**: Not yet published.
+- **Published**: Published and generally considered final.
 
 ### Session
 
@@ -84,8 +90,8 @@ Sessions move through a lifecycle:
 | Status | Meaning |
 | ------ | ------- |
 | Pending | Awaiting approval (for self-booked appointments when approval is required) |
-| Scheduled | Confirmed and on the calendar |
-| Confirmed | {{labels.patient.singular}} or caregiver has confirmed attendance |
+| Scheduled | Booked on the calendar |
+| Confirmed | {{labels.patient.singular}} or caregiver has confirmed attendance (when confirmation is used) |
 | Checked In | {{labels.patient.singular}} has arrived |
 | In Progress | Session is currently happening |
 | Completed | Session finished successfully |
@@ -113,8 +119,8 @@ The app has four user roles with different permissions:
 | ---- | ------ |
 | Super Admin | Manage all organizations, create new orgs, access any org context |
 | Admin | Full access within their organization: manage {{labels.staff.plural}}, {{labels.patient.plural}}, {{labels.room.plural}}, rules, schedules, and settings |
-| Admin Assistant | Similar to Admin but may have some restrictions on sensitive settings |
-| Staff | View schedules, manage their own availability, view their assigned sessions |
+| Admin Assistant | Day-to-day scheduling and management (people, rules, schedules) |
+| Staff | View schedules and manage their own availability/time off |
 
 ## Availability and time-off
 
@@ -132,7 +138,9 @@ Time-off requests go through an approval workflow:
 - **Approved**: Request granted.
 - **Rejected**: Request denied.
 
-## Portal and booking terms
+## How this changes with your settings
+
+Some terms apply only when specific features are enabled for your organization.
 
 <!-- help:when features.patientPortalEnabled -->
 
@@ -157,7 +165,7 @@ When a portal user selects a time slot for booking, the system temporarily holds
 ## Settings terms
 
 ### Business hours
-The days and times your organization is open for appointments. Sessions cannot be scheduled outside business hours.
+The days and times your organization is open for appointments. This is used when offering or validating appointment times.
 
 ### Slot interval
 The time increment used for scheduling (e.g., 30 minutes means sessions can start at 8:00, 8:30, 9:00, etc.).
@@ -177,14 +185,20 @@ A single practice or clinic using Say It Schedule. Each organization has its own
 A pre-configured set of labels and suggested {{labels.certification.plural}}/{{labels.equipment.plural}} for different practice types (e.g., a "Physical Therapy" template might use "Therapists" and "Clients").
 
 ### Audit log
-A record of who changed what and when. Used for compliance and troubleshooting.
+A record of who changed what and when.
 
 ### BAA (Business Associate Agreement)
 A HIPAA-required contract between your organization and Say It Schedule. Required for organizations handling protected health information.
 
 ## Related
 
-- [/help/settings/custom-labels](/help/settings/custom-labels)
-- [/help/getting-started/roles](/help/getting-started/roles)
-- [/help/rules/overview](/help/rules/overview)
-- [/help/schedules/generate](/help/schedules/generate)
+- `/help/settings/custom-labels`
+- `/help/getting-started/roles`
+- `/help/rules/overview`
+- `/help/schedules/generate`
+
+## Troubleshooting
+
+- **The app uses different words than this glossary**: Your organization may use custom labels; see `/help/settings/custom-labels`.
+- **You don’t see portal-related terms in the app**: The portal may not be enabled for your organization.
+- **You see “Scheduled” and “Confirmed” and aren’t sure of the difference**: “Scheduled” means booked; “Confirmed” means the appointment was explicitly confirmed (when that flow is used).
