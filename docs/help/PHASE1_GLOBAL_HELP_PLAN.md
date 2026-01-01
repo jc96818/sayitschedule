@@ -204,8 +204,8 @@ Status values:
 | people | {{labels.staff.singular}} profile fields | `/help/people/staff-profile` | admin, assistant |  | `/app/staff/:id` | Claude | ready |
 | people | Add and manage {{labels.patient.plural}} | `/help/people/patients` | admin, assistant |  | `/app/patients` | Claude | ready |
 | people | {{labels.patient.singular}} scheduling preferences | `/help/people/patient-preferences` | admin, assistant |  | `/app/patients/:id` | Claude | ready |
-| rooms | Add and manage {{labels.room.plural}} | `/help/rooms/rooms` | admin, assistant |  | `/app/rooms` |  | unassigned |
-| rooms | Room capabilities and matching | `/help/rooms/capabilities` | admin, assistant |  | `/app/rooms/:id` |  | unassigned |
+| rooms | Add and manage {{labels.room.plural}} | `/help/rooms/rooms` | admin, assistant |  | `/app/rooms` | Claude | ready |
+| rooms | Room capabilities and matching | `/help/rooms/capabilities` | admin, assistant |  | `/app/rooms/:id` | Claude | ready |
 | rules | How scheduling rules work | `/help/rules/overview` | admin, assistant |  | `/app/rules` |  | unassigned |
 | rules | Rule categories and priorities | `/help/rules/categories` | admin, assistant |  | `/app/rules` |  | unassigned |
 | rules | Create rules (UI) | `/help/rules/create` | admin, assistant |  | `/app/rules` |  | unassigned |
