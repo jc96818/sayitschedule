@@ -108,10 +108,10 @@ onMounted(async () => {
           <span v-else>&copy; {{ new Date().getFullYear() }} {{ branding?.organizationName }}</span>
         </div>
         <div class="footer-right">
-          <a v-if="branding?.termsUrl" :href="branding.termsUrl" target="_blank" class="footer-link">
+          <a v-if="branding?.termsUrl" :href="branding.termsUrl" target="_blank" rel="noopener noreferrer" class="footer-link">
             Terms of Service
           </a>
-          <a v-if="branding?.privacyUrl" :href="branding.privacyUrl" target="_blank" class="footer-link">
+          <a v-if="branding?.privacyUrl" :href="branding.privacyUrl" target="_blank" rel="noopener noreferrer" class="footer-link">
             Privacy Policy
           </a>
           <a v-if="branding?.contactEmail" :href="`mailto:${branding.contactEmail}`" class="footer-link">

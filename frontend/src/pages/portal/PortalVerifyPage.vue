@@ -222,9 +222,9 @@ onMounted(async () => {
 
       <!-- Footer Links -->
       <div class="verify-footer">
-        <a v-if="branding?.termsUrl" :href="branding.termsUrl" target="_blank">Terms of Service</a>
+        <a v-if="branding?.termsUrl" :href="branding.termsUrl" target="_blank" rel="noopener noreferrer">Terms of Service</a>
         <span v-if="branding?.termsUrl && branding?.privacyUrl">•</span>
-        <a v-if="branding?.privacyUrl" :href="branding.privacyUrl" target="_blank">Privacy Policy</a>
+        <a v-if="branding?.privacyUrl" :href="branding.privacyUrl" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
       </div>
     </div>
   </div>

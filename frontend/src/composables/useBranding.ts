@@ -100,9 +100,17 @@ function generateColorVariants(baseColor: string) {
  * Applies organization branding colors to CSS custom properties
  */
 export function applyBranding(primaryColor: string, secondaryColor?: string) {
+  const hexColor = /^#[0-9a-fA-F]{6}$/
+  if (!hexColor.test(primaryColor)) {
+    resetBranding()
+    return
+  }
+
   const root = document.documentElement
   const primary = generateColorVariants(primaryColor)
-  const secondary = secondaryColor ? generateColorVariants(secondaryColor) : null
+  const secondary = secondaryColor && hexColor.test(secondaryColor)
+    ? generateColorVariants(secondaryColor)
+    : null
 
   // Apply primary color variants
   root.style.setProperty('--primary-color', primary.base)

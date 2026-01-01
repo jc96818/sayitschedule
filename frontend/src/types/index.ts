@@ -342,6 +342,22 @@ export interface OrganizationFeatures {
   portalAllowCancel: boolean
   portalAllowReschedule: boolean
   portalRequireConfirmation: boolean
+  selfBookingEnabled: boolean
+  selfBookingLeadTimeHours: number
+  selfBookingMaxFutureDays: number
+  selfBookingRequiresApproval: boolean
+  portalWelcomeTitle: string
+  portalWelcomeMessage: string
+  portalPrimaryColor: string | null
+  portalSecondaryColor: string | null
+  portalLogoUrl: string | null
+  portalBackgroundUrl: string | null
+  portalShowOrgName: boolean
+  portalContactEmail: string | null
+  portalContactPhone: string | null
+  portalFooterText: string | null
+  portalTermsUrl: string | null
+  portalPrivacyUrl: string | null
   advancedReportsEnabled: boolean
   reportExportEnabled: boolean
   voiceCommandsEnabled: boolean

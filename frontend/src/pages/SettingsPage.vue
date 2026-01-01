@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { organizationService, type TranscriptionProviderType, type MedicalSpecialty } from '@/services/api'
+import { organizationService, settingsService, type TranscriptionProviderType, type MedicalSpecialty } from '@/services/api'
 import { applyBranding } from '@/composables/useBranding'
 import { Alert, Badge, Button } from '@/components/ui'
-import type { OrganizationLabels } from '@/types'
+import type { OrganizationLabels, OrganizationFeatures } from '@/types'
 
 const authStore = useAuthStore()
 
@@ -43,6 +43,35 @@ const labelsError = ref<string | null>(null)
 const labelsSuccess = ref(false)
 const newCertification = ref('')
 const newEquipment = ref('')
+
+// Portal/features settings state
+const portalLoading = ref(false)
+const portalSaving = ref(false)
+const portalError = ref<string | null>(null)
+const portalSuccess = ref(false)
+
+const patientPortalEnabled = ref(false)
+const portalAllowCancel = ref(false)
+const portalAllowReschedule = ref(false)
+const portalRequireConfirmation = ref(true)
+
+const selfBookingEnabled = ref(false)
+const selfBookingLeadTimeHours = ref(24)
+const selfBookingMaxFutureDays = ref(30)
+const selfBookingRequiresApproval = ref(false)
+
+const portalShowOrgName = ref(true)
+const portalWelcomeTitle = ref('')
+const portalWelcomeMessage = ref('')
+const portalPrimaryColor = ref('')
+const portalSecondaryColor = ref('')
+const portalLogoUrl = ref('')
+const portalBackgroundUrl = ref('')
+const portalContactEmail = ref('')
+const portalContactPhone = ref('')
+const portalFooterText = ref('')
+const portalTermsUrl = ref('')
+const portalPrivacyUrl = ref('')
 
 // UI state
 const saving = ref(false)
@@ -231,10 +260,99 @@ function removeEquipment(equip: string) {
   labels.value.suggestedRoomEquipment = (labels.value.suggestedRoomEquipment || []).filter(e => e !== equip)
 }
 
+function normalizeOptionalString(value: string): string | null {
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function normalizeOptionalHex(value: string): string | null {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) return null
+  return trimmed
+}
+
+async function loadPortalSettings() {
+  portalLoading.value = true
+  portalError.value = null
+
+  try {
+    const response = await settingsService.getFeatures()
+    const features = response.data as OrganizationFeatures
+
+    patientPortalEnabled.value = features.patientPortalEnabled
+    portalAllowCancel.value = features.portalAllowCancel
+    portalAllowReschedule.value = features.portalAllowReschedule
+    portalRequireConfirmation.value = features.portalRequireConfirmation
+
+    selfBookingEnabled.value = features.selfBookingEnabled
+    selfBookingLeadTimeHours.value = features.selfBookingLeadTimeHours
+    selfBookingMaxFutureDays.value = features.selfBookingMaxFutureDays
+    selfBookingRequiresApproval.value = features.selfBookingRequiresApproval
+
+    portalShowOrgName.value = features.portalShowOrgName
+    portalWelcomeTitle.value = features.portalWelcomeTitle || ''
+    portalWelcomeMessage.value = features.portalWelcomeMessage || ''
+    portalPrimaryColor.value = features.portalPrimaryColor || ''
+    portalSecondaryColor.value = features.portalSecondaryColor || ''
+    portalLogoUrl.value = features.portalLogoUrl || ''
+    portalBackgroundUrl.value = features.portalBackgroundUrl || ''
+    portalContactEmail.value = features.portalContactEmail || ''
+    portalContactPhone.value = features.portalContactPhone || ''
+    portalFooterText.value = features.portalFooterText || ''
+    portalTermsUrl.value = features.portalTermsUrl || ''
+    portalPrivacyUrl.value = features.portalPrivacyUrl || ''
+  } catch (e) {
+    portalError.value = e instanceof Error ? e.message : 'Failed to load portal settings'
+  } finally {
+    portalLoading.value = false
+  }
+}
+
+async function handleSavePortalSettings() {
+  portalSaving.value = true
+  portalError.value = null
+  portalSuccess.value = false
+
+  try {
+    await settingsService.updateFeatures({
+      patientPortalEnabled: patientPortalEnabled.value,
+      portalAllowCancel: portalAllowCancel.value,
+      portalAllowReschedule: portalAllowReschedule.value,
+      portalRequireConfirmation: portalRequireConfirmation.value,
+      selfBookingEnabled: selfBookingEnabled.value,
+      selfBookingLeadTimeHours: selfBookingLeadTimeHours.value,
+      selfBookingMaxFutureDays: selfBookingMaxFutureDays.value,
+      selfBookingRequiresApproval: selfBookingRequiresApproval.value,
+      portalShowOrgName: portalShowOrgName.value,
+      portalWelcomeTitle: portalWelcomeTitle.value.trim(),
+      portalWelcomeMessage: portalWelcomeMessage.value.trim(),
+      portalPrimaryColor: normalizeOptionalHex(portalPrimaryColor.value),
+      portalSecondaryColor: normalizeOptionalHex(portalSecondaryColor.value),
+      portalLogoUrl: normalizeOptionalString(portalLogoUrl.value),
+      portalBackgroundUrl: normalizeOptionalString(portalBackgroundUrl.value),
+      portalContactEmail: normalizeOptionalString(portalContactEmail.value),
+      portalContactPhone: normalizeOptionalString(portalContactPhone.value),
+      portalFooterText: normalizeOptionalString(portalFooterText.value),
+      portalTermsUrl: normalizeOptionalString(portalTermsUrl.value),
+      portalPrivacyUrl: normalizeOptionalString(portalPrivacyUrl.value)
+    } as Partial<OrganizationFeatures>)
+
+    portalSuccess.value = true
+    setTimeout(() => {
+      portalSuccess.value = false
+    }, 3000)
+  } catch (e) {
+    portalError.value = e instanceof Error ? e.message : 'Failed to save portal settings'
+  } finally {
+    portalSaving.value = false
+  }
+}
+
 // Load settings on mount
 onMounted(() => {
   loadTranscriptionSettings()
   loadLabelsSettings()
+  loadPortalSettings()
 })
 </script>
 
@@ -429,6 +547,251 @@ onMounted(() => {
               <li>Thanksgiving - 4th Thursday of November</li>
               <li>Christmas Day - December 25</li>
             </ul>
+          </div>
+        </div>
+
+        <div class="card card-full-width">
+          <div class="card-header">
+            <h3>Patient Portal & Self-Booking</h3>
+          </div>
+          <div class="card-body">
+            <Alert v-if="portalError" variant="danger" class="mb-3" dismissible @dismiss="portalError = null">
+              {{ portalError }}
+            </Alert>
+
+            <Alert v-if="portalSuccess" variant="success" class="mb-3">
+              Portal settings saved successfully!
+            </Alert>
+
+            <div v-if="portalLoading" class="loading-state">
+              Loading portal settings...
+            </div>
+
+            <template v-else>
+              <div class="form-group">
+                <label>
+                  <input v-model="patientPortalEnabled" type="checkbox" />
+                  Enable Patient Portal
+                </label>
+              </div>
+
+              <div class="grid-2">
+                <div class="form-group">
+                  <label>
+                    <input v-model="portalRequireConfirmation" type="checkbox" />
+                    Require Appointment Confirmation
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label>
+                    <input v-model="portalAllowCancel" type="checkbox" />
+                    Allow Portal Cancellation
+                  </label>
+                </div>
+                <div class="form-group">
+                  <label>
+                    <input v-model="portalAllowReschedule" type="checkbox" />
+                    Allow Portal Rescheduling
+                  </label>
+                  <small class="text-muted">UI not implemented yet; keeps backend flag aligned.</small>
+                </div>
+              </div>
+
+              <hr class="separator" />
+
+              <div class="form-group">
+                <label>
+                  <input v-model="selfBookingEnabled" type="checkbox" />
+                  Enable Self-Booking
+                </label>
+              </div>
+
+              <div class="grid-2">
+                <div class="form-group">
+                  <label for="lead-time">Lead Time (hours)</label>
+                  <input
+                    id="lead-time"
+                    v-model.number="selfBookingLeadTimeHours"
+                    type="number"
+                    min="0"
+                    max="168"
+                    class="form-control"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="max-future">Max Future Days</label>
+                  <input
+                    id="max-future"
+                    v-model.number="selfBookingMaxFutureDays"
+                    type="number"
+                    min="0"
+                    max="365"
+                    class="form-control"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>
+                    <input v-model="selfBookingRequiresApproval" type="checkbox" />
+                    Require Approval (book as pending)
+                  </label>
+                </div>
+              </div>
+
+              <hr class="separator" />
+
+              <h4>Portal Appearance</h4>
+              <div class="grid-2">
+                <div class="form-group">
+                  <label>
+                    <input v-model="portalShowOrgName" type="checkbox" />
+                    Show Organization Name
+                  </label>
+                </div>
+              </div>
+
+              <div class="grid-2">
+                <div class="form-group">
+                  <label for="portal-primary">Portal Primary Color (optional)</label>
+                  <input
+                    id="portal-primary"
+                    v-model="portalPrimaryColor"
+                    type="text"
+                    class="form-control"
+                    placeholder="#2563eb (leave blank to use org color)"
+                    pattern="^#[0-9a-fA-F]{6}$"
+                    maxlength="7"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="portal-secondary">Portal Secondary Color (optional)</label>
+                  <input
+                    id="portal-secondary"
+                    v-model="portalSecondaryColor"
+                    type="text"
+                    class="form-control"
+                    placeholder="#1e40af (leave blank to use org color)"
+                    pattern="^#[0-9a-fA-F]{6}$"
+                    maxlength="7"
+                  />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="portal-logo">Portal Logo URL (optional)</label>
+                <input
+                  id="portal-logo"
+                  v-model="portalLogoUrl"
+                  type="url"
+                  class="form-control"
+                  placeholder="https://example.com/logo.png"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="portal-bg">Portal Background Image URL (optional)</label>
+                <input
+                  id="portal-bg"
+                  v-model="portalBackgroundUrl"
+                  type="url"
+                  class="form-control"
+                  placeholder="https://example.com/background.jpg"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="welcome-title">Welcome Title</label>
+                <input
+                  id="welcome-title"
+                  v-model="portalWelcomeTitle"
+                  type="text"
+                  class="form-control"
+                  maxlength="100"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="welcome-message">Welcome Message</label>
+                <textarea
+                  id="welcome-message"
+                  v-model="portalWelcomeMessage"
+                  class="form-control"
+                  maxlength="500"
+                  rows="3"
+                />
+              </div>
+
+              <hr class="separator" />
+
+              <h4>Portal Footer & Legal</h4>
+              <div class="grid-2">
+                <div class="form-group">
+                  <label for="portal-contact-email">Support Email (optional)</label>
+                  <input
+                    id="portal-contact-email"
+                    v-model="portalContactEmail"
+                    type="email"
+                    class="form-control"
+                    placeholder="support@example.com"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="portal-contact-phone">Support Phone (optional)</label>
+                  <input
+                    id="portal-contact-phone"
+                    v-model="portalContactPhone"
+                    type="tel"
+                    class="form-control"
+                    placeholder="+1 555-555-5555"
+                  />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="portal-footer">Footer Text (optional)</label>
+                <input
+                  id="portal-footer"
+                  v-model="portalFooterText"
+                  type="text"
+                  class="form-control"
+                  maxlength="500"
+                  placeholder="Custom footer message"
+                />
+              </div>
+
+              <div class="grid-2">
+                <div class="form-group">
+                  <label for="portal-terms">Terms URL (optional)</label>
+                  <input
+                    id="portal-terms"
+                    v-model="portalTermsUrl"
+                    type="url"
+                    class="form-control"
+                    placeholder="https://example.com/terms"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="portal-privacy">Privacy URL (optional)</label>
+                  <input
+                    id="portal-privacy"
+                    v-model="portalPrivacyUrl"
+                    type="url"
+                    class="form-control"
+                    placeholder="https://example.com/privacy"
+                  />
+                </div>
+              </div>
+
+              <div class="button-row">
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  :disabled="portalSaving"
+                  @click="handleSavePortalSettings"
+                >
+                  {{ portalSaving ? 'Saving...' : 'Save Portal Settings' }}
+                </button>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -773,6 +1136,12 @@ onMounted(() => {
 
 .mb-3 {
   margin-bottom: 16px;
+}
+
+.separator {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 20px 0;
 }
 
 @media (max-width: 768px) {
