@@ -46,6 +46,7 @@ export interface BookDirectInput {
   notes?: string
   bookedVia: BookingSource
   bookedByContactId?: string
+  createdByUserId?: string
 }
 
 export interface HoldResult {
@@ -78,7 +79,7 @@ function getWeekStartDate(date: Date): Date {
 
 /**
  * Find or create a schedule for the given date's week.
- * For portal/self-booking, we auto-create published schedules.
+ * Used by booking flows when a schedule isn't explicitly selected.
  */
 async function findOrCreateSchedule(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
@@ -87,6 +88,39 @@ async function findOrCreateSchedule(
   createdByUserId?: string
 ): Promise<string> {
   const weekStart = getWeekStartDate(date)
+
+  async function resolveScheduleCreatedById(): Promise<string> {
+    if (createdByUserId) {
+      const user = await tx.user.findFirst({
+        where: { id: createdByUserId, organizationId },
+        select: { id: true }
+      })
+      if (user) return user.id
+    }
+
+    const admin = await tx.user.findFirst({
+      where: { organizationId, role: { in: ['admin', 'super_admin'] } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true }
+    })
+    if (admin) return admin.id
+
+    const assistant = await tx.user.findFirst({
+      where: { organizationId, role: 'admin_assistant' },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true }
+    })
+    if (assistant) return assistant.id
+
+    const anyUser = await tx.user.findFirst({
+      where: { organizationId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true }
+    })
+    if (anyUser) return anyUser.id
+
+    throw new Error('Cannot create schedule: no users exist for this organization')
+  }
 
   // Try to find existing schedule for this week
   let schedule = await tx.schedule.findFirst({
@@ -102,14 +136,13 @@ async function findOrCreateSchedule(
   }
 
   // Create a new schedule for this week
-  // For self-booking, we create it as published so sessions are visible
+  const scheduleCreatedById = await resolveScheduleCreatedById()
   schedule = await tx.schedule.create({
     data: {
       organizationId,
       weekStartDate: weekStart,
-      status: 'published',
-      publishedAt: new Date(),
-      createdById: createdByUserId || 'system', // Will need a system user ID
+      status: 'draft',
+      createdById: scheduleCreatedById,
       version: 1
     }
   })
@@ -330,7 +363,8 @@ export class BookingRepository {
       endTime,
       notes,
       bookedVia,
-      bookedByContactId
+      bookedByContactId,
+      createdByUserId
     } = input
 
     // Check availability
@@ -371,7 +405,8 @@ export class BookingRepository {
         const effectiveScheduleId = scheduleId || await findOrCreateSchedule(
           tx,
           organizationId,
-          date
+          date,
+          createdByUserId
         )
 
         return tx.session.create({

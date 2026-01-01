@@ -36,6 +36,11 @@ interface CancelBody {
   reason?: string
 }
 
+interface HistoryQuery {
+  page?: string | number
+  limit?: string | number
+}
+
 interface AvailabilityQuery {
   dateFrom: string
   dateTo: string
@@ -58,6 +63,53 @@ interface BookFromHoldBody {
 
 interface HoldIdParams {
   holdId: string
+}
+
+function parsePositiveInt(value: unknown, fallback: number): number {
+  const n = typeof value === 'string' ? parseInt(value, 10) : typeof value === 'number' ? value : NaN
+  if (!Number.isFinite(n) || n <= 0) return fallback
+  return Math.floor(n)
+}
+
+function buildLocalDateTime(dateStr: string, timeStr: string): Date | null {
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return null
+  const [h, m] = timeStr.split(':').map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null
+  date.setHours(h, m, 0, 0)
+  return date
+}
+
+function mapPortalSession(
+  session: {
+    id: string
+    date: Date
+    startTime: string
+    endTime: string
+    status: string
+    notes: string | null
+    confirmedAt: Date | null
+    therapist: { name: string }
+    room: { name: string } | null
+  },
+  options: { portalAllowCancel: boolean; portalRequireConfirmation: boolean }
+) {
+  const canCancelByStatus = ['pending', 'scheduled', 'confirmed'].includes(session.status)
+  const canConfirmByStatus = session.status === 'scheduled' && !session.confirmedAt
+
+  return {
+    id: session.id,
+    date: session.date,
+    startTime: session.startTime,
+    endTime: session.endTime,
+    therapistName: session.therapist.name,
+    roomName: session.room?.name ?? null,
+    status: session.status,
+    notes: session.notes,
+    confirmedAt: session.confirmedAt,
+    canCancel: options.portalAllowCancel && canCancelByStatus,
+    canConfirm: options.portalRequireConfirmation && canConfirmByStatus
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -229,14 +281,24 @@ export async function portalRoutes(fastify: FastifyInstance) {
         })
       }
 
+      if (!result.contact || !result.sessionToken || !result.expiresAt) {
+        return reply.code(500).send({
+          error: 'Verification failed',
+          message: 'Login succeeded but session could not be created. Please try again.'
+        })
+      }
+
       return reply.send({
         message: result.message,
         sessionToken: result.sessionToken,
         expiresAt: result.expiresAt,
         user: {
-          name: result.contact?.name,
-          email: result.contact?.email,
-          phone: result.contact?.phone
+          contactId: result.contact.id,
+          patientId: result.contact.patientId,
+          organizationId: result.contact.patient.organizationId,
+          name: result.contact.name,
+          email: result.contact.email,
+          phone: result.contact.phone
         }
       })
     }
@@ -270,40 +332,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
     { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const user = getPortalUser(request)
-
-      // Get additional patient info
-      const contact = await prisma.patientContact.findUnique({
-        where: { id: user.contactId },
-        include: {
-          patient: {
-            include: {
-              organization: {
-                select: { id: true, name: true }
-              }
-            }
-          }
-        }
-      })
-
-      if (!contact) {
-        return reply.code(404).send({
-          error: 'Not found',
-          message: 'User not found'
-        })
-      }
-
-      return reply.send({
-        contactId: contact.id,
-        name: contact.name,
-        email: contact.email,
-        phone: contact.phone,
-        relationship: contact.relationship,
-        patient: {
-          id: contact.patient.id,
-          name: contact.patient.name
-        },
-        organization: contact.patient.organization
-      })
+      return reply.send({ data: user })
     }
   )
 
@@ -320,6 +349,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
     { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const user = getPortalUser(request)
+      const features = await organizationFeaturesRepository.findByOrganizationId(user.organizationId)
 
       const sessions = await prisma.session.findMany({
         where: {
@@ -327,8 +357,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
           date: { gte: new Date() },
           status: { notIn: ['cancelled', 'late_cancel'] },
           schedule: {
-            organizationId: user.organizationId,
-            status: 'published'
+            organizationId: user.organizationId
           }
         },
         include: {
@@ -346,17 +375,23 @@ export async function portalRoutes(fastify: FastifyInstance) {
       })
 
       return reply.send({
-        appointments: sessions.map(s => ({
-          id: s.id,
-          date: s.date,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          status: s.status,
-          therapist: s.therapist,
-          room: s.room,
-          notes: s.notes,
-          confirmedAt: s.confirmedAt
-        }))
+        data: sessions.map(s => mapPortalSession(
+          {
+            id: s.id,
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            status: s.status,
+            notes: s.notes,
+            confirmedAt: s.confirmedAt,
+            therapist: { name: s.therapist.name },
+            room: s.room ? { name: s.room.name } : null
+          },
+          {
+            portalAllowCancel: features.portalAllowCancel,
+            portalRequireConfirmation: features.portalRequireConfirmation
+          }
+        ))
       })
     }
   )
@@ -374,14 +409,14 @@ export async function portalRoutes(fastify: FastifyInstance) {
     ) => {
       const user = getPortalUser(request)
       const { sessionId } = request.params
+      const features = await organizationFeaturesRepository.findByOrganizationId(user.organizationId)
 
       const session = await prisma.session.findFirst({
         where: {
           id: sessionId,
           patientId: user.patientId,
           schedule: {
-            organizationId: user.organizationId,
-            status: 'published'
+            organizationId: user.organizationId
           }
         },
         include: {
@@ -402,17 +437,23 @@ export async function portalRoutes(fastify: FastifyInstance) {
       }
 
       return reply.send({
-        id: session.id,
-        date: session.date,
-        startTime: session.startTime,
-        endTime: session.endTime,
-        status: session.status,
-        therapist: session.therapist,
-        room: session.room,
-        notes: session.notes,
-        confirmedAt: session.confirmedAt,
-        cancelledAt: session.cancelledAt,
-        cancellationReason: session.cancellationReason
+        data: mapPortalSession(
+          {
+            id: session.id,
+            date: session.date,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            status: session.status,
+            notes: session.notes,
+            confirmedAt: session.confirmedAt,
+            therapist: { name: session.therapist.name },
+            room: session.room ? { name: session.room.name } : null
+          },
+          {
+            portalAllowCancel: features.portalAllowCancel,
+            portalRequireConfirmation: features.portalRequireConfirmation
+          }
+        )
       })
     }
   )
@@ -438,8 +479,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
           patientId: user.patientId,
           status: 'scheduled',
           schedule: {
-            organizationId: user.organizationId,
-            status: 'published'
+            organizationId: user.organizationId
           }
         }
       })
@@ -452,7 +492,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
       }
 
       // Update to confirmed
-      const updated = await prisma.session.update({
+      await prisma.session.update({
         where: { id: sessionId },
         data: {
           status: 'confirmed',
@@ -472,9 +512,34 @@ export async function portalRoutes(fastify: FastifyInstance) {
         { contactId: user.contactId, patientId: user.patientId }
       )
 
+      const features = await organizationFeaturesRepository.findByOrganizationId(user.organizationId)
+      const sessionWithDetails = await prisma.session.findUnique({
+        where: { id: sessionId },
+        include: {
+          therapist: { select: { name: true } },
+          room: { select: { name: true } }
+        }
+      })
+
       return reply.send({
         message: 'Appointment confirmed',
-        confirmedAt: updated.confirmedAt
+        data: sessionWithDetails ? mapPortalSession(
+          {
+            id: sessionWithDetails.id,
+            date: sessionWithDetails.date,
+            startTime: sessionWithDetails.startTime,
+            endTime: sessionWithDetails.endTime,
+            status: sessionWithDetails.status,
+            notes: sessionWithDetails.notes,
+            confirmedAt: sessionWithDetails.confirmedAt,
+            therapist: { name: sessionWithDetails.therapist.name },
+            room: sessionWithDetails.room ? { name: sessionWithDetails.room.name } : null
+          },
+          {
+            portalAllowCancel: features.portalAllowCancel,
+            portalRequireConfirmation: features.portalRequireConfirmation
+          }
+        ) : null
       })
     }
   )
@@ -509,8 +574,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
           patientId: user.patientId,
           status: { in: ['scheduled', 'confirmed'] },
           schedule: {
-            organizationId: user.organizationId,
-            status: 'published'
+            organizationId: user.organizationId
           }
         },
         include: {
@@ -539,7 +603,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
       const isLateCancel = hoursUntilSession < settings.lateCancelWindowHours
 
       // Update status
-      const updated = await prisma.session.update({
+      await prisma.session.update({
         where: { id: sessionId },
         data: {
           status: isLateCancel ? 'late_cancel' : 'cancelled',
@@ -566,12 +630,37 @@ export async function portalRoutes(fastify: FastifyInstance) {
         }
       )
 
+      const features = await organizationFeaturesRepository.findByOrganizationId(user.organizationId)
+      const sessionWithDetails = await prisma.session.findUnique({
+        where: { id: sessionId },
+        include: {
+          therapist: { select: { name: true } },
+          room: { select: { name: true } }
+        }
+      })
+
       return reply.send({
         message: isLateCancel
           ? 'Appointment cancelled (late cancellation policy applies)'
           : 'Appointment cancelled',
-        status: updated.status,
-        isLateCancel
+        meta: { isLateCancel },
+        data: sessionWithDetails ? mapPortalSession(
+          {
+            id: sessionWithDetails.id,
+            date: sessionWithDetails.date,
+            startTime: sessionWithDetails.startTime,
+            endTime: sessionWithDetails.endTime,
+            status: sessionWithDetails.status,
+            notes: sessionWithDetails.notes,
+            confirmedAt: sessionWithDetails.confirmedAt,
+            therapist: { name: sessionWithDetails.therapist.name },
+            room: sessionWithDetails.room ? { name: sessionWithDetails.room.name } : null
+          },
+          {
+            portalAllowCancel: features.portalAllowCancel,
+            portalRequireConfirmation: features.portalRequireConfirmation
+          }
+        ) : null
       })
     }
   )
@@ -580,45 +669,68 @@ export async function portalRoutes(fastify: FastifyInstance) {
    * GET /portal/appointments/history
    * Get past appointments
    */
-  fastify.get(
+  fastify.get<{ Querystring: HistoryQuery }>(
     '/appointments/history',
     { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (request: FastifyRequest<{ Querystring: HistoryQuery }>, reply: FastifyReply) => {
       const user = getPortalUser(request)
+      const page = parsePositiveInt(request.query.page, 1)
+      const limit = Math.min(parsePositiveInt(request.query.limit, 10), 50)
+      const skip = (page - 1) * limit
+      const features = await organizationFeaturesRepository.findByOrganizationId(user.organizationId)
 
-      const sessions = await prisma.session.findMany({
-        where: {
-          patientId: user.patientId,
-          OR: [
-            { date: { lt: new Date() } },
-            { status: { in: ['completed', 'cancelled', 'late_cancel', 'no_show'] } }
-          ],
-          schedule: {
-            organizationId: user.organizationId,
-            status: 'published'
-          }
-        },
-        include: {
-          therapist: {
-            select: { id: true, name: true }
-          }
-        },
-        orderBy: [
-          { date: 'desc' },
-          { startTime: 'desc' }
+      const where = {
+        patientId: user.patientId,
+        OR: [
+          { date: { lt: new Date() } },
+          { status: { in: ['completed', 'cancelled', 'late_cancel', 'no_show'] } }
         ],
-        take: 50 // Limit to recent history
-      })
+        schedule: { organizationId: user.organizationId }
+      }
+
+      const [total, sessions] = await prisma.$transaction([
+        prisma.session.count({ where }),
+        prisma.session.findMany({
+          where,
+          include: {
+            therapist: {
+              select: { name: true }
+            },
+            room: {
+              select: { name: true }
+            }
+          },
+          orderBy: [
+            { date: 'desc' },
+            { startTime: 'desc' }
+          ],
+          skip,
+          take: limit
+        })
+      ])
 
       return reply.send({
-        appointments: sessions.map(s => ({
-          id: s.id,
-          date: s.date,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          status: s.status,
-          therapist: s.therapist
-        }))
+        data: sessions.map(s => mapPortalSession(
+          {
+            id: s.id,
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            status: s.status,
+            notes: s.notes,
+            confirmedAt: s.confirmedAt,
+            therapist: { name: s.therapist.name },
+            room: s.room ? { name: s.room.name } : null
+          },
+          {
+            portalAllowCancel: features.portalAllowCancel,
+            portalRequireConfirmation: features.portalRequireConfirmation
+          }
+        )),
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit))
       })
     }
   )
@@ -683,30 +795,31 @@ export async function portalRoutes(fastify: FastifyInstance) {
       const now = new Date()
 
       // Enforce lead time
-      const minBookingDate = new Date(now)
-      minBookingDate.setHours(minBookingDate.getHours() + features.selfBookingLeadTimeHours)
+      const minBookingDateTime = new Date(now)
+      minBookingDateTime.setHours(minBookingDateTime.getHours() + features.selfBookingLeadTimeHours)
 
-      if (fromDate < minBookingDate) {
-        fromDate.setTime(minBookingDate.getTime())
+      if (fromDate < minBookingDateTime) {
+        fromDate.setTime(minBookingDateTime.getTime())
       }
 
       // Enforce max future days
-      const maxBookingDate = new Date(now)
-      maxBookingDate.setDate(maxBookingDate.getDate() + features.selfBookingMaxFutureDays)
+      const maxBookingDateTime = new Date(now)
+      maxBookingDateTime.setDate(maxBookingDateTime.getDate() + features.selfBookingMaxFutureDays)
+      maxBookingDateTime.setHours(23, 59, 59, 999)
 
-      if (toDate > maxBookingDate) {
-        toDate.setTime(maxBookingDate.getTime())
+      if (toDate > maxBookingDateTime) {
+        toDate.setTime(maxBookingDateTime.getTime())
       }
 
       // If the range is now invalid, return empty
       if (fromDate > toDate) {
         return reply.send({
-          slots: [],
-          constraints: {
+          data: [],
+          meta: {
             leadTimeHours: features.selfBookingLeadTimeHours,
             maxFutureDays: features.selfBookingMaxFutureDays,
-            earliestDate: minBookingDate.toISOString().split('T')[0],
-            latestDate: maxBookingDate.toISOString().split('T')[0]
+            earliestDate: minBookingDateTime.toISOString().split('T')[0],
+            latestDate: maxBookingDateTime.toISOString().split('T')[0]
           }
         })
       }
@@ -720,13 +833,28 @@ export async function portalRoutes(fastify: FastifyInstance) {
         staffId
       })
 
+      const filteredSlots = result.slots.filter((slot) => {
+        if (!slot.staffId || !slot.staffName) return false
+        const slotStart = buildLocalDateTime(slot.date, slot.startTime)
+        if (!slotStart) return false
+        return slotStart >= minBookingDateTime
+      })
+
       return reply.send({
-        slots: result.slots,
-        constraints: {
+        data: filteredSlots.map(slot => ({
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          staffId: slot.staffId!,
+          staffName: slot.staffName!,
+          roomId: null,
+          roomName: null
+        })),
+        meta: {
           leadTimeHours: features.selfBookingLeadTimeHours,
           maxFutureDays: features.selfBookingMaxFutureDays,
-          earliestDate: minBookingDate.toISOString().split('T')[0],
-          latestDate: maxBookingDate.toISOString().split('T')[0]
+          earliestDate: minBookingDateTime.toISOString().split('T')[0],
+          latestDate: maxBookingDateTime.toISOString().split('T')[0]
         }
       })
     }
@@ -755,7 +883,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
         orderBy: { name: 'asc' }
       })
 
-      return reply.send({ therapists: staff })
+      return reply.send({ data: staff })
     }
   )
 
@@ -780,21 +908,26 @@ export async function portalRoutes(fastify: FastifyInstance) {
         })
       }
 
+      const slotStart = buildLocalDateTime(date, startTime)
+      if (!slotStart) {
+        return reply.code(400).send({
+          error: 'Invalid date/time',
+          message: 'date must be YYYY-MM-DD and startTime must be HH:mm'
+        })
+      }
+
       // Validate against self-booking constraints
       const features = await organizationFeaturesRepository.findByOrganizationId(
         user.organizationId
       )
 
-      const bookingDate = new Date(date)
       const now = new Date()
 
       // Check lead time
-      const minBookingDate = new Date(now)
-      minBookingDate.setHours(minBookingDate.getHours() + features.selfBookingLeadTimeHours)
-      minBookingDate.setHours(0, 0, 0, 0)
-      bookingDate.setHours(0, 0, 0, 0)
+      const minBookingDateTime = new Date(now)
+      minBookingDateTime.setHours(minBookingDateTime.getHours() + features.selfBookingLeadTimeHours)
 
-      if (bookingDate < minBookingDate) {
+      if (slotStart < minBookingDateTime) {
         return reply.code(400).send({
           error: 'Booking too soon',
           message: `Appointments must be booked at least ${features.selfBookingLeadTimeHours} hours in advance`
@@ -802,13 +935,38 @@ export async function portalRoutes(fastify: FastifyInstance) {
       }
 
       // Check max future days
-      const maxBookingDate = new Date(now)
-      maxBookingDate.setDate(maxBookingDate.getDate() + features.selfBookingMaxFutureDays)
+      const maxBookingDateTime = new Date(now)
+      maxBookingDateTime.setDate(maxBookingDateTime.getDate() + features.selfBookingMaxFutureDays)
+      maxBookingDateTime.setHours(23, 59, 59, 999)
 
-      if (bookingDate > maxBookingDate) {
+      if (slotStart > maxBookingDateTime) {
         return reply.code(400).send({
           error: 'Booking too far ahead',
           message: `Appointments can only be booked up to ${features.selfBookingMaxFutureDays} days in advance`
+        })
+      }
+
+      const staff = await prisma.staff.findFirst({
+        where: { id: staffId, organizationId: user.organizationId, status: 'active' },
+        select: { id: true, name: true }
+      })
+
+      if (!staff) {
+        return reply.code(404).send({
+          error: 'Not found',
+          message: 'Staff member not found'
+        })
+      }
+
+      const room = roomId ? await prisma.room.findFirst({
+        where: { id: roomId, organizationId: user.organizationId, status: 'active' },
+        select: { id: true, name: true }
+      }) : null
+
+      if (roomId && !room) {
+        return reply.code(404).send({
+          error: 'Not found',
+          message: 'Room not found'
         })
       }
 
@@ -832,9 +990,18 @@ export async function portalRoutes(fastify: FastifyInstance) {
       }
 
       return reply.code(201).send({
-        holdId: result.hold!.id,
-        expiresAt: result.hold!.expiresAt,
-        message: 'Time slot held. Complete your booking before the hold expires.'
+        message: 'Time slot held. Complete your booking before the hold expires.',
+        data: {
+          id: result.hold!.id,
+          staffId: staff.id,
+          staffName: staff.name,
+          roomId: room?.id ?? null,
+          roomName: room?.name ?? null,
+          date,
+          startTime,
+          endTime,
+          expiresAt: result.hold!.expiresAt
+        }
       })
     }
   )
@@ -878,7 +1045,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
         })
       }
 
-      return reply.send({ message: 'Hold released successfully' })
+      return reply.send({ success: true })
     }
   )
 
@@ -974,8 +1141,8 @@ export async function portalRoutes(fastify: FastifyInstance) {
       const session = await prisma.session.findUnique({
         where: { id: result.sessionId },
         include: {
-          therapist: { select: { id: true, name: true } },
-          room: { select: { id: true, name: true } }
+          therapist: { select: { name: true } },
+          room: { select: { name: true } }
         }
       })
 
@@ -983,16 +1150,24 @@ export async function portalRoutes(fastify: FastifyInstance) {
         message: features.selfBookingRequiresApproval
           ? 'Appointment requested. You will be notified once it is confirmed.'
           : 'Appointment booked successfully.',
-        appointment: session ? {
-          id: session.id,
-          date: session.date,
-          startTime: session.startTime,
-          endTime: session.endTime,
-          status: session.status,
-          therapist: session.therapist,
-          room: session.room
-        } : null,
-        requiresApproval: features.selfBookingRequiresApproval
+        meta: { requiresApproval: features.selfBookingRequiresApproval },
+        data: session ? mapPortalSession(
+          {
+            id: session.id,
+            date: session.date,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            status: session.status,
+            notes: session.notes,
+            confirmedAt: session.confirmedAt,
+            therapist: { name: session.therapist.name },
+            room: session.room ? { name: session.room.name } : null
+          },
+          {
+            portalAllowCancel: features.portalAllowCancel,
+            portalRequireConfirmation: features.portalRequireConfirmation
+          }
+        ) : null
       })
     }
   )
@@ -1022,17 +1197,20 @@ export async function portalRoutes(fastify: FastifyInstance) {
       maxBookingDate.setDate(maxBookingDate.getDate() + features.selfBookingMaxFutureDays)
 
       return reply.send({
-        selfBookingEnabled: features.selfBookingEnabled,
-        leadTimeHours: features.selfBookingLeadTimeHours,
-        maxFutureDays: features.selfBookingMaxFutureDays,
-        requiresApproval: features.selfBookingRequiresApproval,
-        defaultSessionDuration: settings.defaultSessionDuration,
-        slotInterval: settings.slotInterval,
-        earliestBookingDate: minBookingDate.toISOString().split('T')[0],
-        latestBookingDate: maxBookingDate.toISOString().split('T')[0]
+        data: {
+          selfBookingEnabled: features.selfBookingEnabled,
+          leadTimeHours: features.selfBookingLeadTimeHours,
+          maxFutureDays: features.selfBookingMaxFutureDays,
+          requiresApproval: features.selfBookingRequiresApproval,
+          defaultSessionDuration: settings.defaultSessionDuration,
+          slotInterval: settings.slotInterval,
+          earliestBookingDate: minBookingDate.toISOString().split('T')[0],
+          latestBookingDate: maxBookingDate.toISOString().split('T')[0]
+        }
       })
     }
   )
+
 }
 
 export default portalRoutes

@@ -448,7 +448,8 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
           startTime,
           endTime,
           notes,
-          bookedVia: 'admin' as BookingSource
+          bookedVia: 'admin' as BookingSource,
+          createdByUserId: userId
         })
 
         if (!result.success) {

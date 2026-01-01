@@ -1185,7 +1185,7 @@ export const portalAuthService = {
   },
 
   async me(): Promise<ApiResponse<PortalUser>> {
-    const { data } = await portalApi.get('/auth/me')
+    const { data } = await portalApi.get('/me')
     return data
   },
 
@@ -1197,12 +1197,12 @@ export const portalAuthService = {
 // Portal Appointments Service
 export const portalAppointmentsService = {
   async getUpcoming(): Promise<ApiResponse<PortalSession[]>> {
-    const { data } = await portalApi.get('/appointments/upcoming')
+    const { data } = await portalApi.get('/appointments')
     return data
   },
 
   async getPast(params?: { page?: number; limit?: number }): Promise<PaginatedResponse<PortalSession>> {
-    const { data } = await portalApi.get('/appointments/past', { params })
+    const { data } = await portalApi.get('/appointments/history', { params })
     return data
   },
 
