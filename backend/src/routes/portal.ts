@@ -9,6 +9,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { portalAuthService } from '../services/portalAuth.js'
 import { portalAuthenticate, requirePatientPortalEnabled, getPortalUser } from '../middleware/portalAuth.js'
 import { prisma } from '../repositories/base.js'
+import { SessionStatus } from '@prisma/client'
 import { organizationSettingsRepository } from '../repositories/organizationSettings.js'
 import { organizationFeaturesRepository } from '../repositories/organizationFeatures.js'
 import { auditRepository } from '../repositories/audit.js'
@@ -709,7 +710,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
         patientId: user.patientId,
         OR: [
           { date: { lt: new Date() } },
-          { status: { in: ['completed', 'cancelled', 'late_cancel', 'no_show'] } }
+          { status: { in: [SessionStatus.completed, SessionStatus.cancelled, SessionStatus.late_cancel, SessionStatus.no_show] } }
         ],
         schedule: { organizationId: user.organizationId }
       }
@@ -719,12 +720,8 @@ export async function portalRoutes(fastify: FastifyInstance) {
         prisma.session.findMany({
           where,
           include: {
-            therapist: {
-              select: { name: true }
-            },
-            room: {
-              select: { name: true }
-            }
+            therapist: true,
+            room: true
           },
           orderBy: [
             { date: 'desc' },
@@ -745,7 +742,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
             status: s.status,
             notes: s.notes,
             confirmedAt: s.confirmedAt,
-            therapist: { name: s.therapist.name },
+            therapist: { name: s.therapist?.name || 'Unknown' },
             room: s.room ? { name: s.room.name } : null
           },
           {

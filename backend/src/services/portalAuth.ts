@@ -7,7 +7,12 @@
 
 import { createHash, randomBytes } from 'crypto'
 import { prisma } from '../repositories/base.js'
-import type { PatientContact } from '@prisma/client'
+import type { PatientContact, Patient, Organization } from '@prisma/client'
+
+// Contact with patient relation included (as returned by verifyToken)
+type ContactWithPatient = PatientContact & {
+  patient: Patient & { organization: Organization }
+}
 import { organizationFeaturesRepository } from '../repositories/organizationFeatures.js'
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -33,7 +38,7 @@ export interface VerifyResult {
   success: boolean
   message: string
   sessionToken?: string
-  contact?: PatientContact
+  contact?: ContactWithPatient
   expiresAt?: Date
 }
 

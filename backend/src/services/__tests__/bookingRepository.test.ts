@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 
 const mockPrisma = {
   $transaction: vi.fn()
@@ -15,6 +15,25 @@ vi.mock('../availability.js', () => ({
   }
 }))
 
+// Helper type for mock transaction client
+interface MockTxClient {
+  appointmentHold: {
+    findFirst: Mock
+    update?: Mock
+  }
+  session: {
+    findFirst: Mock
+    create?: Mock
+  }
+  schedule?: {
+    findFirst: Mock
+    create: Mock
+  }
+  user?: {
+    findFirst: Mock
+  }
+}
+
 describe('BookingRepository', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -24,7 +43,7 @@ describe('BookingRepository', () => {
     const { BookingRepository } = await import('../../repositories/booking.js')
     const repo = new BookingRepository()
 
-    const tx = {
+    const tx: MockTxClient = {
       appointmentHold: {
         findFirst: vi.fn().mockResolvedValue({
           id: 'hold-1',
@@ -44,9 +63,9 @@ describe('BookingRepository', () => {
       session: {
         findFirst: vi.fn().mockResolvedValue({ id: 'session-conflict' })
       }
-    } as unknown as Parameters<Parameters<typeof mockPrisma.$transaction>[0]>[0]
+    }
 
-    mockPrisma.$transaction.mockImplementationOnce(async (fn: (txArg: typeof tx) => Promise<unknown>) => {
+    mockPrisma.$transaction.mockImplementationOnce(async (fn: (txArg: unknown) => Promise<unknown>) => {
       return fn(tx)
     })
 
@@ -60,10 +79,10 @@ describe('BookingRepository', () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toBe('Time slot is no longer available')
-    expect((tx.appointmentHold.findFirst as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(expect.objectContaining({
+    expect(tx.appointmentHold.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ id: 'hold-1', organizationId: 'org-1' })
     }))
-    expect((tx.session.findFirst as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(expect.objectContaining({
+    expect(tx.session.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
         schedule: { organizationId: 'org-1' }
       })
@@ -74,7 +93,7 @@ describe('BookingRepository', () => {
     const { BookingRepository } = await import('../../repositories/booking.js')
     const repo = new BookingRepository()
 
-    const tx = {
+    const tx: MockTxClient = {
       appointmentHold: {
         findFirst: vi.fn().mockResolvedValue({
           id: 'hold-1',
@@ -103,9 +122,9 @@ describe('BookingRepository', () => {
       user: {
         findFirst: vi.fn().mockResolvedValue({ id: 'user-1' })
       }
-    } as unknown as Parameters<Parameters<typeof mockPrisma.$transaction>[0]>[0]
+    }
 
-    mockPrisma.$transaction.mockImplementationOnce(async (fn: (txArg: typeof tx) => Promise<unknown>) => {
+    mockPrisma.$transaction.mockImplementationOnce(async (fn: (txArg: unknown) => Promise<unknown>) => {
       return fn(tx)
     })
 
@@ -119,8 +138,8 @@ describe('BookingRepository', () => {
 
     expect(result.success).toBe(true)
     expect(result.sessionId).toBe('session-1')
-    expect((tx.session.create as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalled()
-    expect((tx.appointmentHold.update as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith({
+    expect(tx.session.create).toHaveBeenCalled()
+    expect(tx.appointmentHold.update).toHaveBeenCalledWith({
       where: { id: 'hold-1' },
       data: { convertedToSessionId: 'session-1' }
     })
