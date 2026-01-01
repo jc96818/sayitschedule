@@ -131,7 +131,7 @@ async function cancelAppointment(sessionId: string) {
 function startReschedule(sessionId: string) {
   // Navigate to booking page with reschedule context
   router.push({
-    name: 'portal-booking',
+    name: 'portal-book',
     query: { rescheduleFrom: sessionId }
   })
 }
