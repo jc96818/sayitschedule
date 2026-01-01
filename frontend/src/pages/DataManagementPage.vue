@@ -8,14 +8,16 @@ import {
   type ImportPreview,
   type ImportResult
 } from '@/services/api'
+import { useLabels } from '@/composables/useLabels'
 
 // Entity type definitions
-const entityTypes: { value: ExportEntityType; label: string; description: string }[] = [
-  { value: 'staff', label: 'Staff', description: 'Therapists and staff members' },
-  { value: 'patients', label: 'Patients', description: 'Patient records' },
-  { value: 'rooms', label: 'Rooms', description: 'Therapy rooms and facilities' },
+const { staffLabel, patientLabel, roomLabel } = useLabels()
+const entityTypes = computed<{ value: ExportEntityType; label: string; description: string }[]>(() => [
+  { value: 'staff', label: staffLabel.value, description: `${staffLabel.value} records` },
+  { value: 'patients', label: patientLabel.value, description: `${patientLabel.value} records` },
+  { value: 'rooms', label: roomLabel.value, description: `${roomLabel.value} records` },
   { value: 'rules', label: 'Rules', description: 'Scheduling rules and constraints' }
-]
+])
 
 // Export state
 const exportLoading = ref<string | null>(null)
@@ -36,7 +38,7 @@ const importError = ref<string | null>(null)
 
 // Get entity label
 function getEntityLabel(value: ExportEntityType): string {
-  return entityTypes.find(e => e.value === value)?.label || value
+  return entityTypes.value.find(e => e.value === value)?.label || value
 }
 
 // Export functions

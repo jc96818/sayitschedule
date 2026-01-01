@@ -527,8 +527,13 @@ export interface PortalBranding {
   privacyUrl: string | null
 
   // Labels
+  staffLabel: string
+  staffLabelSingular: string
   patientLabel: string
   patientLabelSingular: string
+  roomLabel: string
+  roomLabelSingular: string
+  equipmentLabel: string
 
   // Feature flags
   selfBookingEnabled: boolean

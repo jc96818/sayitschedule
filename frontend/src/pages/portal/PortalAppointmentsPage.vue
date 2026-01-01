@@ -21,7 +21,10 @@ const pastTotalPages = ref(1)
 const pastLoading = ref(false)
 
 // Computed
+const branding = computed(() => portalStore.branding)
 const canCancel = computed(() => portalStore.canCancel)
+const staffLabelSingular = computed(() => branding.value?.staffLabelSingular || 'Therapist')
+const roomLabelSingular = computed(() => branding.value?.roomLabelSingular || 'Location')
 const displayedAppointments = computed(() => {
   return activeTab.value === 'upcoming' ? upcomingAppointments.value : pastAppointments.value
 })
@@ -190,8 +193,8 @@ onMounted(() => {
             </span>
           </div>
           <div class="card-details">
-            <p><strong>Therapist:</strong> {{ appointment.therapistName }}</p>
-            <p v-if="appointment.roomName"><strong>Location:</strong> {{ appointment.roomName }}</p>
+            <p><strong>{{ staffLabelSingular }}:</strong> {{ appointment.therapistName }}</p>
+            <p v-if="appointment.roomName"><strong>{{ roomLabelSingular }}:</strong> {{ appointment.roomName }}</p>
             <p v-if="appointment.notes"><strong>Notes:</strong> {{ appointment.notes }}</p>
           </div>
         </div>

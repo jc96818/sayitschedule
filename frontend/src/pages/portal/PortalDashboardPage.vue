@@ -20,6 +20,7 @@ const user = computed(() => portalStore.user)
 const branding = computed(() => portalStore.branding)
 const canBook = computed(() => portalStore.canBook)
 const canCancel = computed(() => portalStore.canCancel)
+const roomLabelSingular = computed(() => branding.value?.roomLabelSingular || 'Location')
 
 // Next appointment
 const nextAppointment = computed(() => upcomingAppointments.value[0] || null)
@@ -192,7 +193,7 @@ onMounted(() => {
           </div>
           <div class="next-details">
             <p><strong>With:</strong> {{ nextAppointment.therapistName }}</p>
-            <p v-if="nextAppointment.roomName"><strong>Location:</strong> {{ nextAppointment.roomName }}</p>
+            <p v-if="nextAppointment.roomName"><strong>{{ roomLabelSingular }}:</strong> {{ nextAppointment.roomName }}</p>
           </div>
           <div class="next-status">
             <span

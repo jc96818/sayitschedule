@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import Modal from './Modal.vue'
 import Button from './Button.vue'
+import { useLabels } from '@/composables/useLabels'
 
 type PageType = 'rules' | 'staff' | 'patients' | 'room' | 'schedule' | 'schedule_generate'
 
@@ -20,6 +21,19 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const showModal = ref(false)
+const {
+  staffLabelSingular,
+  staffLabelSingularLower,
+  staffLabelLower,
+  patientLabelSingular,
+  patientLabelSingularLower,
+  patientLabelLower,
+  roomLabelSingular,
+  roomLabelSingularLower,
+  roomLabelLower,
+  equipmentLabel
+} = useLabels()
+const equipmentLabelLower = computed(() => equipmentLabel.value.toLowerCase())
 
 // Generate storage key based on page type
 const getStorageKey = () => props.storageKey || `voice-hints-seen-${props.pageType}`
@@ -35,22 +49,22 @@ const markAsSeen = () => {
 }
 
 // Voice hints for each page type
-const hintsData: Record<PageType, { title: string; intro: string; hints: VoiceHint[] }> = {
+const hintsData = computed<Record<PageType, { title: string; intro: string; hints: VoiceHint[] }>>(() => ({
   rules: {
     title: 'Voice Commands for Scheduling Rules',
     intro: 'Create or search for scheduling rules by speaking naturally. The AI will interpret your intent.',
     hints: [
       {
-        example: 'Male therapists can only work with male patients',
-        description: 'Creates a gender pairing rule that restricts male therapists to male patients only.'
+        example: `Male ${staffLabelLower.value} can only work with male ${patientLabelLower.value}`,
+        description: `Creates a gender pairing rule that restricts male ${staffLabelLower.value} to male ${patientLabelLower.value} only.`
       },
       {
-        example: 'Sarah should always be scheduled with patient Emily',
+        example: `Sarah should always be scheduled with ${patientLabelSingularLower.value} Emily`,
         description: 'Creates a specific pairing rule that ensures Sarah is always assigned to Emily.'
       },
       {
-        example: 'Maximum 2 sessions per therapist per day',
-        description: 'Limits the number of sessions any therapist can have in a single day.'
+        example: `Maximum 2 sessions per ${staffLabelSingularLower.value} per day`,
+        description: `Limits the number of sessions any ${staffLabelSingularLower.value} can have in a single day.`
       },
       {
         example: 'No scheduling on federal holidays',
@@ -71,56 +85,56 @@ const hintsData: Record<PageType, { title: string; intro: string; hints: VoiceHi
     ]
   },
   staff: {
-    title: 'Voice Commands for Staff Management',
-    intro: 'Add staff members using voice commands. Speak naturally and the AI will understand your intent.',
+    title: `Voice Commands for ${staffLabelSingular.value} Management`,
+    intro: `Add ${staffLabelLower.value} using voice commands. Speak naturally and the AI will understand your intent.`,
     hints: [
       {
-        example: 'Add a new therapist named Sarah Johnson, female',
-        description: 'Creates a new female staff member with the specified name.'
+        example: `Add a new ${staffLabelSingularLower.value} named Sarah Johnson, female`,
+        description: `Creates a new female ${staffLabelSingularLower.value} with the specified name.`
       },
       {
-        example: 'New staff member Adam Smith, male, certified in ABA therapy',
-        description: 'Adds a new male therapist with a specific certification.'
+        example: `New ${staffLabelSingularLower.value} Adam Smith, male, certified in ABA therapy`,
+        description: `Adds a new male ${staffLabelSingularLower.value} with a specific certification.`
       },
       {
-        example: 'Add therapist Maria Garcia with speech therapy and pediatrics certifications',
-        description: 'Creates a staff member with multiple certifications listed.'
+        example: `Add ${staffLabelSingularLower.value} Maria Garcia with speech therapy and pediatrics certifications`,
+        description: `Creates a ${staffLabelSingularLower.value} with multiple certifications listed.`
       }
     ]
   },
   patients: {
-    title: 'Voice Commands for Patient Management',
-    intro: 'Add patient records using voice commands. The AI will interpret your request and help you fill in the details.',
+    title: `Voice Commands for ${patientLabelSingular.value} Management`,
+    intro: `Add ${patientLabelSingularLower.value} records using voice commands. The AI will interpret your request and help you fill in the details.`,
     hints: [
       {
-        example: 'Add a new patient named Emily Carter, female',
-        description: 'Creates a new female patient with the specified name.'
+        example: `Add a new ${patientLabelSingularLower.value} named Emily Carter, female`,
+        description: `Creates a new female ${patientLabelSingularLower.value} with the specified name.`
       },
       {
-        example: 'New patient Michael Brown, male, needs 3 sessions per week',
-        description: 'Adds a patient with a specific weekly session requirement.'
+        example: `New ${patientLabelSingularLower.value} Michael Brown, male, needs 3 sessions per week`,
+        description: `Adds a ${patientLabelSingularLower.value} with a specific weekly session requirement.`
       },
       {
-        example: 'Add patient Lisa Wong who requires an ABA certified therapist',
-        description: 'Creates a patient with specific certification requirements for their therapist.'
+        example: `Add ${patientLabelSingularLower.value} Lisa Wong who requires an ABA certified ${staffLabelSingularLower.value}`,
+        description: `Creates a ${patientLabelSingularLower.value} with specific certification requirements for their ${staffLabelSingularLower.value}.`
       }
     ]
   },
   room: {
-    title: 'Voice Commands for Room Management',
-    intro: 'Add therapy rooms using voice commands. Specify the room name and any equipment or capabilities it has.',
+    title: `Voice Commands for ${roomLabelSingular.value} Management`,
+    intro: `Add ${roomLabelLower.value} using voice commands. Specify the ${roomLabelSingularLower.value} name and any ${equipmentLabelLower.value} or capabilities it has.`,
     hints: [
       {
-        example: 'Create room 101 with sensory equipment',
-        description: 'Creates a new room with the specified name and sensory equipment capability.'
+        example: `Create ${roomLabelSingularLower.value} 101 with sensory ${equipmentLabelLower.value}`,
+        description: `Creates a new ${roomLabelSingularLower.value} with the specified name and sensory ${equipmentLabelLower.value} capability.`
       },
       {
-        example: 'Add a new room called Therapy Suite A with wheelchair access',
-        description: 'Creates a room with wheelchair accessibility as a capability.'
+        example: `Add a new ${roomLabelSingularLower.value} called Therapy Suite A with wheelchair access`,
+        description: `Creates a ${roomLabelSingularLower.value} with wheelchair accessibility as a capability.`
       },
       {
-        example: 'New room B2 with sensory equipment, computer station, and wheelchair access',
-        description: 'Creates a room with multiple capabilities listed.'
+        example: `New ${roomLabelSingularLower.value} B2 with sensory ${equipmentLabelLower.value}, computer station, and wheelchair access`,
+        description: `Creates a ${roomLabelSingularLower.value} with multiple capabilities listed.`
       }
     ]
   },
@@ -141,8 +155,8 @@ const hintsData: Record<PageType, { title: string; intro: string; hints: VoiceHi
         description: 'Moves a session to a different day of the week.'
       },
       {
-        example: "Remove the 3 PM session with Emma",
-        description: 'Cancels a session identified by the patient name and time.'
+        example: 'Remove the 3 PM session with Emma',
+        description: `Cancels a session identified by the ${patientLabelSingularLower.value} name and time.`
       }
     ]
   },
@@ -168,10 +182,10 @@ const hintsData: Record<PageType, { title: string; intro: string; hints: VoiceHi
       }
     ]
   }
-}
+}))
 
 // Get current page hints
-const currentHints = hintsData[props.pageType]
+const currentHints = computed(() => hintsData.value[props.pageType])
 
 // Open modal
 function openModal() {

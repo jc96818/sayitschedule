@@ -370,11 +370,11 @@ onMounted(() => {
               <div class="calendar-legend">
                 <div class="legend-item">
                   <div class="legend-box blue"></div>
-                  <span class="text-sm">Male Therapist</span>
+                  <span class="text-sm">Male {{ staffLabelSingular }}</span>
                 </div>
                 <div class="legend-item">
                   <div class="legend-box green"></div>
-                  <span class="text-sm">Female Therapist</span>
+                  <span class="text-sm">Female {{ staffLabelSingular }}</span>
                 </div>
               </div>
             </div>

@@ -35,6 +35,9 @@ let holdTimer: ReturnType<typeof setInterval> | null = null
 
 // Computed
 const branding = computed(() => portalStore.branding)
+const staffLabelSingular = computed(() => branding.value?.staffLabelSingular || 'Therapist')
+const staffLabelSingularLower = computed(() => staffLabelSingular.value.toLowerCase())
+const roomLabelSingular = computed(() => branding.value?.roomLabelSingular || 'Location')
 
 const dateMin = computed(() => {
   if (!settings.value) return ''
@@ -314,9 +317,9 @@ onUnmounted(() => {
       <!-- Filters -->
       <div class="filters">
         <div class="filter-group">
-          <label>Preferred Therapist (Optional)</label>
+          <label>Preferred {{ staffLabelSingular }} (Optional)</label>
           <select v-model="selectedTherapist" :disabled="loadingTherapists">
-            <option value="">Any Available Therapist</option>
+            <option value="">Any Available {{ staffLabelSingular }}</option>
             <option v-for="t in therapists" :key="t.id" :value="t.id">
               {{ t.name }}
             </option>
@@ -347,7 +350,7 @@ onUnmounted(() => {
 
       <!-- No Availability -->
       <div v-else-if="selectedDate && selectedDateSlots.length === 0" class="no-slots">
-        <p>No available time slots on this date. Try selecting a different date or therapist.</p>
+        <p>No available time slots on this date. Try selecting a different date or {{ staffLabelSingularLower }}.</p>
       </div>
 
       <!-- Available Slots -->
@@ -400,11 +403,11 @@ onUnmounted(() => {
             <span class="value">{{ formatTime(currentHold!.startTime) }} - {{ formatTime(currentHold!.endTime) }}</span>
           </div>
           <div class="detail-row">
-            <span class="label">Therapist:</span>
+            <span class="label">{{ staffLabelSingular }}:</span>
             <span class="value">{{ currentHold!.staffName }}</span>
           </div>
           <div v-if="currentHold!.roomName" class="detail-row">
-            <span class="label">Location:</span>
+            <span class="label">{{ roomLabelSingular }}:</span>
             <span class="value">{{ currentHold!.roomName }}</span>
           </div>
         </div>

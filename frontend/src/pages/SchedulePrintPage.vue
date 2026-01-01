@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useSchedulesStore } from '@/stores/schedules'
 import { useStaffStore } from '@/stores/staff'
 import { useAuthStore } from '@/stores/auth'
+import { useLabels } from '@/composables/useLabels'
 import { getFederalHoliday } from '@/utils/holidays'
 import type { Session } from '@/types'
 
@@ -11,6 +12,7 @@ const route = useRoute()
 const schedulesStore = useSchedulesStore()
 const staffStore = useStaffStore()
 const authStore = useAuthStore()
+const { staffLabel, patientLabel } = useLabels()
 
 const loading = ref(true)
 const error = ref('')
@@ -211,9 +213,9 @@ onMounted(async () => {
         <div class="stats">
           <span>Sessions: {{ stats.totalSessions }}</span>
           <span class="divider">|</span>
-          <span>Therapists: {{ stats.therapistsScheduled }}</span>
+          <span>{{ staffLabel }}: {{ stats.therapistsScheduled }}</span>
           <span class="divider">|</span>
-          <span>Patients: {{ stats.patientsCovered }}</span>
+          <span>{{ patientLabel }}: {{ stats.patientsCovered }}</span>
         </div>
         <div class="generated">
           Generated {{ new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}

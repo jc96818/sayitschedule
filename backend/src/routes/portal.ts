@@ -159,8 +159,13 @@ export async function portalRoutes(fastify: FastifyInstance) {
           logoUrl: true,
           primaryColor: true,
           secondaryColor: true,
+          staffLabel: true,
+          staffLabelSingular: true,
           patientLabelSingular: true,
-          patientLabel: true
+          patientLabel: true,
+          roomLabel: true,
+          roomLabelSingular: true,
+          equipmentLabel: true
         }
       })
 
@@ -208,8 +213,13 @@ export async function portalRoutes(fastify: FastifyInstance) {
           privacyUrl: features.portalPrivacyUrl,
 
           // Labels (for display consistency)
+          staffLabel: organization.staffLabel,
+          staffLabelSingular: organization.staffLabelSingular,
           patientLabel: organization.patientLabel,
           patientLabelSingular: organization.patientLabelSingular,
+          roomLabel: organization.roomLabel,
+          roomLabelSingular: organization.roomLabelSingular,
+          equipmentLabel: organization.equipmentLabel,
 
           // Feature flags (for UI behavior)
           selfBookingEnabled: features.selfBookingEnabled,
