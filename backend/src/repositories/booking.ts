@@ -68,6 +68,22 @@ export interface BookingResult {
   error?: string
 }
 
+export interface RescheduleInput {
+  originalSessionId: string
+  holdId: string
+  organizationId: string
+  isLateReschedule: boolean
+  rescheduleReason?: string
+  bookedByContactId?: string
+}
+
+export interface RescheduleResult {
+  success: boolean
+  newSessionId?: string
+  originalSessionId?: string
+  error?: string
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -566,6 +582,139 @@ export class BookingRepository {
       return {
         success: false,
         error: 'Failed to extend hold'
+      }
+    }
+  }
+
+  /**
+   * Reschedule a session by cancelling the original and booking a new one from a hold.
+   * This is performed atomically in a transaction to prevent inconsistent states.
+   */
+  async reschedule(input: RescheduleInput): Promise<RescheduleResult> {
+    const {
+      originalSessionId,
+      holdId,
+      organizationId,
+      isLateReschedule,
+      rescheduleReason,
+      bookedByContactId
+    } = input
+
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Get and validate the original session
+        const originalSession = await tx.session.findFirst({
+          where: {
+            id: originalSessionId,
+            schedule: { organizationId },
+            status: { notIn: ['cancelled', 'late_cancel'] }
+          },
+          include: {
+            schedule: true
+          }
+        })
+
+        if (!originalSession) {
+          throw new Error('Original session not found or already cancelled')
+        }
+
+        // 2. Get and validate the hold
+        const hold = await tx.appointmentHold.findFirst({
+          where: {
+            id: holdId,
+            organizationId,
+            expiresAt: { gt: new Date() },
+            releasedAt: null,
+            convertedToSessionId: null
+          }
+        })
+
+        if (!hold) {
+          throw new Error('Hold has expired or is no longer valid')
+        }
+
+        if (!hold.staffId) {
+          throw new Error('Hold does not have a staff member assigned')
+        }
+
+        // 3. Check for conflicts at the new time slot (excluding the original session)
+        const conflictingSession = await tx.session.findFirst({
+          where: {
+            id: { not: originalSessionId },
+            therapistId: hold.staffId,
+            date: hold.date,
+            status: { notIn: ['cancelled', 'late_cancel'] },
+            schedule: { organizationId },
+            startTime: { lt: hold.endTime },
+            endTime: { gt: hold.startTime }
+          }
+        })
+
+        if (conflictingSession) {
+          throw new Error('New time slot is no longer available')
+        }
+
+        // 4. Cancel the original session
+        await tx.session.update({
+          where: { id: originalSessionId },
+          data: {
+            status: isLateReschedule ? 'late_cancel' : 'cancelled',
+            cancellationReason: 'rescheduled' as const,
+            cancellationNotes: rescheduleReason || 'Rescheduled to a new time',
+            cancelledAt: new Date()
+          }
+        })
+
+        // 5. Get or create schedule for the new date
+        const effectiveScheduleId = await findOrCreateSchedule(
+          tx,
+          organizationId,
+          hold.date,
+          hold.createdByUserId || undefined
+        )
+
+        // 6. Create the new session
+        const newSession = await tx.session.create({
+          data: {
+            scheduleId: effectiveScheduleId,
+            therapistId: hold.staffId,
+            patientId: originalSession.patientId,
+            roomId: hold.roomId,
+            date: hold.date,
+            startTime: hold.startTime,
+            endTime: hold.endTime,
+            notes: originalSession.notes,
+            status: 'scheduled',
+            bookedVia: 'portal',
+            bookedByContactId,
+            rescheduledFromId: originalSessionId
+          }
+        })
+
+        // 7. Mark the hold as converted
+        await tx.appointmentHold.update({
+          where: { id: holdId },
+          data: { convertedToSessionId: newSession.id }
+        })
+
+        // Note: The rescheduledTo relation on the original session is automatically
+        // established via the rescheduledFromId field on the new session
+
+        return {
+          newSession,
+          originalSession
+        }
+      })
+
+      return {
+        success: true,
+        newSessionId: result.newSession.id,
+        originalSessionId: result.originalSession.id
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to reschedule'
       }
     }
   }

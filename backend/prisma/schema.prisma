@@ -68,6 +68,7 @@ enum CancellationReason {
   weather
   illness
   scheduling_conflict
+  rescheduled
   other
 }
 
@@ -464,6 +465,11 @@ model Session {
   // Booking metadata (for portal and multi-channel booking)
   bookedByContactId  String?             @map("booked_by_contact_id")  // Portal user who booked
   bookedVia          BookingSource       @default(admin) @map("booked_via")
+
+  // Reschedule tracking (self-referencing)
+  rescheduledFromId  String?             @unique @map("rescheduled_from_id")
+  rescheduledFrom    Session?            @relation("SessionReschedule", fields: [rescheduledFromId], references: [id])
+  rescheduledTo      Session?            @relation("SessionReschedule")
 
   @@map("sessions")
 }

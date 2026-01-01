@@ -564,6 +564,7 @@ export interface PortalSession {
   notes: string | null
   confirmedAt: string | null
   canCancel: boolean
+  canReschedule: boolean
   canConfirm: boolean
 }
 

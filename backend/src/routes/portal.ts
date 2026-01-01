@@ -49,6 +49,11 @@ interface CancelBody {
   reason?: string
 }
 
+interface RescheduleBody {
+  holdId: string
+  reason?: string
+}
+
 interface HistoryQuery {
   page?: string | number
   limit?: string | number
@@ -122,9 +127,13 @@ function mapPortalSession(
     therapist: { name: string }
     room: { name: string } | null
   },
-  options: { portalAllowCancel: boolean; portalRequireConfirmation: boolean }
+  options: {
+    portalAllowCancel: boolean
+    portalAllowReschedule: boolean
+    portalRequireConfirmation: boolean
+  }
 ) {
-  const canCancelByStatus = ['pending', 'scheduled', 'confirmed'].includes(session.status)
+  const canModifyByStatus = ['pending', 'scheduled', 'confirmed'].includes(session.status)
   const canConfirmByStatus = session.status === 'scheduled' && !session.confirmedAt
 
   return {
@@ -137,7 +146,8 @@ function mapPortalSession(
     status: session.status,
     notes: session.notes,
     confirmedAt: session.confirmedAt,
-    canCancel: options.portalAllowCancel && canCancelByStatus,
+    canCancel: options.portalAllowCancel && canModifyByStatus,
+    canReschedule: options.portalAllowReschedule && canModifyByStatus,
     canConfirm: options.portalRequireConfirmation && canConfirmByStatus
   }
 }
@@ -446,6 +456,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
           },
           {
             portalAllowCancel: features.portalAllowCancel,
+            portalAllowReschedule: features.portalAllowReschedule,
             portalRequireConfirmation: features.portalRequireConfirmation
           }
         ))
@@ -508,6 +519,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
           },
           {
             portalAllowCancel: features.portalAllowCancel,
+            portalAllowReschedule: features.portalAllowReschedule,
             portalRequireConfirmation: features.portalRequireConfirmation
           }
         )
@@ -594,6 +606,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
           },
           {
             portalAllowCancel: features.portalAllowCancel,
+            portalAllowReschedule: features.portalAllowReschedule,
             portalRequireConfirmation: features.portalRequireConfirmation
           }
         ) : null
@@ -713,6 +726,140 @@ export async function portalRoutes(fastify: FastifyInstance) {
           },
           {
             portalAllowCancel: features.portalAllowCancel,
+            portalAllowReschedule: features.portalAllowReschedule,
+            portalRequireConfirmation: features.portalRequireConfirmation
+          }
+        ) : null
+      })
+    }
+  )
+
+  /**
+   * POST /portal/appointments/:sessionId/reschedule
+   * Reschedule an appointment to a new time slot
+   *
+   * Requires a valid hold ID for the new time slot.
+   * The original session is cancelled and a new one is created atomically.
+   *
+   * TIMEZONE: Uses the organization's timezone for late reschedule calculations.
+   */
+  fastify.post<{ Params: SessionIdParams; Body: RescheduleBody }>(
+    '/appointments/:sessionId/reschedule',
+    { preHandler: [portalAuthenticate, requirePatientPortalEnabled] },
+    async (
+      request: FastifyRequest<{ Params: SessionIdParams; Body: RescheduleBody }>,
+      reply: FastifyReply
+    ) => {
+      const user = getPortalUser(request)
+      const { sessionId } = request.params
+      const { holdId, reason } = request.body
+
+      // Check if reschedule is allowed
+      const features = await organizationFeaturesRepository.findByOrganizationId(
+        user.organizationId
+      )
+
+      if (!features.portalAllowReschedule) {
+        return reply.code(403).send({
+          error: 'Reschedule not allowed',
+          message: 'Rescheduling appointments through the portal is not enabled for this organization'
+        })
+      }
+
+      // Get the original session
+      const session = await prisma.session.findFirst({
+        where: {
+          id: sessionId,
+          patientId: user.patientId,
+          status: { notIn: ['cancelled', 'late_cancel'] },
+          schedule: {
+            organizationId: user.organizationId
+          }
+        }
+      })
+
+      if (!session) {
+        return reply.code(404).send({
+          error: 'Not found',
+          message: 'Appointment not found or cannot be rescheduled'
+        })
+      }
+
+      // Check if this is a late reschedule (uses same window as cancellation)
+      const settings = await organizationSettingsRepository.findByOrganizationId(
+        user.organizationId
+      )
+      const timezone = settings.timezone
+
+      // Calculate hours until session using timezone-aware date handling
+      const sessionDateStr = formatLocalDate(session.date, timezone)
+      const hoursUntil = hoursUntilLocalDateTime(sessionDateStr, session.startTime, timezone)
+      const isLateReschedule = hoursUntil < settings.lateCancelWindowHours
+
+      // Perform the reschedule
+      const result = await bookingRepository.reschedule({
+        originalSessionId: sessionId,
+        holdId,
+        organizationId: user.organizationId,
+        isLateReschedule,
+        rescheduleReason: reason,
+        bookedByContactId: user.contactId
+      })
+
+      if (!result.success) {
+        return reply.code(400).send({
+          error: 'Reschedule failed',
+          message: result.error || 'Failed to reschedule appointment'
+        })
+      }
+
+      // Audit log
+      await auditRepository.log(
+        null,
+        isLateReschedule ? 'session.late_rescheduled_by_patient' : 'session.rescheduled_by_patient',
+        'session',
+        result.newSessionId!,
+        user.organizationId,
+        {
+          contactId: user.contactId,
+          patientId: user.patientId,
+          originalSessionId: sessionId,
+          newSessionId: result.newSessionId,
+          holdId,
+          isLateReschedule,
+          reason
+        }
+      )
+
+      // Get the new session details
+      const newSession = await prisma.session.findUnique({
+        where: { id: result.newSessionId },
+        include: {
+          therapist: { select: { name: true } },
+          room: { select: { name: true } }
+        }
+      })
+
+      return reply.send({
+        message: isLateReschedule
+          ? 'Appointment rescheduled (late reschedule policy applies)'
+          : 'Appointment rescheduled successfully',
+        meta: { isLateReschedule, originalSessionId: sessionId },
+        data: newSession ? mapPortalSession(
+          {
+            id: newSession.id,
+            date: newSession.date,
+            startTime: newSession.startTime,
+            endTime: newSession.endTime,
+            status: newSession.status,
+            notes: newSession.notes,
+            confirmedAt: newSession.confirmedAt,
+            therapist: { name: newSession.therapist.name },
+            room: newSession.room ? { name: newSession.room.name } : null
+          },
+          {
+            portalAllowCancel: features.portalAllowCancel,
+            portalAllowReschedule: features.portalAllowReschedule,
             portalRequireConfirmation: features.portalRequireConfirmation
           }
         ) : null
@@ -775,6 +922,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
           },
           {
             portalAllowCancel: features.portalAllowCancel,
+            portalAllowReschedule: features.portalAllowReschedule,
             portalRequireConfirmation: features.portalRequireConfirmation
           }
         )),
@@ -1270,6 +1418,7 @@ export async function portalRoutes(fastify: FastifyInstance) {
           },
           {
             portalAllowCancel: features.portalAllowCancel,
+            portalAllowReschedule: features.portalAllowReschedule,
             portalRequireConfirmation: features.portalRequireConfirmation
           }
         ) : null

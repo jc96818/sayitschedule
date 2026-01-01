@@ -175,8 +175,8 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/portal/PortalAppointmentsPage.vue')
       },
       {
-        path: 'book',
-        name: 'portal-book',
+        path: 'booking',
+        name: 'portal-booking',
         component: () => import('@/pages/portal/PortalBookingPage.vue'),
         meta: { requiresSelfBooking: true }
       },

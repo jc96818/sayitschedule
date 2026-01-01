@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { usePortalAuthStore } from '@/stores/portalAuth'
-import { portalBookingService } from '@/services/api'
+import { portalBookingService, portalAppointmentsService } from '@/services/api'
 import type { PortalAvailabilitySlot, PortalBookingHold, PortalBookingSettings } from '@/types'
 
 const router = useRouter()
+const route = useRoute()
 const portalStore = usePortalAuthStore()
+
+// Reschedule mode
+const rescheduleFromSessionId = computed(() => route.query.rescheduleFrom as string | undefined)
+const isRescheduleMode = computed(() => !!rescheduleFromSessionId.value)
 
 // State
 const step = ref<'select' | 'confirm' | 'success'>('select')
@@ -238,7 +243,7 @@ async function cancelHold() {
   step.value = 'select'
 }
 
-// Confirm booking
+// Confirm booking (or reschedule)
 async function confirmBooking() {
   if (!currentHold.value) return
 
@@ -246,13 +251,23 @@ async function confirmBooking() {
     booking.value = true
     error.value = null
 
-    await portalBookingService.book(currentHold.value.id, notes.value || undefined)
+    if (isRescheduleMode.value && rescheduleFromSessionId.value) {
+      // Reschedule: cancel original and book new in one transaction
+      await portalAppointmentsService.reschedule(
+        rescheduleFromSessionId.value,
+        currentHold.value.id,
+        notes.value || undefined
+      )
+    } else {
+      // Regular booking
+      await portalBookingService.book(currentHold.value.id, notes.value || undefined)
+    }
 
     stopHoldCountdown()
     step.value = 'success'
   } catch (err: unknown) {
     const e = err as { response?: { data?: { message?: string } } }
-    error.value = e.response?.data?.message || 'Failed to complete booking'
+    error.value = e.response?.data?.message || (isRescheduleMode.value ? 'Failed to reschedule appointment' : 'Failed to complete booking')
   } finally {
     booking.value = false
   }
@@ -289,7 +304,7 @@ onUnmounted(() => {
 
 <template>
   <div class="portal-booking">
-    <h1>Book an Appointment</h1>
+    <h1>{{ isRescheduleMode ? 'Reschedule Appointment' : 'Book an Appointment' }}</h1>
 
     <!-- Loading -->
     <div v-if="loadingSettings" class="loading-state">
@@ -391,7 +406,7 @@ onUnmounted(() => {
       </div>
 
       <div class="confirmation-card">
-        <h2>Confirm Your Appointment</h2>
+        <h2>{{ isRescheduleMode ? 'Confirm Reschedule' : 'Confirm Your Appointment' }}</h2>
 
         <div class="appointment-details">
           <div class="detail-row">
@@ -440,7 +455,8 @@ onUnmounted(() => {
             Go Back
           </button>
           <button class="confirm-btn" :disabled="booking" @click="confirmBooking">
-            {{ booking ? 'Booking...' : 'Confirm Booking' }}
+            <span v-if="booking">{{ isRescheduleMode ? 'Rescheduling...' : 'Booking...' }}</span>
+            <span v-else>{{ isRescheduleMode ? 'Confirm Reschedule' : 'Confirm Booking' }}</span>
           </button>
         </div>
       </div>
@@ -450,8 +466,12 @@ onUnmounted(() => {
     <div v-else-if="step === 'success'" class="booking-step success-step">
       <div class="success-card">
         <div class="success-icon">✓</div>
-        <h2>Booking {{ settings?.requiresApproval ? 'Submitted' : 'Confirmed' }}!</h2>
-        <p v-if="settings?.requiresApproval">
+        <h2 v-if="isRescheduleMode">Appointment Rescheduled!</h2>
+        <h2 v-else>Booking {{ settings?.requiresApproval ? 'Submitted' : 'Confirmed' }}!</h2>
+        <p v-if="isRescheduleMode">
+          Your appointment has been successfully rescheduled. Your previous appointment has been cancelled.
+        </p>
+        <p v-else-if="settings?.requiresApproval">
           Your appointment request has been submitted and is pending approval. You'll receive a notification once it's confirmed.
         </p>
         <p v-else>

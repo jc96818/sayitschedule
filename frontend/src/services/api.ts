@@ -1219,6 +1219,11 @@ export const portalAppointmentsService = {
   async cancel(sessionId: string, reason?: string): Promise<ApiResponse<PortalSession>> {
     const { data } = await portalApi.post(`/appointments/${sessionId}/cancel`, { reason })
     return data
+  },
+
+  async reschedule(sessionId: string, holdId: string, reason?: string): Promise<ApiResponse<PortalSession>> {
+    const { data } = await portalApi.post(`/appointments/${sessionId}/reschedule`, { holdId, reason })
+    return data
   }
 }
 
