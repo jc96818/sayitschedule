@@ -593,7 +593,6 @@ onMounted(() => {
                     <input v-model="portalAllowReschedule" type="checkbox" />
                     Allow Portal Rescheduling
                   </label>
-                  <small class="text-muted">UI not implemented yet; keeps backend flag aligned.</small>
                 </div>
               </div>
 
