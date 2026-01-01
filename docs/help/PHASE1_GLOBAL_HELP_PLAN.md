@@ -200,10 +200,10 @@ Status values:
 | getting-started | What is Say It Schedule? | `/help/getting-started/overview` | admin, assistant, staff |  | App | Claude | ready |
 | getting-started | Roles & permissions | `/help/getting-started/roles` | admin, assistant, staff |  | App | Claude | ready |
 | getting-started | Glossary (labels + terms) | `/help/getting-started/glossary` | admin, assistant, staff |  | App | Claude | ready |
-| people | Add and manage {{labels.staff.plural}} | `/help/people/staff` | admin, assistant |  | `/app/staff` |  | unassigned |
-| people | {{labels.staff.singular}} profile fields | `/help/people/staff-profile` | admin, assistant |  | `/app/staff/:id` |  | unassigned |
-| people | Add and manage {{labels.patient.plural}} | `/help/people/patients` | admin, assistant |  | `/app/patients` |  | unassigned |
-| people | {{labels.patient.singular}} scheduling preferences | `/help/people/patient-preferences` | admin, assistant |  | `/app/patients/:id` |  | unassigned |
+| people | Add and manage {{labels.staff.plural}} | `/help/people/staff` | admin, assistant |  | `/app/staff` | Claude | ready |
+| people | {{labels.staff.singular}} profile fields | `/help/people/staff-profile` | admin, assistant |  | `/app/staff/:id` | Claude | ready |
+| people | Add and manage {{labels.patient.plural}} | `/help/people/patients` | admin, assistant |  | `/app/patients` | Claude | ready |
+| people | {{labels.patient.singular}} scheduling preferences | `/help/people/patient-preferences` | admin, assistant |  | `/app/patients/:id` | Claude | ready |
 | rooms | Add and manage {{labels.room.plural}} | `/help/rooms/rooms` | admin, assistant |  | `/app/rooms` |  | unassigned |
 | rooms | Room capabilities and matching | `/help/rooms/capabilities` | admin, assistant |  | `/app/rooms/:id` |  | unassigned |
 | rules | How scheduling rules work | `/help/rules/overview` | admin, assistant |  | `/app/rules` |  | unassigned |
