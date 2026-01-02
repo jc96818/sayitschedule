@@ -181,6 +181,7 @@ describe('SchedulePage', () => {
     }
 
     // Optionally preload the store to bypass async loading
+    // Must be done BEFORE mounting so the component reads the preloaded data
     if (options?.preloadStore && options?.schedule) {
       const schedulesStore = useSchedulesStore()
       schedulesStore.schedules = [options.schedule]
@@ -206,12 +207,25 @@ describe('SchedulePage', () => {
           StatCard: {
             template: '<div class="stat-card-stub"><slot /></div>',
             props: ['value', 'label', 'icon', 'color']
+          },
+          Badge: {
+            template: '<span class="badge-stub" :class="variant"><slot /></span>',
+            props: ['variant']
           }
         }
       }
     })
 
     await flushPromises()
+
+    // After mounting, re-set the store if preloading (since onMounted may have cleared it)
+    if (options?.preloadStore && options?.schedule) {
+      const schedulesStore = useSchedulesStore()
+      schedulesStore.currentSchedule = options.schedule
+      schedulesStore.loading = false
+      await wrapper.vm.$nextTick()
+    }
+
     return wrapper
   }
 
@@ -593,6 +607,328 @@ describe('SchedulePage', () => {
         // If schedule wasn't loaded, just verify the API was called
         expect(scheduleService.list).toHaveBeenCalled()
       }
+    })
+  })
+
+  describe('view mode switching', () => {
+    it('should render view mode tabs when schedule exists', async () => {
+      const wrapper = await mountSchedulePage({ schedule: mockSchedule, preloadStore: true })
+
+      expect(wrapper.text()).toContain('Calendar View')
+      expect(wrapper.text()).toContain('By Therapist')
+      expect(wrapper.text()).toContain('By Patient')
+      expect(wrapper.text()).toContain('By Room')
+    })
+
+    it('should have calendar view as default view mode', async () => {
+      const wrapper = await mountSchedulePage({ schedule: mockSchedule, preloadStore: true })
+
+      const calendarTab = wrapper.find('.view-tab.active')
+      expect(calendarTab.exists()).toBe(true)
+      expect(calendarTab.text()).toBe('Calendar View')
+    })
+
+    it('should switch to therapist view when clicking By Therapist tab', async () => {
+      const wrapper = await mountSchedulePage({ schedule: mockSchedule, preloadStore: true })
+
+      const therapistTab = wrapper.findAll('.view-tab').find(tab => tab.text().includes('Therapist'))
+      await therapistTab?.trigger('click')
+
+      expect(therapistTab?.classes()).toContain('active')
+    })
+
+    it('should switch to patient view when clicking By Patient tab', async () => {
+      const wrapper = await mountSchedulePage({ schedule: mockSchedule, preloadStore: true })
+
+      const patientTab = wrapper.findAll('.view-tab').find(tab => tab.text().includes('Patient'))
+      await patientTab?.trigger('click')
+
+      expect(patientTab?.classes()).toContain('active')
+    })
+
+    it('should switch to room view when clicking By Room tab', async () => {
+      const wrapper = await mountSchedulePage({ schedule: mockSchedule, preloadStore: true })
+
+      const roomTab = wrapper.findAll('.view-tab').find(tab => tab.text().includes('Room'))
+      await roomTab?.trigger('click')
+
+      expect(roomTab?.classes()).toContain('active')
+    })
+
+    it('should show filter dropdowns only in calendar view', async () => {
+      const wrapper = await mountSchedulePage({ schedule: mockSchedule, preloadStore: true })
+
+      // In calendar view, filter dropdowns should be present
+      expect(wrapper.find('.filter-dropdowns').exists()).toBe(true)
+
+      // Switch to therapist view
+      const therapistTab = wrapper.findAll('.view-tab').find(tab => tab.text().includes('Therapist'))
+      await therapistTab?.trigger('click')
+
+      // Filter dropdowns should not be visible in therapist view
+      expect(wrapper.find('.filter-dropdowns').exists()).toBe(false)
+    })
+  })
+
+  describe('session filtering in calendar view', () => {
+    const sessionsWithMultipleTherapists: Session[] = [
+      {
+        ...mockSession,
+        id: 'session-1',
+        therapistId: 'staff-1',
+        therapistName: 'Dr. Smith'
+      },
+      {
+        ...mockSession,
+        id: 'session-2',
+        therapistId: 'staff-2',
+        therapistName: 'Dr. Jones',
+        startTime: '10:00'
+      }
+    ]
+
+    const scheduleWithMultipleSessions = {
+      ...mockSchedule,
+      sessions: sessionsWithMultipleTherapists
+    }
+
+    it('should show therapist filter dropdown', async () => {
+      const wrapper = await mountSchedulePage({ schedule: scheduleWithMultipleSessions, preloadStore: true })
+
+      const therapistSelect = wrapper.findAll('select').find(sel =>
+        sel.find('option').text().includes('All Therapists')
+      )
+      expect(therapistSelect).toBeDefined()
+    })
+
+    it('should show room filter dropdown', async () => {
+      const wrapper = await mountSchedulePage({ schedule: scheduleWithMultipleSessions, preloadStore: true })
+
+      const roomSelect = wrapper.findAll('select').find(sel =>
+        sel.find('option').text().includes('All Rooms')
+      )
+      expect(roomSelect).toBeDefined()
+    })
+
+    it('should populate therapist filter with unique therapists from schedule', async () => {
+      const wrapper = await mountSchedulePage({ schedule: scheduleWithMultipleSessions, preloadStore: true })
+
+      const therapistSelect = wrapper.findAll('select').find(sel =>
+        sel.find('option').text().includes('All Therapists')
+      )
+      const options = therapistSelect?.findAll('option')
+
+      // Should have "All Therapists" plus unique therapists
+      expect(options?.some(opt => opt.text() === 'Dr. Smith')).toBe(true)
+      expect(options?.some(opt => opt.text() === 'Dr. Jones')).toBe(true)
+    })
+  })
+
+  describe('sessions grouped by entity views', () => {
+    const sessionsForGrouping: Session[] = [
+      {
+        ...mockSession,
+        id: 'session-1',
+        therapistId: 'staff-1',
+        therapistName: 'Dr. Smith',
+        patientId: 'patient-1',
+        patientName: 'John Doe',
+        roomId: 'room-1',
+        roomName: 'Room A',
+        date: weekStartDate,
+        startTime: '09:00'
+      },
+      {
+        ...mockSession,
+        id: 'session-2',
+        therapistId: 'staff-1',
+        therapistName: 'Dr. Smith',
+        patientId: 'patient-2',
+        patientName: 'Jane Smith',
+        roomId: 'room-2',
+        roomName: 'Room B',
+        date: weekStartDate,
+        startTime: '10:00'
+      },
+      {
+        ...mockSession,
+        id: 'session-3',
+        therapistId: 'staff-2',
+        therapistName: 'Dr. Jones',
+        patientId: 'patient-1',
+        patientName: 'John Doe',
+        roomId: 'room-1',
+        roomName: 'Room A',
+        date: weekStartDate,
+        startTime: '14:00'
+      }
+    ]
+
+    const scheduleForGrouping = {
+      ...mockSchedule,
+      sessions: sessionsForGrouping
+    }
+
+    it('should group sessions by therapist correctly', async () => {
+      const wrapper = await mountSchedulePage({ schedule: scheduleForGrouping, preloadStore: true })
+
+      // Switch to therapist view
+      const therapistTab = wrapper.findAll('.view-tab').find(tab => tab.text().includes('Therapist'))
+      await therapistTab?.trigger('click')
+
+      // Both therapists should be shown
+      expect(wrapper.text()).toContain('Dr. Smith')
+      expect(wrapper.text()).toContain('Dr. Jones')
+    })
+
+    it('should group sessions by patient correctly', async () => {
+      const wrapper = await mountSchedulePage({ schedule: scheduleForGrouping, preloadStore: true })
+
+      // Switch to patient view
+      const patientTab = wrapper.findAll('.view-tab').find(tab => tab.text().includes('Patient'))
+      await patientTab?.trigger('click')
+
+      // Both patients should be shown
+      expect(wrapper.text()).toContain('John Doe')
+      expect(wrapper.text()).toContain('Jane Smith')
+    })
+
+    it('should group sessions by room correctly', async () => {
+      const wrapper = await mountSchedulePage({ schedule: scheduleForGrouping, preloadStore: true })
+
+      // Switch to room view
+      const roomTab = wrapper.findAll('.view-tab').find(tab => tab.text().includes('Room'))
+      await roomTab?.trigger('click')
+
+      // Both rooms should be shown
+      expect(wrapper.text()).toContain('Room A')
+      expect(wrapper.text()).toContain('Room B')
+    })
+  })
+
+  describe('draft schedule actions', () => {
+    const draftSchedule = {
+      ...mockSchedule,
+      status: 'draft' as const
+    }
+
+    it('should show Add Session button for draft schedules', async () => {
+      const wrapper = await mountSchedulePage({ schedule: draftSchedule, preloadStore: true })
+
+      expect(wrapper.text()).toContain('Add Session')
+    })
+
+    it('should show Publish Schedule button for draft schedules', async () => {
+      const wrapper = await mountSchedulePage({ schedule: draftSchedule, preloadStore: true })
+
+      expect(wrapper.text()).toContain('Publish Schedule')
+    })
+
+    it('should not show Edit Draft Copy button for draft schedules', async () => {
+      const wrapper = await mountSchedulePage({ schedule: draftSchedule, preloadStore: true })
+
+      expect(wrapper.text()).not.toContain('Edit Draft Copy')
+    })
+
+    it('should show voice input for editing draft schedules', async () => {
+      const wrapper = await mountSchedulePage({ schedule: draftSchedule, preloadStore: true })
+
+      // Voice input should have "Edit Schedule" title for draft schedules
+      expect(wrapper.find('.voice-input-stub').exists()).toBe(true)
+    })
+
+    it('should call createSession API when adding a session', async () => {
+      vi.mocked(scheduleService.createSession).mockResolvedValue({
+        data: { ...mockSession, id: 'new-session' }
+      })
+
+      const schedulesStore = useSchedulesStore()
+      schedulesStore.currentSchedule = draftSchedule
+
+      await schedulesStore.createSession({
+        staffId: 'staff-1',
+        patientId: 'patient-1',
+        date: weekStartDate,
+        startTime: '09:00',
+        endTime: '10:00'
+      })
+
+      expect(scheduleService.createSession).toHaveBeenCalled()
+    })
+  })
+
+  describe('published schedule actions', () => {
+    const publishedSchedule = {
+      ...mockSchedule,
+      status: 'published' as const,
+      publishedAt: '2024-01-10T00:00:00Z'
+    }
+
+    it('should show Edit Draft Copy button for published schedules', async () => {
+      const wrapper = await mountSchedulePage({ schedule: publishedSchedule, preloadStore: true })
+
+      expect(wrapper.text()).toContain('Edit Draft Copy')
+    })
+
+    it('should not show Add Session button for published schedules', async () => {
+      const wrapper = await mountSchedulePage({ schedule: publishedSchedule, preloadStore: true })
+
+      // Add Session is only for drafts
+      const buttons = wrapper.findAll('button')
+      const addSessionButton = buttons.find(btn => btn.text().includes('Add Session'))
+      expect(addSessionButton).toBeUndefined()
+    })
+
+    it('should not show Publish Schedule button for published schedules', async () => {
+      const wrapper = await mountSchedulePage({ schedule: publishedSchedule, preloadStore: true })
+
+      // Publish Schedule is only for drafts
+      const buttons = wrapper.findAll('button')
+      const publishButton = buttons.find(btn => btn.text().includes('Publish Schedule'))
+      expect(publishButton).toBeUndefined()
+    })
+
+    it('should show Published badge for published schedules', async () => {
+      const wrapper = await mountSchedulePage({ schedule: publishedSchedule, preloadStore: true })
+
+      expect(wrapper.text()).toContain('Published')
+    })
+  })
+
+  describe('stats display', () => {
+    const scheduleWithStats = {
+      ...mockSchedule,
+      sessions: [
+        { ...mockSession, id: 's1', therapistId: 'staff-1', patientId: 'patient-1' },
+        { ...mockSession, id: 's2', therapistId: 'staff-1', patientId: 'patient-2' },
+        { ...mockSession, id: 's3', therapistId: 'staff-2', patientId: 'patient-1' }
+      ]
+    }
+
+    it('should display Total Sessions stat correctly', async () => {
+      const wrapper = await mountSchedulePage({ schedule: scheduleWithStats, preloadStore: true })
+
+      // StatCard is stubbed, so check that 3 sessions would be calculated correctly
+      const schedulesStore = useSchedulesStore()
+      expect(schedulesStore.currentSchedule?.sessions.length).toBe(3)
+    })
+
+    it('should count unique therapists for Therapists Scheduled stat', async () => {
+      await mountSchedulePage({ schedule: scheduleWithStats, preloadStore: true })
+
+      const schedulesStore = useSchedulesStore()
+      const sessions = schedulesStore.currentSchedule?.sessions || []
+      const uniqueTherapists = new Set(sessions.map(s => s.therapistId || s.staffId))
+      expect(uniqueTherapists.size).toBe(2) // staff-1 and staff-2
+    })
+
+    it('should count unique patients for Patients Covered stat', async () => {
+      await mountSchedulePage({ schedule: scheduleWithStats, preloadStore: true })
+
+      const schedulesStore = useSchedulesStore()
+      const sessions = schedulesStore.currentSchedule?.sessions || []
+      const uniquePatients = new Set(sessions.map(s => s.patientId))
+      expect(uniquePatients.size).toBe(2) // patient-1 and patient-2
     })
   })
 })

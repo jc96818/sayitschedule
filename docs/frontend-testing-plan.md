@@ -131,12 +131,14 @@ Core business functionality - the primary purpose of the application.
 | Schedules Store - Publish | Unit | ✅ Done | `stores/__tests__/schedules.test.ts` |
 | Schedules Store - Voice Mod | Unit | ✅ Done | `stores/__tests__/schedules.test.ts` |
 | SchedulePage | Component | ✅ Done | `pages/__tests__/SchedulePage.test.ts` |
-| ScheduleViewPage - Views | Component | ⬜ Todo | `pages/__tests__/ScheduleViewPage.test.ts` |
-| ScheduleViewPage - Edit Session | Component | ⬜ Todo | `pages/__tests__/ScheduleViewPage.test.ts` |
+| SchedulePage - View Switching | Component | ✅ Done | `pages/__tests__/SchedulePage.test.ts` |
+| SchedulePage - Session Filtering | Component | ✅ Done | `pages/__tests__/SchedulePage.test.ts` |
+| SchedulePage - Draft/Publish Actions | Component | ✅ Done | `pages/__tests__/SchedulePage.test.ts` |
 | E2E - Schedule Page | E2E | ✅ Done | `e2e/schedule-generation.spec.ts` |
 | E2E - Generate Schedule | E2E | ✅ Done | `e2e/schedule-generation.spec.ts` |
 | E2E - Schedule Navigation | E2E | ✅ Done | `e2e/schedule-generation.spec.ts` |
-| E2E - Publish Schedule | E2E | ⬜ Todo | `e2e/schedule-generation.spec.ts` |
+| E2E - Publish Schedule | E2E | ✅ Done | `e2e/schedule-generation.spec.ts` |
+| E2E - Start Over Flow | E2E | ✅ Done | `e2e/schedule-generation.spec.ts` |
 
 ---
 
@@ -173,30 +175,32 @@ Essential for schedule generation - patients are required inputs.
 
 ---
 
-### Phase 5: Room Management (MEDIUM PRIORITY)
+### Phase 5: Room Management (MEDIUM PRIORITY) - STORE TESTS COMPLETE
 
 Required for complete schedule generation.
 
 | Feature | Test Type | Status | File |
 |---------|-----------|--------|------|
-| Rooms Store - CRUD | Unit | ⬜ Todo | `stores/__tests__/rooms.test.ts` |
+| Rooms Store - CRUD | Unit | ✅ Done | `stores/__tests__/rooms.test.ts` |
 | RoomListPage | Component | ⬜ Todo | `pages/__tests__/RoomListPage.test.ts` |
 | RoomFormPage | Component | ⬜ Todo | `pages/__tests__/RoomFormPage.test.ts` |
 | E2E - Room Management | E2E | ⬜ Todo | `e2e/rooms.spec.ts` |
 
 ---
 
-### Phase 6: Scheduling Rules (MEDIUM PRIORITY)
+### Phase 6: Scheduling Rules (MEDIUM PRIORITY) - COMPONENT TESTS COMPLETE
 
 Important for schedule quality but not blocking.
 
 | Feature | Test Type | Status | File |
 |---------|-----------|--------|------|
-| Rules Store - CRUD | Unit | ⬜ Todo | `stores/__tests__/rules.test.ts` |
-| Rules Store - Categories | Unit | ⬜ Todo | `stores/__tests__/rules.test.ts` |
-| RulesPage - List | Component | ⬜ Todo | `pages/__tests__/RulesPage.test.ts` |
-| RulesPage - Create | Component | ⬜ Todo | `pages/__tests__/RulesPage.test.ts` |
-| RulesPage - Voice Input | Component | ⬜ Todo | `pages/__tests__/RulesPage.test.ts` |
+| Rules Store - CRUD | Unit | ✅ Done | `stores/__tests__/rules.test.ts` |
+| Rules Store - Categories | Unit | ✅ Done | `stores/__tests__/rules.test.ts` |
+| Rules Store - Voice Parsing | Unit | ✅ Done | `stores/__tests__/rules.test.ts` |
+| Rules Store - Analysis | Unit | ✅ Done | `stores/__tests__/rules.test.ts` |
+| RulesPage - List | Component | ✅ Done | `pages/__tests__/RulesPage.test.ts` |
+| RulesPage - Create | Component | ✅ Done | `pages/__tests__/RulesPage.test.ts` |
+| RulesPage - Voice Input | Component | ✅ Done | `pages/__tests__/RulesPage.test.ts` |
 | E2E - Create Rule | E2E | ⬜ Todo | `e2e/rules.spec.ts` |
 | E2E - Edit Rule | E2E | ⬜ Todo | `e2e/rules.spec.ts` |
 
@@ -350,13 +354,12 @@ Static content, minimal logic.
 
 ### Ready to Implement
 
-The following tests should be implemented next, in order:
+The following tests should be implemented next, in priority order:
 
-1. **ScheduleViewPage** - Schedule viewing and session editing
-2. **StaffFormPage** - Staff create/edit form component
-3. **PatientFormPage** - Patient create/edit form component
-4. **E2E - Staff Management** - Add, edit, deactivate staff flows
-5. **E2E - Patient Management** - Add, edit patient flows
+1. **Rooms Store + E2E** - Room constraints and capabilities flow (common "why didn't it schedule?" source)
+2. **E2E - Staff/Patient Create/Edit** - Validates inputs to generation, catches API/UI integration issues
+3. **Availability Store + Calendar** - Staff time-off affects scheduling
+4. **Users Store + UsersPage** - Organization user administration
 
 ### Recently Completed
 
@@ -366,6 +369,11 @@ The following tests should be implemented next, in order:
 | StaffListPage | 2026-01-01 | 28 tests |
 | PatientListPage | 2026-01-01 | 31 tests |
 | E2E - Schedule Generation | 2026-01-01 | 15 tests |
+| E2E - Schedule Publish/Start Over | 2026-01-01 | 8 tests |
+| SchedulePage - View/Filter/Actions | 2026-01-01 | 24 tests |
+| Rules Store | 2026-01-01 | 47 tests |
+| RulesPage | 2026-01-01 | 63 tests |
+| Rooms Store | 2026-01-01 | 38 tests |
 
 ### Blocked / Needs Design
 
@@ -391,11 +399,11 @@ The following tests should be implemented next, in order:
 | Phase | Total Tests | Completed | Remaining |
 |-------|-------------|-----------|-----------|
 | 1. Authentication | 10 | 10 | 0 |
-| 2. Schedules | 11 | 8 | 3 |
+| 2. Schedules | 14 | 14 | 0 |
 | 3. Staff | 8 | 3 | 5 |
 | 4. Patients | 7 | 3 | 4 |
-| 5. Rooms | 4 | 0 | 4 |
-| 6. Rules | 7 | 0 | 7 |
+| 5. Rooms | 4 | 1 | 3 |
+| 6. Rules | 9 | 7 | 2 |
 | 7. Availability | 6 | 0 | 6 |
 | 8. Users | 5 | 0 | 5 |
 | 9. Settings | 5 | 0 | 5 |
@@ -406,9 +414,9 @@ The following tests should be implemented next, in order:
 | 14. Voice | 3 | 0 | 3 |
 | 15. UI Components | 12 | 0 | 12 |
 | 16. Help | 3 | 0 | 3 |
-| **Total** | **101** | **24** | **77** |
+| **Total** | **104** | **38** | **66** |
 
-*Note: Test counts are for test categories, not individual test cases. Actual test case count: 221*
+*Note: Test counts are for test categories, not individual test cases. Actual test case count: 398*
 
 ### Coverage Goals
 

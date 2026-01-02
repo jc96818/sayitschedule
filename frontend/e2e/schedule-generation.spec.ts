@@ -219,17 +219,14 @@ test.describe('Schedule Generation Flow', () => {
 })
 
 test.describe('Schedule Preview and Publishing', () => {
-  // Note: These tests require a generated schedule to be in preview state
-  // They may be skipped if generation fails
+  // These tests verify the full schedule generation, preview, publish, and start over flow
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
   })
 
-  test.skip('should show preview with calendar grid after generation', async ({ page }) => {
-    // This test assumes we have a generated schedule
-    // In a real scenario, we would first generate a schedule
-
+  test('should show preview with calendar grid after generation', async ({ page }) => {
+    test.setTimeout(60000)
     await page.goto('http://demo.localhost:5173/app/schedule/generate')
 
     // Select a date and generate
@@ -237,18 +234,22 @@ test.describe('Schedule Preview and Publishing', () => {
     await dateInput.fill(getNextMonday())
     await page.getByRole('button', { name: /Generate Schedule/i }).click()
 
-    // Wait for preview
+    // Wait for preview to appear (schedule generated successfully)
     await expect(page.locator('h3:has-text("Schedule Preview")')).toBeVisible({ timeout: 45000 })
 
     // Should have calendar grid
-    await expect(page.locator('.calendar-grid, .calendar-preview')).toBeVisible()
+    await expect(page.locator('.calendar-grid')).toBeVisible()
 
     // Should have day headers (Monday-Friday)
     await expect(page.getByText('Monday')).toBeVisible()
+    await expect(page.getByText('Tuesday')).toBeVisible()
+    await expect(page.getByText('Wednesday')).toBeVisible()
+    await expect(page.getByText('Thursday')).toBeVisible()
     await expect(page.getByText('Friday')).toBeVisible()
   })
 
-  test.skip('should show stat cards in preview', async ({ page }) => {
+  test('should show stat cards in preview', async ({ page }) => {
+    test.setTimeout(60000)
     await page.goto('http://demo.localhost:5173/app/schedule/generate')
 
     // Select a date and generate
@@ -259,11 +260,14 @@ test.describe('Schedule Preview and Publishing', () => {
     // Wait for preview
     await expect(page.locator('h3:has-text("Schedule Preview")')).toBeVisible({ timeout: 45000 })
 
-    // Should show stats
+    // Should show stat cards
     await expect(page.getByText('Total Sessions')).toBeVisible()
+    await expect(page.getByText(/Scheduled/)).toBeVisible()
+    await expect(page.getByText(/Assigned/)).toBeVisible()
   })
 
-  test.skip('should have publish and start over buttons in preview', async ({ page }) => {
+  test('should have publish and start over buttons in preview', async ({ page }) => {
+    test.setTimeout(60000)
     await page.goto('http://demo.localhost:5173/app/schedule/generate')
 
     // Select a date and generate
@@ -277,6 +281,112 @@ test.describe('Schedule Preview and Publishing', () => {
     // Should have action buttons
     await expect(page.getByRole('button', { name: /Publish Schedule/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /Start Over/i })).toBeVisible()
+  })
+
+  test('should return to configure state when clicking Start Over', async ({ page }) => {
+    test.setTimeout(60000)
+    await page.goto('http://demo.localhost:5173/app/schedule/generate')
+
+    // Select a date and generate
+    const dateInput = page.locator('input#week')
+    await dateInput.fill(getNextMonday())
+    await page.getByRole('button', { name: /Generate Schedule/i }).click()
+
+    // Wait for preview
+    await expect(page.locator('h3:has-text("Schedule Preview")')).toBeVisible({ timeout: 45000 })
+
+    // Click Start Over
+    await page.getByRole('button', { name: /Start Over/i }).click()
+
+    // Should return to configuration state
+    await expect(page.locator('h3:has-text("Schedule Configuration")')).toBeVisible()
+    await expect(page.locator('input#week')).toBeVisible()
+
+    // Date input should be cleared
+    await expect(page.locator('input#week')).toHaveValue('')
+  })
+
+  test('should publish schedule and show success state', async ({ page }) => {
+    test.setTimeout(60000)
+    await page.goto('http://demo.localhost:5173/app/schedule/generate')
+
+    // Select a date and generate
+    const dateInput = page.locator('input#week')
+    await dateInput.fill(getNextMonday())
+    await page.getByRole('button', { name: /Generate Schedule/i }).click()
+
+    // Wait for preview
+    await expect(page.locator('h3:has-text("Schedule Preview")')).toBeVisible({ timeout: 45000 })
+
+    // Click Publish Schedule
+    await page.getByRole('button', { name: /Publish Schedule/i }).click()
+
+    // Should show published success state
+    await expect(page.getByText('Schedule Published!')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(/is now live/)).toBeVisible()
+
+    // Should have View Schedule and Generate Another buttons
+    await expect(page.getByRole('button', { name: /View Schedule/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Generate Another/i })).toBeVisible()
+  })
+
+  test('should navigate to schedule page after clicking View Schedule', async ({ page }) => {
+    test.setTimeout(60000)
+    await page.goto('http://demo.localhost:5173/app/schedule/generate')
+
+    // Select a date and generate
+    const dateInput = page.locator('input#week')
+    await dateInput.fill(getNextMonday())
+    await page.getByRole('button', { name: /Generate Schedule/i }).click()
+
+    // Wait for preview and publish
+    await expect(page.locator('h3:has-text("Schedule Preview")')).toBeVisible({ timeout: 45000 })
+    await page.getByRole('button', { name: /Publish Schedule/i }).click()
+    await expect(page.getByText('Schedule Published!')).toBeVisible({ timeout: 10000 })
+
+    // Click View Schedule
+    await page.getByRole('button', { name: /View Schedule/i }).click()
+
+    // Should navigate to schedule page
+    await expect(page).toHaveURL(/\/app\/schedule$/, { timeout: 5000 })
+  })
+
+  test('should return to configure state when clicking Generate Another', async ({ page }) => {
+    test.setTimeout(60000)
+    await page.goto('http://demo.localhost:5173/app/schedule/generate')
+
+    // Select a date and generate
+    const dateInput = page.locator('input#week')
+    await dateInput.fill(getNextMonday())
+    await page.getByRole('button', { name: /Generate Schedule/i }).click()
+
+    // Wait for preview and publish
+    await expect(page.locator('h3:has-text("Schedule Preview")')).toBeVisible({ timeout: 45000 })
+    await page.getByRole('button', { name: /Publish Schedule/i }).click()
+    await expect(page.getByText('Schedule Published!')).toBeVisible({ timeout: 10000 })
+
+    // Click Generate Another
+    await page.getByRole('button', { name: /Generate Another/i }).click()
+
+    // Should return to configuration state
+    await expect(page.locator('h3:has-text("Schedule Configuration")')).toBeVisible()
+    await expect(page.locator('input#week')).toBeVisible()
+  })
+
+  test('should show Draft badge in preview before publishing', async ({ page }) => {
+    test.setTimeout(60000)
+    await page.goto('http://demo.localhost:5173/app/schedule/generate')
+
+    // Select a date and generate
+    const dateInput = page.locator('input#week')
+    await dateInput.fill(getNextMonday())
+    await page.getByRole('button', { name: /Generate Schedule/i }).click()
+
+    // Wait for preview
+    await expect(page.locator('h3:has-text("Schedule Preview")')).toBeVisible({ timeout: 45000 })
+
+    // Should show Draft badge
+    await expect(page.getByText('Draft')).toBeVisible()
   })
 })
 
