@@ -29,7 +29,7 @@ The patient portal is a separate website where {{labels.patient.plural}} and car
 - **Cancel appointments**: Cancel upcoming appointments (if allowed by your settings).
 - **Reschedule appointments**: Request to move appointments to a different time (if allowed by your settings).
 
-Each {{labels.patient.singular}} receives a unique portal link or can sign in using their email and a verification code. The portal is separate from the main application and doesn't require a user account.
+Portal users sign in with a passwordless flow (email magic link or SMS verification code). The portal is separate from the main application and doesn't require a staff-app user account.
 <!-- help:end -->
 
 <!-- help:when-not features.patientPortalEnabled -->
@@ -73,10 +73,10 @@ When disabled, portal links will no longer work and {{labels.patient.plural}} ca
 
 ## Related
 
-- `/help/settings/self-booking`
-- `/help/settings/portal-customization`
-- `/help/portal/sign-in`
-- `/help/portal/appointments`
+- [/help/settings/self-booking](/help/settings/self-booking)
+- [/help/settings/portal-customization](/help/settings/portal-customization)
+- [/help/portal/sign-in](/help/portal/sign-in)
+- [/help/portal/appointments](/help/portal/appointments)
 
 ## Troubleshooting
 

@@ -96,9 +96,9 @@ The stats cards below the view tabs show:
 
 ## Related
 
-- `/help/schedules/generate`
-- `/help/schedules/print`
-- `/help/voice/overview`
+- [/help/schedules/generate](/help/schedules/generate)
+- [/help/schedules/print](/help/schedules/print)
+- [/help/voice/overview](/help/voice/overview)
 
 ## Troubleshooting
 

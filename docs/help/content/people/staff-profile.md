@@ -127,10 +127,10 @@ This page is mostly the same for all organizations. The biggest differences youâ
 
 ## Related
 
-- `/help/people/staff`
-- `/help/people/patient-preferences`
-- `/help/rules/overview`
-- `/help/schedules/generate`
+- [/help/people/staff](/help/people/staff)
+- [/help/people/patient-preferences](/help/people/patient-preferences)
+- [/help/rules/overview](/help/rules/overview)
+- [/help/schedules/generate](/help/schedules/generate)
 
 ## Troubleshooting
 

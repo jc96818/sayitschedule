@@ -99,10 +99,10 @@ If no custom suggestions are configured, the system provides default suggestions
 
 ## Related
 
-- `/help/rooms/rooms`
-- `/help/people/patient-preferences`
-- `/help/settings/suggested-equipment`
-- `/help/schedules/generate`
+- [/help/rooms/rooms](/help/rooms/rooms)
+- [/help/people/patient-preferences](/help/people/patient-preferences)
+- [/help/settings/suggested-equipment](/help/settings/suggested-equipment)
+- [/help/schedules/generate](/help/schedules/generate)
 
 ## Troubleshooting
 

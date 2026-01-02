@@ -94,10 +94,10 @@ If microphone access is blocked or voice transcription isn’t configured, use *
 
 ## Related
 
-- `/help/rooms/capabilities`
-- `/help/people/patient-preferences`
-- `/help/schedules/generate`
-- `/help/voice/overview`
+- [/help/rooms/capabilities](/help/rooms/capabilities)
+- [/help/people/patient-preferences](/help/people/patient-preferences)
+- [/help/schedules/generate](/help/schedules/generate)
+- [/help/voice/overview](/help/voice/overview)
 
 ## Troubleshooting
 

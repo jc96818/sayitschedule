@@ -72,8 +72,8 @@ Federal holidays are highlighted in the grid with a light red background and the
 
 ## Related
 
-- `/help/schedules/view`
-- `/help/schedules/generate`
+- [/help/schedules/view](/help/schedules/view)
+- [/help/schedules/generate](/help/schedules/generate)
 
 ## Troubleshooting
 

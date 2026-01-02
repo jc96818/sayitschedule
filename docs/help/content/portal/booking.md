@@ -81,9 +81,9 @@ Your organization controls what times {{labels.patient.plural}} can book:
 
 ## Related
 
-- `/help/settings/self-booking`
-- `/help/portal/appointments`
-- `/help/settings/patient-portal`
+- [/help/settings/self-booking](/help/settings/self-booking)
+- [/help/portal/appointments](/help/portal/appointments)
+- [/help/settings/patient-portal](/help/settings/patient-portal)
 
 ## Troubleshooting
 

@@ -127,9 +127,9 @@ When HIPAA compliance is enabled, the following features are available or enforc
 
 ## Related
 
-- `/help/security/mfa`
-- `/help/settings/patient-portal`
-- `/help/voice/transcription-settings`
+- [/help/security/mfa](/help/security/mfa)
+- [/help/settings/patient-portal](/help/settings/patient-portal)
+- [/help/voice/transcription-settings](/help/voice/transcription-settings)
 
 ## Troubleshooting
 

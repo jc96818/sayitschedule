@@ -81,10 +81,10 @@ After generation, the schedule is created as a **draft** so you can review and m
 
 ## Related
 
-- `/help/rules/overview`
-- `/help/schedules/view`
-- `/help/people/staff-profile`
-- `/help/people/patient-preferences`
+- [/help/rules/overview](/help/rules/overview)
+- [/help/schedules/view](/help/schedules/view)
+- [/help/people/staff-profile](/help/people/staff-profile)
+- [/help/people/patient-preferences](/help/people/patient-preferences)
 
 ## Troubleshooting
 

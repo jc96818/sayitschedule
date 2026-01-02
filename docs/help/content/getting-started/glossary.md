@@ -192,13 +192,13 @@ A HIPAA-required contract between your organization and Say It Schedule. Require
 
 ## Related
 
-- `/help/settings/custom-labels`
-- `/help/getting-started/roles`
-- `/help/rules/overview`
-- `/help/schedules/generate`
+- [/help/settings/custom-labels](/help/settings/custom-labels)
+- [/help/getting-started/roles](/help/getting-started/roles)
+- [/help/rules/overview](/help/rules/overview)
+- [/help/schedules/generate](/help/schedules/generate)
 
 ## Troubleshooting
 
-- **The app uses different words than this glossary**: Your organization may use custom labels; see `/help/settings/custom-labels`.
+- **The app uses different words than this glossary**: Your organization may use custom labels; see [/help/settings/custom-labels](/help/settings/custom-labels).
 - **You don’t see portal-related terms in the app**: The portal may not be enabled for your organization.
 - **You see “Scheduled” and “Confirmed” and aren’t sure of the difference**: “Scheduled” means booked; “Confirmed” means the appointment was explicitly confirmed (when that flow is used).

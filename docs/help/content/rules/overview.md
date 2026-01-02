@@ -60,9 +60,9 @@ Most rule behavior is the same across organizations. The main differences are:
 
 ## Related
 
-- `/help/rules/categories`
-- `/help/rules/create`
-- `/help/schedules/generate`
+- [/help/rules/categories](/help/rules/categories)
+- [/help/rules/create](/help/rules/create)
+- [/help/schedules/generate](/help/schedules/generate)
 
 ## Troubleshooting
 

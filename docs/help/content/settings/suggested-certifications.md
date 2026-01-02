@@ -32,17 +32,17 @@ The suggestions are organization-wide—all users see the same list.
 
 ## Steps
 
-### Add a suggested {{labels.certification.singular}}
+### Add a suggested {{labels.certification.plural}} item
 
 1. Open **Settings** from the sidebar.
 2. Scroll to the **Custom Labels** section.
 3. Find the **Suggested {{labels.certification.plural}}** area.
-4. Type the {{labels.certification.singular}} name in the input field.
+4. Type a certification name in the input field.
 5. Click **Add** or press **Enter**.
-6. The {{labels.certification.singular}} appears as a tag below the input.
+6. The certification appears as a tag below the input.
 7. Click **Save Label Settings** to save your changes.
 
-### Remove a suggested {{labels.certification.singular}}
+### Remove a suggested {{labels.certification.plural}} item
 
 1. In the **Suggested {{labels.certification.plural}}** area, find the tag you want to remove.
 2. Click the tag (it has an × symbol).
@@ -60,16 +60,16 @@ The suggestions are organization-wide—all users see the same list.
 
 - **Custom labels**: If you've renamed "{{labels.certification.plural}}" to something else (like "Qualifications"), the interface will use your custom term.
 - **{{labels.staff.singular}} profiles**: Suggested {{labels.certification.plural}} appear when editing any {{labels.staff.singular}}'s profile.
-- **Voice commands**: When using voice to add {{labels.staff.plural}}, mentioning a suggested {{labels.certification.singular}} helps the AI recognize it accurately.
+- **Voice commands**: When using voice to add {{labels.staff.plural}}, mentioning a suggested certification helps the AI recognize it accurately.
 
 ## Related
 
-- `/help/settings/custom-labels`
-- `/help/people/staff-profile`
-- `/help/people/patient-preferences`
+- [/help/settings/custom-labels](/help/settings/custom-labels)
+- [/help/people/staff-profile](/help/people/staff-profile)
+- [/help/people/patient-preferences](/help/people/patient-preferences)
 
 ## Troubleshooting
 
 - **Suggestions not appearing when adding {{labels.staff.plural}}**: Make sure you clicked **Save Label Settings** after adding suggestions.
-- **Duplicate {{labels.certification.plural}}**: The system prevents adding duplicates. If you can't add a {{labels.certification.singular}}, it may already exist in the list.
-- **{{labels.certification.singular}} removed from suggestions still on {{labels.staff.plural}}**: Removing a suggestion doesn't remove it from {{labels.staff.plural}} who already have it. You'd need to edit each {{labels.staff.singular}} individually.
+- **Duplicate {{labels.certification.plural}}**: The system prevents adding duplicates. If you can't add an item, it may already exist in the list.
+- **Item removed from suggestions still on {{labels.staff.plural}}**: Removing a suggestion doesn't remove it from {{labels.staff.plural}} who already have it. You'd need to edit each {{labels.staff.singular}} individually.

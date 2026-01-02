@@ -86,9 +86,9 @@ You can customize:
 
 ## Related
 
-- `/help/settings/patient-portal`
-- `/help/settings/branding`
-- `/help/portal/sign-in`
+- [/help/settings/patient-portal](/help/settings/patient-portal)
+- [/help/settings/branding](/help/settings/branding)
+- [/help/portal/sign-in](/help/portal/sign-in)
 
 ## Troubleshooting
 

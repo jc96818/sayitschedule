@@ -99,4 +99,4 @@ For detailed definitions, see the [Glossary](/help/getting-started/glossary).
 ## Troubleshooting
 
 - **You can’t find a page mentioned here**: Some pages are role-restricted. See [/help/getting-started/roles](/help/getting-started/roles).
-- **Voice input isn’t working**: Check microphone permissions and try **Type** mode; see `/help/troubleshooting/voice`.
+- **Voice input isn’t working**: Check microphone permissions and try **Type** mode; see [/help/troubleshooting/voice](/help/troubleshooting/voice).

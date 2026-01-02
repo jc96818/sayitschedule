@@ -86,10 +86,10 @@ If microphone access is blocked or voice transcription isn’t configured, use *
 
 ## Related
 
-- `/help/people/staff-profile`
-- `/help/rules/categories`
-- `/help/schedules/generate`
-- `/help/voice/overview`
+- [/help/people/staff-profile](/help/people/staff-profile)
+- [/help/rules/categories](/help/rules/categories)
+- [/help/schedules/generate](/help/schedules/generate)
+- [/help/voice/overview](/help/voice/overview)
 
 ## Troubleshooting
 

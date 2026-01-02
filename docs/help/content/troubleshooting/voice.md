@@ -143,8 +143,8 @@ If the transcription appears but the command isn't understood, try rephrasing us
 
 ## Related
 
-- `/help/voice/overview`
-- `/help/voice/transcription-settings`
+- [/help/voice/overview](/help/voice/overview)
+- [/help/voice/transcription-settings](/help/voice/transcription-settings)
 
 ## Troubleshooting
 

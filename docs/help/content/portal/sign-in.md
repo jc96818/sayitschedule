@@ -79,9 +79,9 @@ If the code or link didn't arrive:
 
 ## Related
 
-- `/help/settings/patient-portal`
-- `/help/settings/portal-customization`
-- `/help/portal/appointments`
+- [/help/settings/patient-portal](/help/settings/patient-portal)
+- [/help/settings/portal-customization](/help/settings/portal-customization)
+- [/help/portal/appointments](/help/portal/appointments)
 
 ## Troubleshooting
 

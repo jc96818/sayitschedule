@@ -66,8 +66,8 @@ Choose the specialty closest to your practice area. If none match well, **Primar
 
 ## Related
 
-- `/help/voice/overview`
-- `/help/troubleshooting/voice`
+- [/help/voice/overview](/help/voice/overview)
+- [/help/troubleshooting/voice](/help/troubleshooting/voice)
 
 ## Troubleshooting
 

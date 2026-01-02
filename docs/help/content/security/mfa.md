@@ -127,8 +127,8 @@ All three apps are free and support the TOTP standard used by Say It Schedule.
 
 ## Related
 
-- `/help/getting-started/roles`
-- `/help/security/hipaa-baa`
+- [/help/getting-started/roles](/help/getting-started/roles)
+- [/help/security/hipaa-baa](/help/security/hipaa-baa)
 
 ## Troubleshooting
 

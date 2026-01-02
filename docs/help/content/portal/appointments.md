@@ -96,9 +96,9 @@ If rescheduling is allowed and the appointment shows a **Reschedule** button:
 
 ## Related
 
-- `/help/portal/sign-in`
-- `/help/portal/booking`
-- `/help/settings/patient-portal`
+- [/help/portal/sign-in](/help/portal/sign-in)
+- [/help/portal/booking](/help/portal/booking)
+- [/help/settings/patient-portal](/help/settings/patient-portal)
 
 ## Troubleshooting
 

@@ -88,9 +88,9 @@ When **Require Approval** is disabled:
 
 ## Related
 
-- `/help/settings/patient-portal`
-- `/help/portal/booking`
-- `/help/people/staff-profile`
+- [/help/settings/patient-portal](/help/settings/patient-portal)
+- [/help/portal/booking](/help/portal/booking)
+- [/help/people/staff-profile](/help/people/staff-profile)
 
 ## Troubleshooting
 

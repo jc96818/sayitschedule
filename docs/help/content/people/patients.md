@@ -80,11 +80,11 @@ If microphone access is blocked or voice transcription isn’t configured, use *
 
 ## Related
 
-- `/help/people/patient-preferences`
-- `/help/people/staff`
-- `/help/rules/categories`
-- `/help/schedules/generate`
-- `/help/voice/overview`
+- [/help/people/patient-preferences](/help/people/patient-preferences)
+- [/help/people/staff](/help/people/staff)
+- [/help/rules/categories](/help/rules/categories)
+- [/help/schedules/generate](/help/schedules/generate)
+- [/help/voice/overview](/help/voice/overview)
 
 ## Troubleshooting
 

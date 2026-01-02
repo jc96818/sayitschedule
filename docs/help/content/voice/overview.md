@@ -131,9 +131,9 @@ Voice commands work on the following pages:
 
 ## Related
 
-- `/help/voice/transcription-settings`
-- `/help/schedules/view`
-- `/help/rules/create`
+- [/help/voice/transcription-settings](/help/voice/transcription-settings)
+- [/help/schedules/view](/help/schedules/view)
+- [/help/rules/create](/help/rules/create)
 
 ## Troubleshooting
 

@@ -120,11 +120,11 @@ If you’re not getting the outcome you expect, review the generated schedule an
 
 ## Related
 
-- `/help/people/patients`
-- `/help/people/staff-profile`
-- `/help/rooms/capabilities`
-- `/help/rules/overview`
-- `/help/schedules/generate`
+- [/help/people/patients](/help/people/patients)
+- [/help/people/staff-profile](/help/people/staff-profile)
+- [/help/rooms/capabilities](/help/rooms/capabilities)
+- [/help/rules/overview](/help/rules/overview)
+- [/help/schedules/generate](/help/schedules/generate)
 
 ## Troubleshooting
 

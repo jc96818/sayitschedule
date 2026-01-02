@@ -105,8 +105,8 @@ Articles may be updated or reorganized. Try:
 
 ## Related
 
-- `/help/getting-started/glossary`
-- `/help/getting-started/overview`
+- [/help/getting-started/glossary](/help/getting-started/glossary)
+- [/help/getting-started/overview](/help/getting-started/overview)
 
 ## Troubleshooting
 

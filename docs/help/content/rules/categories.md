@@ -54,8 +54,8 @@ No major differences. Category labels in the UI may reflect your organization’
 
 ## Related
 
-- `/help/rules/overview`
-- `/help/rules/create`
+- [/help/rules/overview](/help/rules/overview)
+- [/help/rules/create](/help/rules/create)
 
 ## Troubleshooting
 

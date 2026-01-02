@@ -48,7 +48,7 @@ On the Rules page, some phrases are treated as search intent (for example “fin
 ### Create a rule manually
 
 1. Open **Rules** and click **Add Rule**.
-2. Choose a **Category** (see `/help/rules/categories`).
+2. Choose a **Category** (see [/help/rules/categories](/help/rules/categories)).
 3. Write a clear **Rule Description** (one idea per rule).
 4. Set a **Priority**.
 5. Click **Add Rule**.
@@ -77,9 +77,9 @@ On the Rules page, some phrases are treated as search intent (for example “fin
 
 ## Related
 
-- `/help/rules/overview`
-- `/help/rules/categories`
-- `/help/voice/overview`
+- [/help/rules/overview](/help/rules/overview)
+- [/help/rules/categories](/help/rules/categories)
+- [/help/voice/overview](/help/voice/overview)
 
 ## Troubleshooting
 

@@ -71,8 +71,8 @@ Colors are previewed in real-time as you adjust them, so you can see how they lo
 
 ## Related
 
-- `/help/settings/custom-labels`
-- `/help/settings/portal-customization`
+- [/help/settings/custom-labels](/help/settings/custom-labels)
+- [/help/settings/portal-customization](/help/settings/portal-customization)
 
 ## Troubleshooting
 

@@ -240,3 +240,9 @@ Status values:
    - `Settings overview` (optional add)
 3. As we write, keep a running list of any additional tokens/keys we need so we can standardize them early.
 
+
+## To turn the docs into in-app pages
+
+Run migration: `npm --prefix backend run db:migrate` (or deploy via `npm --prefix backend run db:migrate:deploy`)
+Import the articles: `npm --prefix backend run db:import-help`
+Open the app and use Help in the sidebar (routes are `/app/help` and `/app/help/:category/:article`).
