@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { usePortalAuthStore } from '@/stores/portalAuth'
 import { portalAppointmentsService } from '@/services/api'
 import type { PortalSession } from '@/types'
+import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
 const portalStore = usePortalAuthStore()
@@ -145,11 +146,11 @@ onMounted(() => {
     <!-- Quick Actions -->
     <div class="quick-actions">
       <button v-if="canBook" class="action-btn primary" @click="goToBooking">
-        <span class="action-icon">+</span>
+        <Icon name="plus" :size="18" class="action-icon" aria-hidden="true" />
         Book Appointment
       </button>
       <router-link :to="{ name: 'portal-appointments' }" class="action-btn secondary">
-        <span class="action-icon">📅</span>
+        <Icon name="calendar" :size="18" class="action-icon" aria-hidden="true" />
         View All Appointments
       </router-link>
     </div>
@@ -168,7 +169,9 @@ onMounted(() => {
 
     <!-- Empty State -->
     <div v-else-if="upcomingAppointments.length === 0" class="empty-state">
-      <div class="empty-icon">📅</div>
+      <div class="empty-icon" aria-hidden="true">
+        <Icon name="calendar" :size="44" />
+      </div>
       <h2>No Upcoming Appointments</h2>
       <p>You don't have any scheduled appointments.</p>
       <button v-if="canBook" class="book-btn" @click="goToBooking">
@@ -279,10 +282,12 @@ onMounted(() => {
       <p>Contact us directly:</p>
       <div class="contact-links">
         <a v-if="branding?.contactEmail" :href="`mailto:${branding.contactEmail}`">
-          📧 {{ branding.contactEmail }}
+          <Icon name="mail" :size="16" aria-hidden="true" />
+          <span>{{ branding.contactEmail }}</span>
         </a>
         <a v-if="branding?.contactPhone" :href="`tel:${branding.contactPhone}`">
-          📞 {{ branding.contactPhone }}
+          <Icon name="phone" :size="16" aria-hidden="true" />
+          <span>{{ branding.contactPhone }}</span>
         </a>
       </div>
     </div>
@@ -352,7 +357,7 @@ onMounted(() => {
 }
 
 .action-icon {
-  font-size: 1.125rem;
+  display: inline-flex;
 }
 
 /* Loading & Error States */
@@ -395,7 +400,8 @@ onMounted(() => {
 }
 
 .empty-icon {
-  font-size: 4rem;
+  display: inline-flex;
+  color: var(--text-muted, #94a3b8);
   margin-bottom: 1rem;
 }
 
@@ -424,17 +430,19 @@ onMounted(() => {
   background: white;
   border-radius: 1rem;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
   margin-bottom: 2rem;
 }
 
 .next-header {
-  background: var(--primary-color, #2563eb);
-  color: white;
+  background: rgba(248, 250, 252, 0.8);
+  color: var(--text-primary, #0f172a);
   padding: 0.75rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .next-label {
@@ -442,7 +450,9 @@ onMounted(() => {
 }
 
 .next-when {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  color: var(--text-secondary, #475569);
   padding: 0.25rem 0.75rem;
   border-radius: 1rem;
   font-size: 0.875rem;
@@ -637,18 +647,20 @@ onMounted(() => {
 .contact-section {
   margin-top: 3rem;
   padding: 1.5rem;
-  background: var(--primary-light, #dbeafe);
+  background: white;
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 0.75rem;
   text-align: center;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
 .contact-section h3 {
-  color: var(--text-primary, #1e293b);
+  color: var(--text-primary, #0f172a);
   margin: 0 0 0.25rem;
 }
 
 .contact-section p {
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary, #475569);
   margin: 0 0 1rem;
 }
 
@@ -659,6 +671,9 @@ onMounted(() => {
 }
 
 .contact-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   color: var(--primary-color, #2563eb);
   text-decoration: none;
   font-weight: 500;

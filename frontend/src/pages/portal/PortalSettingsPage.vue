@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePortalAuthStore } from '@/stores/portalAuth'
+import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
 const portalStore = usePortalAuthStore()
@@ -43,12 +44,12 @@ async function handleLogout() {
       <h2>Contact {{ branding?.organizationName }}</h2>
       <div class="contact-options">
         <a v-if="branding?.contactEmail" :href="`mailto:${branding.contactEmail}`" class="contact-card">
-          <span class="contact-icon">📧</span>
+          <Icon name="mail" :size="18" class="contact-icon" aria-hidden="true" />
           <span class="contact-label">Email</span>
           <span class="contact-value">{{ branding.contactEmail }}</span>
         </a>
         <a v-if="branding?.contactPhone" :href="`tel:${branding.contactPhone}`" class="contact-card">
-          <span class="contact-icon">📞</span>
+          <Icon name="phone" :size="18" class="contact-icon" aria-hidden="true" />
           <span class="contact-label">Phone</span>
           <span class="contact-value">{{ branding.contactPhone }}</span>
         </a>
@@ -60,14 +61,14 @@ async function handleLogout() {
       <h2>Portal Features</h2>
       <div class="features-list">
         <div class="feature-item">
-          <span class="feature-icon">📅</span>
+          <Icon name="calendar" :size="18" class="feature-icon" aria-hidden="true" />
           <div class="feature-info">
             <span class="feature-name">View Appointments</span>
             <span class="feature-status enabled">Available</span>
           </div>
         </div>
         <div class="feature-item">
-          <span class="feature-icon">✓</span>
+          <Icon name="check" :size="18" class="feature-icon" aria-hidden="true" />
           <div class="feature-info">
             <span class="feature-name">Confirm Appointments</span>
             <span :class="['feature-status', branding?.portalRequireConfirmation ? 'enabled' : 'disabled']">
@@ -76,7 +77,7 @@ async function handleLogout() {
           </div>
         </div>
         <div class="feature-item">
-          <span class="feature-icon">✕</span>
+          <Icon name="x" :size="18" class="feature-icon" aria-hidden="true" />
           <div class="feature-info">
             <span class="feature-name">Cancel Appointments</span>
             <span :class="['feature-status', branding?.portalAllowCancel ? 'enabled' : 'disabled']">
@@ -85,7 +86,7 @@ async function handleLogout() {
           </div>
         </div>
         <div class="feature-item">
-          <span class="feature-icon">+</span>
+          <Icon name="plus" :size="18" class="feature-icon" aria-hidden="true" />
           <div class="feature-info">
             <span class="feature-name">Book New Appointments</span>
             <span :class="['feature-status', branding?.selfBookingEnabled ? 'enabled' : 'disabled']">
@@ -102,11 +103,11 @@ async function handleLogout() {
       <div class="legal-links">
         <a v-if="branding?.termsUrl" :href="branding.termsUrl" target="_blank" class="legal-link">
           Terms of Service
-          <span class="external-icon">↗</span>
+          <Icon name="chevronRightUp" :size="16" class="external-icon" aria-hidden="true" />
         </a>
         <a v-if="branding?.privacyUrl" :href="branding.privacyUrl" target="_blank" class="legal-link">
           Privacy Policy
-          <span class="external-icon">↗</span>
+          <Icon name="chevronRightUp" :size="16" class="external-icon" aria-hidden="true" />
         </a>
       </div>
     </section>
@@ -217,7 +218,8 @@ h1 {
 }
 
 .contact-icon {
-  font-size: 1.5rem;
+  display: inline-flex;
+  color: var(--primary-dark, #1e40af);
   margin-bottom: 0.5rem;
 }
 

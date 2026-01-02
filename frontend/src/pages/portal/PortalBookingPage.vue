@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { usePortalAuthStore } from '@/stores/portalAuth'
 import { portalBookingService, portalAppointmentsService } from '@/services/api'
 import type { PortalAvailabilitySlot, PortalBookingHold, PortalBookingSettings } from '@/types'
+import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -314,15 +315,19 @@ onUnmounted(() => {
 
     <!-- Self-booking disabled -->
     <div v-else-if="!settings?.selfBookingEnabled" class="disabled-state">
-      <div class="disabled-icon">🔒</div>
+      <div class="disabled-icon" aria-hidden="true">
+        <Icon name="lock" :size="22" />
+      </div>
       <h2>Online Booking Unavailable</h2>
       <p>Online self-booking is not currently available. Please contact us to schedule an appointment.</p>
       <div v-if="branding?.contactPhone || branding?.contactEmail" class="contact-info">
         <a v-if="branding?.contactPhone" :href="`tel:${branding.contactPhone}`">
-          📞 {{ branding.contactPhone }}
+          <Icon name="phone" :size="16" aria-hidden="true" />
+          <span>{{ branding.contactPhone }}</span>
         </a>
         <a v-if="branding?.contactEmail" :href="`mailto:${branding.contactEmail}`">
-          📧 {{ branding.contactEmail }}
+          <Icon name="mail" :size="16" aria-hidden="true" />
+          <span>{{ branding.contactEmail }}</span>
         </a>
       </div>
     </div>
@@ -401,7 +406,7 @@ onUnmounted(() => {
     <div v-else-if="step === 'confirm'" class="booking-step confirm-step">
       <!-- Hold Timer -->
       <div class="hold-timer">
-        <span class="timer-icon">⏱️</span>
+        <Icon name="clock" :size="18" class="timer-icon" aria-hidden="true" />
         <span>Reserved for {{ formatHoldTime(holdExpiresIn) }}</span>
       </div>
 
@@ -440,7 +445,7 @@ onUnmounted(() => {
 
         <!-- Approval Notice -->
         <div v-if="settings?.requiresApproval" class="approval-notice">
-          <span class="notice-icon">ℹ️</span>
+          <Icon name="info" :size="18" class="notice-icon" aria-hidden="true" />
           <span>This booking requires staff approval. You'll be notified once confirmed.</span>
         </div>
 
@@ -465,7 +470,9 @@ onUnmounted(() => {
     <!-- Step 3: Success -->
     <div v-else-if="step === 'success'" class="booking-step success-step">
       <div class="success-card">
-        <div class="success-icon">✓</div>
+        <div class="success-icon" aria-hidden="true">
+          <Icon name="check" :size="22" />
+        </div>
         <h2 v-if="isRescheduleMode">Appointment Rescheduled!</h2>
         <h2 v-else>Booking {{ settings?.requiresApproval ? 'Submitted' : 'Confirmed' }}!</h2>
         <p v-if="isRescheduleMode">
@@ -530,7 +537,14 @@ h1 {
 }
 
 .disabled-icon {
-  font-size: 3rem;
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.7);
+  color: var(--text-secondary, #475569);
   margin-bottom: 1rem;
 }
 
@@ -551,6 +565,9 @@ h1 {
 }
 
 .contact-info a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   color: var(--primary-color, #2563eb);
   text-decoration: none;
 }
@@ -836,7 +853,6 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
   margin: 0 auto 1.5rem;
 }
 

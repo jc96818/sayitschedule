@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { usePortalAuthStore } from '@/stores/portalAuth'
 import { portalAppointmentsService } from '@/services/api'
 import type { PortalSession } from '@/types'
+import Icon from '@/components/ui/Icon.vue'
 
 const router = useRouter()
 const portalStore = usePortalAuthStore()
@@ -184,7 +185,9 @@ onMounted(() => {
 
     <!-- Empty State -->
     <div v-else-if="displayedAppointments.length === 0" class="empty-state">
-      <div class="empty-icon">📅</div>
+      <div class="empty-icon" aria-hidden="true">
+        <Icon name="calendar" :size="44" />
+      </div>
       <h2>{{ activeTab === 'upcoming' ? 'No Upcoming Appointments' : 'No Past Appointments' }}</h2>
       <p>{{ activeTab === 'upcoming' ? "You don't have any scheduled appointments." : "You don't have any past appointments." }}</p>
     </div>
@@ -344,7 +347,8 @@ h1 {
 }
 
 .empty-icon {
-  font-size: 3rem;
+  display: inline-flex;
+  color: var(--text-muted, #94a3b8);
   margin-bottom: 1rem;
 }
 

@@ -17,6 +17,7 @@ export { default as Toggle } from './Toggle.vue'
 export { default as SearchBox } from './SearchBox.vue'
 export { default as Tabs } from './Tabs.vue'
 export { default as Pagination } from './Pagination.vue'
+export { default as Icon } from './Icon.vue'
 
 // Specialized Components
 export { default as StatCard } from './StatCard.vue'
