@@ -46,42 +46,94 @@ export type HelpSearchResult = {
 
 export class HelpRepository {
   async listCategories(): Promise<HelpCategoryListItem[]> {
-    const categories = await prisma.helpCategory.findMany({
-      orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
-      include: {
-        articles: {
-          where: { status: 'published' },
-          orderBy: [{ title: 'asc' }],
-          select: {
-            slug: true,
-            title: true,
-            summary: true
-          }
-        }
-      }
-    })
+    // Use SQL instead of model delegates so the endpoint works even if the Prisma Client
+    // hasn't been regenerated in the running environment (common in Docker dev volumes).
+    const rows = await prisma.$queryRaw<
+      Array<{
+        slug: string
+        title: string
+        description: string | null
+        sortOrder: number
+        articles: Array<{ slug: string; title: string; summary: string | null }>
+      }>
+    >(Prisma.sql`
+      SELECT
+        c.slug,
+        c.title,
+        c.description,
+        c.sort_order AS "sortOrder",
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'slug', a.slug,
+              'title', a.title,
+              'summary', a.summary
+            )
+            ORDER BY a.title ASC
+          ) FILTER (WHERE a.id IS NOT NULL),
+          '[]'::json
+        ) AS articles
+      FROM help_categories c
+      LEFT JOIN help_articles a
+        ON a.category_id = c.id
+       AND a.status = 'published'
+      GROUP BY c.id
+      ORDER BY c.sort_order ASC, c.title ASC;
+    `)
 
-    return categories.map((c) => ({
-      slug: c.slug,
-      title: c.title,
-      description: c.description,
-      sortOrder: c.sortOrder,
-      articles: c.articles.map((a) => ({
-        slug: a.slug,
-        title: a.title,
-        summary: a.summary
-      }))
+    return rows.map((r) => ({
+      slug: r.slug,
+      title: r.title,
+      description: r.description,
+      sortOrder: r.sortOrder,
+      articles: r.articles ?? []
     }))
   }
 
   async findPublishedArticleBySlug(slug: string): Promise<HelpArticleDetail | null> {
-    const article = await prisma.helpArticle.findFirst({
-      where: { slug, status: 'published' },
-      include: {
-        category: { select: { slug: true, title: true } }
-      }
-    })
+    const rows = await prisma.$queryRaw<
+      Array<{
+        slug: string
+        title: string
+        summary: string | null
+        status: string
+        bodyMarkdown: string
+        tags: string[]
+        aliases: string[]
+        audienceRoles: string[]
+        prerequisitesFeatures: string[]
+        prerequisitesSettings: string[]
+        prerequisitesOrg: string[]
+        createdAt: Date
+        updatedAt: Date
+        categorySlug: string
+        categoryTitle: string
+      }>
+    >(Prisma.sql`
+      SELECT
+        a.slug,
+        a.title,
+        a.summary,
+        a.status,
+        a.body_markdown AS "bodyMarkdown",
+        a.tags,
+        a.aliases,
+        a.audience_roles AS "audienceRoles",
+        a.prerequisites_features AS "prerequisitesFeatures",
+        a.prerequisites_settings AS "prerequisitesSettings",
+        a.prerequisites_org AS "prerequisitesOrg",
+        a.created_at AS "createdAt",
+        a.updated_at AS "updatedAt",
+        c.slug AS "categorySlug",
+        c.title AS "categoryTitle"
+      FROM help_articles a
+      JOIN help_categories c ON c.id = a.category_id
+      WHERE a.slug = ${slug}
+        AND a.status = 'published'
+      LIMIT 1;
+    `)
 
+    const article = rows[0]
     if (!article) return null
 
     return {
@@ -90,15 +142,18 @@ export class HelpRepository {
       summary: article.summary,
       status: article.status,
       bodyMarkdown: article.bodyMarkdown,
-      tags: article.tags,
-      aliases: article.aliases,
-      audienceRoles: article.audienceRoles,
+      tags: article.tags ?? [],
+      aliases: article.aliases ?? [],
+      audienceRoles: article.audienceRoles ?? [],
       prerequisites: {
-        features: article.prerequisitesFeatures,
-        settings: article.prerequisitesSettings,
-        org: article.prerequisitesOrg
+        features: article.prerequisitesFeatures ?? [],
+        settings: article.prerequisitesSettings ?? [],
+        org: article.prerequisitesOrg ?? []
       },
-      category: article.category,
+      category: {
+        slug: article.categorySlug,
+        title: article.categoryTitle
+      },
       createdAt: article.createdAt,
       updatedAt: article.updatedAt
     }
