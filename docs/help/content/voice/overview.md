@@ -46,7 +46,7 @@ Voice commands aren't enabled for your organization. Ask an administrator to ena
 
 ### Use voice input
 
-1. Navigate to a page that supports voice commands (Rules, {{labels.staff.plural}}, {{labels.patient.plural}}, {{labels.room.plural}}, or Schedule).
+1. Open a page that supports voice commands (Rules, {{labels.staff.plural}}, {{labels.patient.plural}}, {{labels.room.plural}}, or Schedule).
 2. In the voice input panel, ensure **Speak** is selected.
 3. Click the **microphone button** to start recording.
 4. Speak your command clearly at a normal pace.

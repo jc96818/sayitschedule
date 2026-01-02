@@ -19,7 +19,7 @@ aliases: [no results, find article, search tips, cant find]
 - You want to improve your search technique to find answers faster.
 - You're not sure what terms to use when searching.
 
-## How search works
+## How it works
 
 The Help Center uses full-text search to find articles that match your query. The search looks at:
 
@@ -29,6 +29,12 @@ The Help Center uses full-text search to find articles that match your query. Th
 - Common synonyms and aliases
 
 Results are ranked by relevance, with the best matches appearing first.
+
+## Steps
+
+1. Start with 1–3 keywords (for example: “rules”, “self-booking”, “MFA”).
+2. If you get no results, try the tips below (synonyms, default terms, and feature/page names).
+3. If search still doesn’t help, browse categories and open the closest match, then use **Related** links to jump to the exact topic.
 
 ## Best practices for searching
 
@@ -102,6 +108,10 @@ Articles may be updated or reorganized. Try:
 1. **Search by a unique word** you remember from the article.
 2. **Browse the category** where you think it belongs.
 3. **Check the glossary** for term definitions.
+
+## How this changes with your settings
+
+- **Custom labels**: If your organization uses custom labels, search works best when you try both your term and the default term (for example, “Therapists” and “Staff”).
 
 ## Related
 

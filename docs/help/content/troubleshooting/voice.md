@@ -20,6 +20,25 @@ aliases: [microphone, transcription errors, voice not working, cant hear]
 - The transcription is inaccurate or not capturing your words.
 - You want to switch between voice and text input.
 
+## How it works
+
+Voice input has three steps:
+
+1. Your browser records audio (microphone permission required).
+2. A transcription provider converts audio → text.
+3. The app uses AI to interpret the text into an action you can review and confirm.
+
+If any step fails, the app may fall back to **Type** mode.
+
+## Steps
+
+### Quick triage checklist
+
+1. Refresh the page and try again.
+2. Confirm microphone permission is allowed for this site.
+3. Switch to **Type** mode to confirm the issue is voice-only (not AI parsing).
+4. If you’re in a HIPAA org, confirm the transcription settings are set correctly in **Settings → Voice Transcription**.
+
 ## Common error messages
 
 ### "Microphone access denied"
@@ -107,8 +126,8 @@ Poor audio quality reduces accuracy:
 
 For medical or healthcare organizations, AWS Medical Transcribe provides better recognition of clinical terminology:
 
-1. Open **Settings**.
-2. Find **Voice Transcription**.
+1. Open **Settings** from the sidebar.
+2. Find the **Voice Transcription** section.
 3. Select **AWS Medical Transcribe (HIPAA-eligible)**.
 4. Choose the appropriate **Medical Specialty**.
 5. Click **Save**.
@@ -132,7 +151,7 @@ Your preference is remembered, so you won't need to switch again unless you want
 
 ## Steps to test voice input
 
-1. Open any page with voice input (Staff, Patients, Rooms, Rules, or Schedule).
+1. Open any page with voice input ({{labels.staff.plural}}, {{labels.patient.plural}}, {{labels.room.plural}}, Rules, or Schedule).
 2. Click the microphone button.
 3. Wait for the status to show "Listening..."
 4. Say a simple command like "Show all staff."
@@ -140,6 +159,11 @@ Your preference is remembered, so you won't need to switch again unless you want
 6. Watch for the transcription to appear in the "Heard" section.
 
 If the transcription appears but the command isn't understood, try rephrasing using the examples in the voice hints.
+
+## How this changes with your settings
+
+- **Transcription provider**: Medical transcription (with the correct specialty) can improve accuracy for clinical vocabulary.
+- **HIPAA mode**: HIPAA organizations typically use HIPAA-eligible transcription and may enforce stricter security controls.
 
 ## Related
 

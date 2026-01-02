@@ -156,6 +156,11 @@ Only Admins and Super Admins can change user roles.
 4. Select a new role from the **Role** dropdown.
 5. Click **Save Changes**.
 
+## How this changes with your settings
+
+- **Custom labels**: These role descriptions use your organization’s terminology (for example, {{labels.staff.plural}} vs. “Therapists”).
+- **HIPAA mode**: If your organization requires HIPAA, MFA may be mandatory and the HIPAA BAA page is shown to Admins/Super Admins.
+
 ## Related
 
 - [/help/security/mfa](/help/security/mfa)

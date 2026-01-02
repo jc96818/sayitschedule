@@ -30,7 +30,7 @@ When generating schedules, the scheduling engine matches {{labels.patient.singul
 
 ### View your {{labels.room.plural}}
 
-1. Navigate to **{{labels.room.plural}}** in the main menu.
+1. Open **{{labels.room.plural}}** from the sidebar.
 2. The table displays all {{labels.room.plural}} with their name, {{labels.equipment.plural}}, description, and status.
 3. Use the search box to find {{labels.room.plural}} by name, description, or capability.
 4. Use the **Status** dropdown to filter by Active or Inactive.
@@ -45,7 +45,7 @@ When generating schedules, the scheduling engine matches {{labels.patient.singul
 
 ### Add a {{labels.room.singular}} using the form
 
-1. Click the **Add {{labels.room.singular}}** button in the top right corner.
+1. Click **Add {{labels.room.singular}}**.
 2. Enter the following information:
    - **{{labels.room.singular}} Name** (required) – e.g., "Room 101", "Sensory Room A"
    - **Description** (optional) – a brief description of the {{labels.room.singular}}
@@ -64,7 +64,7 @@ When generating schedules, the scheduling engine matches {{labels.patient.singul
 ### Edit a {{labels.room.singular}}
 
 1. Open the {{labels.room.singular}}'s profile page.
-2. Click **Edit {{labels.room.singular}}** in the top right corner.
+2. Click **Edit {{labels.room.singular}}**.
 3. Update the name, description, or capabilities as needed.
 4. Click **Save Changes**.
 
@@ -77,7 +77,7 @@ When generating schedules, the scheduling engine matches {{labels.patient.singul
 ### Delete a {{labels.room.singular}}
 
 1. Open the {{labels.room.singular}}'s profile page.
-2. Click the **Delete** button in the top right corner.
+2. Click **Delete**.
 3. Confirm the deletion when prompted. This action cannot be undone.
 
 ## How this changes with your settings
@@ -101,7 +101,7 @@ If microphone access is blocked or voice transcription isn’t configured, use *
 
 ## Troubleshooting
 
-- **"No {{labels.room.plural}} found"** – Check your search query and filters. Clear the search box or reset the Status dropdown to "All" to see the full list.
-- **Voice command not understood** – Speak clearly and use natural language. If the AI interpretation is incorrect, click **Edit Details** to correct it before saving, or click **Cancel** and try again.
-- **Cannot add {{labels.room.singular}}** – Verify you have admin or assistant permissions. Only users with the appropriate role can manage {{labels.room.plural}}.
-- **{{labels.room.singular}} not appearing in schedule** – Check that the {{labels.room.singular}}'s status is set to Active.
+- **"No {{labels.room.plural}} found"**: Clear search and filters (Status) to see the full list.
+- **Voice command not understood**: Try a shorter command, or use **Edit Details** to correct the parsed values before saving.
+- **Cannot add {{labels.room.singular}}**: Only Admins, Admin Assistants, and Super Admins can manage {{labels.room.plural}}.
+- **{{labels.room.singular}} not appearing in schedule**: Check that the {{labels.room.singular}}'s status is set to Active.

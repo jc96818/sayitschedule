@@ -30,7 +30,7 @@ The scheduling engine uses {{labels.patient.singular}} information to generate s
 
 ### View your {{labels.patient.plural}}
 
-1. Navigate to **{{labels.patient.plural}}** in the main menu.
+1. Open **{{labels.patient.plural}}** from the sidebar.
 2. The table displays all {{labels.patient.plural}} with their name, gender, sessions per week, required {{labels.certification.plural}}, {{labels.staff.singular}} gender preference, and status.
 3. Use the search box to find {{labels.patient.plural}} by name.
 4. Use the **Status** dropdown to filter by Active or Inactive.
@@ -46,7 +46,7 @@ The scheduling engine uses {{labels.patient.singular}} information to generate s
 
 ### Add a {{labels.patient.singular}} using the form
 
-1. Click the **Add {{labels.patient.singular}}** button in the top right corner.
+1. Click **Add {{labels.patient.singular}}**.
 2. Enter the following information:
    - **{{labels.patient.singular}} Name** (required)
    - **Gender** – select Male or Female
@@ -88,8 +88,8 @@ If microphone access is blocked or voice transcription isn’t configured, use *
 
 ## Troubleshooting
 
-- **"No {{labels.patient.plural}} found"** – Check your search query and filters. Clear the search box or reset the Status/Gender dropdowns to "All" to see the full list.
-- **Voice command not understood** – Speak clearly and use natural language. If the AI interpretation is incorrect, click **Edit Details** to correct it before saving, or click **Cancel** and try again.
-- **Microphone not working** – Ensure your browser has permission to access the microphone. If voice input continues to fail, switch to **Type** mode to enter your command as text.
-- **Cannot add {{labels.patient.singular}}** – Verify you have admin or assistant permissions. Only users with the appropriate role can manage {{labels.patient.plural}}.
-- **{{labels.patient.singular}} not appearing in schedule** – Check that the {{labels.patient.singular}}'s status is set to Active. Also verify that there are {{labels.staff.plural}} available who meet the {{labels.patient.singular}}'s requirements (e.g., required {{labels.certification.plural}}, gender preference).
+- **"No {{labels.patient.plural}} found"**: Clear search and filters (Status/Gender) to see the full list.
+- **Voice command not understood**: Try a shorter command, or use **Edit Details** to correct the parsed values before saving.
+- **Microphone not working**: Allow microphone access for this site, or switch to **Type** mode.
+- **Cannot add {{labels.patient.singular}}**: Only Admins, Admin Assistants, and Super Admins can manage {{labels.patient.plural}}.
+- **{{labels.patient.singular}} not appearing in schedule**: Ensure the {{labels.patient.singular}} is Active and at least one active {{labels.staff.singular}} matches required {{labels.certification.plural}} (and any gender preference).

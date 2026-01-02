@@ -28,7 +28,7 @@ The {{labels.staff.plural}} page displays all {{labels.staff.plural}} in your or
 
 ### View your {{labels.staff.plural}}
 
-1. Navigate to **{{labels.staff.plural}}** in the main menu.
+1. Open **{{labels.staff.plural}}** from the sidebar.
 2. The table displays all {{labels.staff.plural}} with their name, gender, email, phone, {{labels.certification.plural}}, and status.
 3. Use the search box to find {{labels.staff.plural}} by name or email.
 4. Use the **Status** dropdown to filter by Active or Inactive.
@@ -44,7 +44,7 @@ The {{labels.staff.plural}} page displays all {{labels.staff.plural}} in your or
 
 ### Add a {{labels.staff.singular}} using the form
 
-1. Click the **Add {{labels.staff.singular}}** button in the top right corner.
+1. Click **Add {{labels.staff.singular}}**.
 2. Enter the following information:
    - **Full Name** (required)
    - **Email** (required)
@@ -69,7 +69,7 @@ The {{labels.staff.plural}} page displays all {{labels.staff.plural}} in your or
 ### Delete a {{labels.staff.singular}}
 
 1. Open the {{labels.staff.singular}}'s profile page.
-2. Click the **Delete** button in the top right corner.
+2. Click **Delete**.
 3. Confirm the deletion when prompted. This action cannot be undone.
 
 ## How this changes with your settings
@@ -93,7 +93,7 @@ If microphone access is blocked or voice transcription isn’t configured, use *
 
 ## Troubleshooting
 
-- **"No {{labels.staff.plural}} found"** – Check your search query and filters. Clear the search box or reset the Status/Gender dropdowns to "All" to see the full list.
-- **Voice command not understood** – Speak clearly and use natural language. If the AI interpretation is incorrect, click **Edit Details** to correct it before saving, or click **Cancel** and try again.
-- **Microphone not working** – Ensure your browser has permission to access the microphone. If voice input continues to fail, switch to **Type** mode to enter your command as text.
-- **Cannot add {{labels.staff.singular}}** – Verify you have admin or assistant permissions. Only users with the appropriate role can manage {{labels.staff.plural}}.
+- **"No {{labels.staff.plural}} found"**: Clear search and filters (Status/Gender) to see the full list.
+- **Voice command not understood**: Try a shorter command, or use **Edit Details** to correct the parsed values before saving.
+- **Microphone not working**: Allow microphone access for this site, or switch to **Type** mode.
+- **Cannot add {{labels.staff.singular}}**: Only Admins, Admin Assistants, and Super Admins can manage {{labels.staff.plural}}.

@@ -34,7 +34,7 @@ Federal holidays are highlighted in the grid with a light red background and the
 ### Print a schedule
 
 1. Open **Schedule** from the sidebar.
-2. Navigate to the week you want to print.
+2. Use **Prev**/**Next** to select the week you want to print.
 3. Click **Print** in the header actions.
 4. A new browser tab opens with the print-optimized view.
 5. Click **Print Schedule** (or use your browser's print dialog: Ctrl+P / Cmd+P).
@@ -43,7 +43,7 @@ Federal holidays are highlighted in the grid with a light red background and the
 
 ### Download a schedule as PDF
 
-1. Open **Schedule** and navigate to the desired week.
+1. Open **Schedule** from the sidebar, then select the desired week.
 2. Click **Download PDF** in the header actions.
 3. The system generates a PDF file and downloads it to your device.
 

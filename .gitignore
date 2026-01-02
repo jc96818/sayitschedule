@@ -37,3 +37,6 @@ terraform.tfvars
 
 # TypeScript
 *.tsbuildinfo
+
+# Temporary files
+backend/.tmp/

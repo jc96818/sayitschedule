@@ -53,7 +53,7 @@ The BAA ensures that Say It Schedule will:
 
 ### View BAA status
 
-1. Click **BAA** in the sidebar (under Settings).
+1. Open **HIPAA BAA** from the sidebar.
 2. View the current agreement status:
    - **Not Started**: No BAA has been initiated
    - **Awaiting Organization Signature**: Ready for you to sign
@@ -65,7 +65,7 @@ The BAA ensures that Say It Schedule will:
 
 Only administrators can sign the BAA on behalf of the organization.
 
-1. Navigate to **BAA** in the sidebar.
+1. Open **HIPAA BAA** from the sidebar.
 2. Click **Preview Agreement** to review the full text.
 3. Click **Review & Sign BAA**.
 4. Enter your information:
@@ -81,7 +81,7 @@ After you sign, Say It Schedule will review and countersign the agreement. You'l
 
 Once the BAA is fully executed:
 
-1. Navigate to **BAA** in the sidebar.
+1. Open **HIPAA BAA** from the sidebar.
 2. Click **Download Executed BAA**.
 3. Save the PDF for your records.
 
@@ -134,7 +134,7 @@ When HIPAA compliance is enabled, the following features are available or enforc
 ## Troubleshooting
 
 - **Can't access BAA page**: Only administrators can view and sign the BAA. Contact your administrator.
-- **"BAA required" message**: Your organization needs a signed BAA before using PHI features. Navigate to the BAA page to sign.
+- **"BAA required" message**: Your organization needs a signed BAA before using PHI features. Open **HIPAA BAA** from the sidebar to sign.
 - **BAA stuck on "Awaiting Vendor Signature"**: Say It Schedule typically countersigns within 1-2 business days. Contact support if it takes longer.
 - **Need to update signer information**: If the wrong person signed, contact Say It Schedule support to void and re-issue the BAA.
 - **Organization not marked as HIPAA**: Contact Say It Schedule support to enable HIPAA compliance mode for your organization.

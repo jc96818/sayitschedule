@@ -30,18 +30,30 @@ CREATE TABLE "help_articles" (
     "prerequisites_features" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     "prerequisites_settings" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     "prerequisites_org" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-    "search_vector" tsvector GENERATED ALWAYS AS (
-      setweight(to_tsvector('english', coalesce("title", '')), 'A') ||
-      setweight(to_tsvector('english', coalesce("summary", '')), 'B') ||
-      setweight(to_tsvector('english', coalesce("body_text", '')), 'C') ||
-      setweight(to_tsvector('english', array_to_string("tags", ' ')), 'D') ||
-      setweight(to_tsvector('english', array_to_string("aliases", ' ')), 'D')
-    ) STORED,
+    "search_vector" tsvector,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "help_articles_pkey" PRIMARY KEY ("id")
 );
+
+-- Create function to update search vector
+CREATE OR REPLACE FUNCTION help_articles_search_vector_update() RETURNS trigger AS $$
+BEGIN
+  NEW.search_vector :=
+    setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(NEW.summary, '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(NEW.body_text, '')), 'C') ||
+    setweight(to_tsvector('english', array_to_string(NEW.tags, ' ')), 'D') ||
+    setweight(to_tsvector('english', array_to_string(NEW.aliases, ' ')), 'D');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to automatically update search vector
+CREATE TRIGGER help_articles_search_vector_trigger
+  BEFORE INSERT OR UPDATE ON help_articles
+  FOR EACH ROW EXECUTE FUNCTION help_articles_search_vector_update();
 
 -- CreateIndex
 CREATE UNIQUE INDEX "help_categories_slug_key" ON "help_categories"("slug");

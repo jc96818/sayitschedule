@@ -33,7 +33,7 @@ Each label has both a **plural** form (used for navigation and list headings) an
 
 ## Steps
 
-1. Go to **Settings** from the sidebar.
+1. Open **Settings** from the sidebar.
 2. Scroll down to the **Custom Labels** section.
 3. Update the labels for each entity type:
    - **Staff Labels**: Set the plural form (e.g., "Therapists") and singular form (e.g., "Therapist").

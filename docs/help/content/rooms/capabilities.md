@@ -51,9 +51,9 @@ Your organization can define custom capabilities based on your specific equipmen
 
 ### Add capabilities to a {{labels.room.singular}}
 
-1. Navigate to **{{labels.room.plural}}** in the main menu.
+1. Open **{{labels.room.plural}}** from the sidebar.
 2. Click **View** next to the {{labels.room.singular}} you want to edit.
-3. Click **Edit {{labels.room.singular}}** in the top right corner.
+3. Click **Edit {{labels.room.singular}}**.
 4. In the **Capabilities** section:
    - Type a capability name and click **Add**, or press Enter
    - Click a suggestion button to add common capabilities
@@ -68,7 +68,7 @@ Your organization can define custom capabilities based on your specific equipmen
 
 ### Set {{labels.room.singular}} capability requirements for a {{labels.patient.singular}}
 
-1. Navigate to **{{labels.patient.plural}}** in the main menu.
+1. Open **{{labels.patient.plural}}** from the sidebar.
 2. Click **View** next to the {{labels.patient.singular}} you want to edit.
 3. Click **Edit Profile**.
 4. In the **Required {{labels.room.singular}} Capabilities** section:
@@ -106,7 +106,8 @@ If no custom suggestions are configured, the system provides default suggestions
 
 ## Troubleshooting
 
-- **{{labels.patient.singular}} not getting required {{labels.room.singular}}** – Verify that at least one active {{labels.room.singular}} has all the required capabilities. If no {{labels.room.singular}} matches, schedule generation won’t be able to place sessions in a {{labels.room.singular}} that meets those requirements.
-- **Capability not matching** – Capability names must match exactly. Check for typos, extra spaces, or different naming conventions (e.g., "wheelchair accessible" vs "wheelchair_accessible").
-- **Too few {{labels.room.plural}} available** – If you've added many required capabilities to {{labels.patient.plural}}, you may have limited the available {{labels.room.plural}} too much. Consider which capabilities are truly required vs. preferred.
-- **Preferred {{labels.room.singular}} not used** – The preferred {{labels.room.singular}} setting is a preference, not a requirement. If the {{labels.room.singular}} is already booked or doesn't meet required capabilities, another {{labels.room.singular}} will be used.
+- **{{labels.patient.singular}} not getting required {{labels.room.singular}}**: Verify that at least one active {{labels.room.singular}} has all the required capabilities. If no {{labels.room.singular}} matches, schedule generation won’t be able to place sessions in a {{labels.room.singular}} that meets those requirements.
+- **Capability not matching**: Capability names must match exactly. Check for typos, extra spaces, or different naming conventions (e.g., "wheelchair accessible" vs "wheelchair_accessible").
+- **Too few {{labels.room.plural}} available**: If you've added many required capabilities to {{labels.patient.plural}}, you may have limited the available {{labels.room.plural}} too much. Consider which capabilities are truly required vs. preferred.
+- **Preferred {{labels.room.singular}} not used**: The preferred {{labels.room.singular}} setting is a preference, not a requirement. If the {{labels.room.singular}} is already booked or doesn't meet required capabilities, another {{labels.room.singular}} will be used.
+

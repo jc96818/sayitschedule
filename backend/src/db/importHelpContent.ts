@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -260,4 +261,3 @@ main()
   .finally(async () => {
     await closeDb()
   })
-

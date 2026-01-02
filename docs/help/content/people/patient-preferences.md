@@ -61,9 +61,9 @@ Preferences fall into two categories:
 
 ### Edit {{labels.patient.singular}} preferences
 
-1. Navigate to **{{labels.patient.plural}}** in the main menu.
+1. Open **{{labels.patient.plural}}** from the sidebar.
 2. Click **View** next to the {{labels.patient.singular}} you want to edit.
-3. Click **Edit Profile** in the top right corner.
+3. Click **Edit Profile**.
 4. Update the preference fields as needed (described below).
 5. Click **Save Changes**.
 
@@ -128,7 +128,7 @@ If you’re not getting the outcome you expect, review the generated schedule an
 
 ## Troubleshooting
 
-- **{{labels.patient.singular}} not appearing in schedule** – Verify the {{labels.patient.singular}} is Active and has a session frequency greater than 0. Check that at least one {{labels.staff.singular}} meets the required {{labels.certification.plural}} and gender preference.
-- **Wrong {{labels.room.singular}} assigned** – The preferred {{labels.room.singular}} may have been unavailable. Check {{labels.room.singular}} status and capabilities. Required capabilities take precedence over the preferred {{labels.room.singular}}.
-- **Certification requirement not met** – Ensure at least one active {{labels.staff.singular}} has the required {{labels.certification.plural}}. If no {{labels.staff.singular}} has the required {{labels.certification.plural}}, the {{labels.patient.singular}} cannot be scheduled.
-- **Cannot find capability** – {{labels.room.singular}} capabilities are free-form text. Make sure the capability name matches exactly (including underscores or spaces) between the {{labels.patient.singular}} requirement and the {{labels.room.singular}} setup.
+- **{{labels.patient.singular}} not appearing in schedule**: Ensure the {{labels.patient.singular}} is Active, sessions per week is greater than 0, and at least one active {{labels.staff.singular}} meets required {{labels.certification.plural}} (and any gender preference).
+- **Wrong {{labels.room.singular}} assigned**: The preferred {{labels.room.singular}} may have been unavailable. Check {{labels.room.singular}} status and capabilities. Required capabilities take precedence over the preferred {{labels.room.singular}}.
+- **Certification requirement not met**: Ensure at least one active {{labels.staff.singular}} has the required {{labels.certification.plural}}. If no {{labels.staff.singular}} has the required {{labels.certification.plural}}, the {{labels.patient.singular}} cannot be scheduled.
+- **Cannot find capability**: {{labels.room.singular}} capabilities are free-form text. Make sure the capability name matches exactly (including underscores or spaces) between the {{labels.patient.singular}} requirement and the {{labels.room.singular}} setup.

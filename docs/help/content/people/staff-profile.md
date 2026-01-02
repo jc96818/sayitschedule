@@ -71,7 +71,7 @@ Time off requests have a status:
 ### Edit personal information
 
 1. Open the {{labels.staff.singular}}'s profile page.
-2. Click **Edit Profile** in the top right.
+2. Click **Edit Profile**.
 3. Update the fields as needed: Full Name, Gender, Email, Phone, or Hire Date.
 4. Click **Save Changes**.
 
@@ -118,7 +118,7 @@ For staff users (non-admins), the request is submitted for approval. Administrat
 ### Delete a {{labels.staff.singular}}
 
 1. Open the {{labels.staff.singular}}'s profile page.
-2. Click the **Delete** button in the top right.
+2. Click **Delete**.
 3. Confirm the deletion when prompted. This action cannot be undone.
 
 ## How this changes with your settings
@@ -134,7 +134,7 @@ This page is mostly the same for all organizations. The biggest differences you�
 
 ## Troubleshooting
 
-- **Cannot save working hours** – Ensure the end time is after the start time for each enabled day.
-- **Time off request pending** – Staff users must wait for an administrator to approve their time off requests. Administrators can approve requests from the pending requests panel.
-- **{{labels.staff.singular}} not appearing in schedule** – Check that the {{labels.staff.singular}}'s status is set to Active and they have working hours defined for the relevant days.
-- **{{labels.staff.singular}} scheduled during time off** – Ensure the time off request status is "Approved". Pending or rejected requests do not block scheduling.
+- **Cannot save working hours**: Ensure the end time is after the start time for each enabled day.
+- **Time off request pending**: Requests must be approved by an Admin, Admin Assistant, or Super Admin before they block scheduling.
+- **{{labels.staff.singular}} not appearing in schedule**: Check that the {{labels.staff.singular}}'s status is set to Active and they have working hours defined for the relevant days.
+- **{{labels.staff.singular}} scheduled during time off**: Ensure the time off request status is "Approved". Pending or rejected requests do not block scheduling.

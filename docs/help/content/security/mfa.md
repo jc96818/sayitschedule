@@ -48,8 +48,7 @@ If your organization requires MFA, you'll see the setup wizard after your first 
 
 If MFA isn't required but you want to enable it:
 
-1. Click your name in the top-right corner.
-2. Select **Account Settings**.
+1. Open **My Account** from the sidebar.
 3. Find the **Two-Factor Authentication (MFA)** section.
 4. Click **Enable MFA**.
 5. Enter your password to confirm.
@@ -83,7 +82,7 @@ Each backup code can only be used once. After using a backup code, consider rege
 
 If you've used backup codes or want new ones:
 
-1. Go to **Account Settings**.
+1. Open **My Account** from the sidebar.
 2. Find the **Two-Factor Authentication** section.
 3. Click **Regenerate Backup Codes**.
 4. Enter your password to confirm.
@@ -95,7 +94,7 @@ This invalidates all previous backup codes.
 
 If MFA is optional for your organization:
 
-1. Go to **Account Settings**.
+1. Open **My Account** from the sidebar.
 2. Find the **Two-Factor Authentication** section.
 3. Click **Disable MFA**.
 4. Enter your password to confirm.
@@ -124,6 +123,11 @@ When you enable MFA, you receive a set of one-time backup codes. These codes let
 | Microsoft Authenticator | iOS, Android | Works with Microsoft accounts too |
 
 All three apps are free and support the TOTP standard used by Say It Schedule.
+
+## How this changes with your settings
+
+- **HIPAA mode**: Your organization may require MFA for all users. In that case, you’ll be prompted to set it up and you won’t be able to disable it.
+- **Session security**: Some organizations also enforce shorter session timeouts.
 
 ## Related
 
