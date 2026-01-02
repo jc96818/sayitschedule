@@ -142,7 +142,7 @@ Core business functionality - the primary purpose of the application.
 
 ---
 
-### Phase 3: Staff Management (HIGH PRIORITY) - COMPONENT TESTS COMPLETE
+### Phase 3: Staff Management (HIGH PRIORITY) - E2E TESTS COMPLETE
 
 Essential for schedule generation - staff are required inputs.
 
@@ -153,13 +153,14 @@ Essential for schedule generation - staff are required inputs.
 | StaffListPage | Component | ✅ Done | `pages/__tests__/StaffListPage.test.ts` |
 | StaffFormPage - Create | Component | ⬜ Todo | `pages/__tests__/StaffFormPage.test.ts` |
 | StaffFormPage - Edit | Component | ⬜ Todo | `pages/__tests__/StaffFormPage.test.ts` |
-| E2E - Add Staff | E2E | ⬜ Todo | `e2e/staff.spec.ts` |
-| E2E - Edit Staff | E2E | ⬜ Todo | `e2e/staff.spec.ts` |
-| E2E - Deactivate Staff | E2E | ⬜ Todo | `e2e/staff.spec.ts` |
+| E2E - Staff List Page | E2E | ✅ Done | `e2e/staff.spec.ts` |
+| E2E - Add Staff Flow | E2E | ✅ Done | `e2e/staff.spec.ts` |
+| E2E - Staff Filters | E2E | ✅ Done | `e2e/staff.spec.ts` |
+| E2E - Staff Detail Navigation | E2E | ✅ Done | `e2e/staff.spec.ts` |
 
 ---
 
-### Phase 4: Patient Management (HIGH PRIORITY) - COMPONENT TESTS COMPLETE
+### Phase 4: Patient Management (HIGH PRIORITY) - E2E TESTS COMPLETE
 
 Essential for schedule generation - patients are required inputs.
 
@@ -170,8 +171,11 @@ Essential for schedule generation - patients are required inputs.
 | PatientListPage | Component | ✅ Done | `pages/__tests__/PatientListPage.test.ts` |
 | PatientFormPage - Create | Component | ⬜ Todo | `pages/__tests__/PatientFormPage.test.ts` |
 | PatientFormPage - Edit | Component | ⬜ Todo | `pages/__tests__/PatientFormPage.test.ts` |
-| E2E - Add Patient | E2E | ⬜ Todo | `e2e/patients.spec.ts` |
-| E2E - Edit Patient | E2E | ⬜ Todo | `e2e/patients.spec.ts` |
+| E2E - Patient List Page | E2E | ✅ Done | `e2e/patients.spec.ts` |
+| E2E - Add Patient Flow | E2E | ✅ Done | `e2e/patients.spec.ts` |
+| E2E - Patient Filters | E2E | ✅ Done | `e2e/patients.spec.ts` |
+| E2E - Patient Session Config | E2E | ✅ Done | `e2e/patients.spec.ts` |
+| E2E - Guardian Information | E2E | ✅ Done | `e2e/patients.spec.ts` |
 
 ---
 
@@ -356,8 +360,8 @@ Static content, minimal logic.
 
 The following tests should be implemented next, in priority order:
 
-1. **Rooms Store + E2E** - Room constraints and capabilities flow (common "why didn't it schedule?" source)
-2. **E2E - Staff/Patient Create/Edit** - Validates inputs to generation, catches API/UI integration issues
+1. **Rooms E2E** - Room constraints and capabilities flow (common "why didn't it schedule?" source)
+2. **StaffFormPage/PatientFormPage** - Form validation and edit flows
 3. **Availability Store + Calendar** - Staff time-off affects scheduling
 4. **Users Store + UsersPage** - Organization user administration
 
@@ -374,6 +378,8 @@ The following tests should be implemented next, in priority order:
 | Rules Store | 2026-01-01 | 47 tests |
 | RulesPage | 2026-01-01 | 63 tests |
 | Rooms Store | 2026-01-01 | 38 tests |
+| E2E - Staff Management | 2026-01-01 | 22 tests |
+| E2E - Patient Management | 2026-01-01 | 27 tests |
 
 ### Blocked / Needs Design
 
@@ -400,8 +406,8 @@ The following tests should be implemented next, in priority order:
 |-------|-------------|-----------|-----------|
 | 1. Authentication | 10 | 10 | 0 |
 | 2. Schedules | 14 | 14 | 0 |
-| 3. Staff | 8 | 3 | 5 |
-| 4. Patients | 7 | 3 | 4 |
+| 3. Staff | 9 | 7 | 2 |
+| 4. Patients | 10 | 8 | 2 |
 | 5. Rooms | 4 | 1 | 3 |
 | 6. Rules | 9 | 7 | 2 |
 | 7. Availability | 6 | 0 | 6 |
@@ -414,9 +420,9 @@ The following tests should be implemented next, in priority order:
 | 14. Voice | 3 | 0 | 3 |
 | 15. UI Components | 12 | 0 | 12 |
 | 16. Help | 3 | 0 | 3 |
-| **Total** | **104** | **38** | **66** |
+| **Total** | **110** | **47** | **63** |
 
-*Note: Test counts are for test categories, not individual test cases. Actual test case count: 398*
+*Note: Test counts are for test categories, not individual test cases. Actual test case count: 447*
 
 ### Coverage Goals
 
