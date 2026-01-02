@@ -312,6 +312,7 @@ describe('Rules Store', () => {
               warnings: []
             }
           ],
+          overallConfidence: 0.85,
           originalTranscript: 'Create rules for male therapists and no late sessions',
           globalWarnings: []
         }
@@ -340,6 +341,7 @@ describe('Rules Store', () => {
                     data: {
                       commandType: 'create_rules',
                       rules: [{ category: 'session', description: 'Test', confidence: 0.9, warnings: [] }],
+                      overallConfidence: 0.9,
                       originalTranscript: 'Test',
                       globalWarnings: []
                     }
@@ -360,8 +362,9 @@ describe('Rules Store', () => {
       it('should handle invalid command type', async () => {
         vi.mocked(voiceService.parseRule).mockResolvedValue({
           data: {
-            commandType: 'unknown',
+            commandType: 'unknown' as 'create_rules',
             rules: [],
+            overallConfidence: 0,
             originalTranscript: 'Unknown',
             globalWarnings: []
           }
@@ -380,6 +383,7 @@ describe('Rules Store', () => {
             rules: [
               { category: 'session', description: 'Test', confidence: 0.3, warnings: [] }
             ],
+            overallConfidence: 0.3,
             originalTranscript: 'Unclear command',
             globalWarnings: []
           }
@@ -401,6 +405,7 @@ describe('Rules Store', () => {
               { category: 'gender_pairing', description: 'Rule 1', confidence: 0.9, warnings: [] },
               { category: 'session', description: 'Rule 2', confidence: 0.85, warnings: [] }
             ],
+            overallConfidence: 0.85,
             originalTranscript: 'Test',
             globalWarnings: []
           }
@@ -488,6 +493,7 @@ describe('Rules Store', () => {
               { category: 'gender_pairing', description: 'Rule 1', confidence: 0.9, warnings: [] },
               { category: 'session', description: 'Rule 2', confidence: 0.7, warnings: [] }
             ],
+            overallConfidence: 0.7,
             originalTranscript: 'Test',
             globalWarnings: []
           }
@@ -554,6 +560,7 @@ describe('Rules Store', () => {
               { category: 'gender_pairing', description: 'Rule 1', confidence: 0.9, warnings: [] },
               { category: 'session', description: 'Rule 2', confidence: 0.85, warnings: [] }
             ],
+            overallConfidence: 0.85,
             originalTranscript: 'Test',
             globalWarnings: []
           }
@@ -722,6 +729,7 @@ describe('Rules Store', () => {
         data: {
           commandType: 'create_rules',
           rules: [{ category: 'session', description: 'Single rule', confidence: 0.9, warnings: [] }],
+          overallConfidence: 0.9,
           originalTranscript: 'Test',
           globalWarnings: []
         }
@@ -742,6 +750,7 @@ describe('Rules Store', () => {
             { category: 'session', description: 'Rule 1', confidence: 0.9, warnings: [] },
             { category: 'session', description: 'Rule 2', confidence: 0.9, warnings: [] }
           ],
+          overallConfidence: 0.9,
           originalTranscript: 'Test',
           globalWarnings: []
         }
@@ -761,6 +770,7 @@ describe('Rules Store', () => {
             { category: 'session', description: 'Rule 1', confidence: 0.9, warnings: [] },
             { category: 'session', description: 'Rule 2', confidence: 0.7, warnings: [] }
           ],
+          overallConfidence: 0.7,
           originalTranscript: 'Test',
           globalWarnings: []
         }

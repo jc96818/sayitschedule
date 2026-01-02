@@ -906,7 +906,7 @@ describe('SchedulePage', () => {
     }
 
     it('should display Total Sessions stat correctly', async () => {
-      const wrapper = await mountSchedulePage({ schedule: scheduleWithStats, preloadStore: true })
+      await mountSchedulePage({ schedule: scheduleWithStats, preloadStore: true })
 
       // StatCard is stubbed, so check that 3 sessions would be calculated correctly
       const schedulesStore = useSchedulesStore()

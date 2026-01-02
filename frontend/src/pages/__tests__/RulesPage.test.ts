@@ -602,6 +602,7 @@ describe('RulesPage', () => {
           warnings: []
         }
       ],
+      overallConfidence: 0.9,
       originalTranscript: 'Female therapists for female patients',
       globalWarnings: []
     }
@@ -729,6 +730,7 @@ describe('RulesPage', () => {
           warnings: []
         }
       ],
+      overallConfidence: 0.85,
       originalTranscript: 'Female therapists for female patients and no sessions before 9am',
       globalWarnings: []
     }
