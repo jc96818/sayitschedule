@@ -40,12 +40,14 @@ describe('usePatientsStore', () => {
     gender: 'female'
   }
 
-  const mockInactivePatient: Patient = {
+  // Kept for potential future use in filtering tests
+  const _mockInactivePatient: Patient = {
     ...mockPatient,
     id: 'patient-3',
     name: 'Inactive Patient',
     status: 'inactive'
   }
+  void _mockInactivePatient
 
   beforeEach(() => {
     setActivePinia(createPinia())

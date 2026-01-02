@@ -6,7 +6,7 @@ import StaffListPage from '../StaffListPage.vue'
 import { useStaffStore } from '@/stores/staff'
 import { useAuthStore } from '@/stores/auth'
 import type { Staff } from '@/types'
-import { staffService, voiceService } from '@/services/api'
+import { staffService } from '@/services/api'
 
 // Mock the API services
 vi.mock('@/services/api', () => ({
@@ -50,41 +50,47 @@ describe('StaffListPage', () => {
     {
       id: 'staff-1',
       organizationId: 'org-1',
+      userId: null,
       name: 'Dr. Smith',
       email: 'smith@example.com',
       phone: '555-1234',
       gender: 'male',
       certifications: ['ABA', 'RBT'],
+      defaultHours: { monday: null, tuesday: null, wednesday: null, thursday: null, friday: null },
       status: 'active',
+      hireDate: null,
       maxSessionsPerDay: 4,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
+      createdAt: '2024-01-01T00:00:00Z'
     },
     {
       id: 'staff-2',
       organizationId: 'org-1',
+      userId: null,
       name: 'Dr. Jones',
       email: 'jones@example.com',
       phone: '555-5678',
       gender: 'female',
       certifications: ['BCBA'],
+      defaultHours: { monday: null, tuesday: null, wednesday: null, thursday: null, friday: null },
       status: 'active',
+      hireDate: null,
       maxSessionsPerDay: 3,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
+      createdAt: '2024-01-01T00:00:00Z'
     },
     {
       id: 'staff-3',
       organizationId: 'org-1',
+      userId: null,
       name: 'John Doe',
       email: 'doe@example.com',
       phone: '555-9999',
       gender: 'male',
       certifications: [],
+      defaultHours: { monday: null, tuesday: null, wednesday: null, thursday: null, friday: null },
       status: 'inactive',
+      hireDate: null,
       maxSessionsPerDay: 2,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
+      createdAt: '2024-01-01T00:00:00Z'
     }
   ]
 
@@ -154,7 +160,7 @@ describe('StaffListPage', () => {
     })
 
     it('should fetch staff on mount', async () => {
-      const wrapper = await mountStaffListPage()
+      await mountStaffListPage()
 
       expect(staffService.list).toHaveBeenCalled()
     })
@@ -324,14 +330,17 @@ describe('StaffListPage', () => {
         data: {
           id: 'new-staff',
           organizationId: 'org-1',
+          userId: null,
           name: 'New Staff',
           email: 'new@example.com',
+          phone: null,
           gender: 'male',
           certifications: [],
+          defaultHours: { monday: null, tuesday: null, wednesday: null, thursday: null, friday: null },
           status: 'active',
+          hireDate: null,
           maxSessionsPerDay: 2,
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z'
+          createdAt: '2024-01-01T00:00:00Z'
         }
       })
 
@@ -410,7 +419,7 @@ describe('StaffListPage', () => {
 
   describe('store integration', () => {
     it('should update store with fetched staff', async () => {
-      const wrapper = await mountStaffListPage()
+      await mountStaffListPage()
 
       const staffStore = useStaffStore()
       // Store contains at least 3 staff members from our mock
@@ -418,7 +427,7 @@ describe('StaffListPage', () => {
     })
 
     it('should update total count in store', async () => {
-      const wrapper = await mountStaffListPage()
+      await mountStaffListPage()
 
       const staffStore = useStaffStore()
       expect(staffStore.totalCount).toBe(3)

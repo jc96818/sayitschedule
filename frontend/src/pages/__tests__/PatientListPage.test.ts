@@ -6,7 +6,7 @@ import PatientListPage from '../PatientListPage.vue'
 import { usePatientsStore } from '@/stores/patients'
 import { useAuthStore } from '@/stores/auth'
 import type { Patient } from '@/types'
-import { patientService, voiceService } from '@/services/api'
+import { patientService } from '@/services/api'
 
 // Mock the API services
 vi.mock('@/services/api', () => ({
@@ -52,56 +52,71 @@ describe('PatientListPage', () => {
     {
       id: 'patient-1',
       organizationId: 'org-1',
+      identifier: null,
       name: 'John Doe',
       gender: 'male',
       dateOfBirth: '2015-03-15',
+      sessionFrequency: 3,
+      preferredTimes: null,
+      requiredCertifications: ['ABA', 'RBT'],
+      preferredRoomId: null,
+      requiredRoomCapabilities: [],
+      notes: 'Test notes',
+      status: 'active',
+      createdAt: '2024-01-01T00:00:00Z',
+      // Optional UI fields
       guardianName: 'Jane Doe',
       guardianPhone: '555-1234',
       guardianEmail: 'jane@example.com',
       sessionsPerWeek: 3,
       sessionDuration: 60,
-      requiredCertifications: ['ABA', 'RBT'],
-      genderPreference: null,
-      notes: 'Test notes',
-      status: 'active',
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
+      genderPreference: null
     },
     {
       id: 'patient-2',
       organizationId: 'org-1',
+      identifier: null,
       name: 'Sarah Smith',
       gender: 'female',
       dateOfBirth: '2016-07-20',
+      sessionFrequency: 2,
+      preferredTimes: null,
+      requiredCertifications: ['BCBA'],
+      preferredRoomId: null,
+      requiredRoomCapabilities: [],
+      notes: null,
+      status: 'active',
+      createdAt: '2024-01-01T00:00:00Z',
+      // Optional UI fields
       guardianName: 'Bob Smith',
       guardianPhone: '555-5678',
       guardianEmail: 'bob@example.com',
       sessionsPerWeek: 2,
       sessionDuration: 45,
-      requiredCertifications: ['BCBA'],
-      genderPreference: 'female',
-      notes: null,
-      status: 'active',
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
+      genderPreference: 'female'
     },
     {
       id: 'patient-3',
       organizationId: 'org-1',
+      identifier: null,
       name: 'Tommy Brown',
       gender: 'male',
       dateOfBirth: '2014-11-10',
+      sessionFrequency: 1,
+      preferredTimes: null,
+      requiredCertifications: [],
+      preferredRoomId: null,
+      requiredRoomCapabilities: [],
+      notes: null,
+      status: 'inactive',
+      createdAt: '2024-01-01T00:00:00Z',
+      // Optional UI fields
       guardianName: 'Mary Brown',
       guardianPhone: '555-9999',
       guardianEmail: 'mary@example.com',
       sessionsPerWeek: 1,
       sessionDuration: 30,
-      requiredCertifications: [],
-      genderPreference: 'male',
-      notes: null,
-      status: 'inactive',
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
+      genderPreference: 'male'
     }
   ]
 
@@ -171,7 +186,7 @@ describe('PatientListPage', () => {
     })
 
     it('should fetch patients on mount', async () => {
-      const wrapper = await mountPatientListPage()
+      await mountPatientListPage()
 
       expect(patientService.list).toHaveBeenCalled()
     })
@@ -368,15 +383,21 @@ describe('PatientListPage', () => {
         data: {
           id: 'new-patient',
           organizationId: 'org-1',
+          identifier: null,
           name: 'New Patient',
           gender: 'female',
-          sessionsPerWeek: 2,
-          sessionDuration: 60,
+          sessionFrequency: 2,
+          preferredTimes: null,
           requiredCertifications: [],
-          genderPreference: null,
+          preferredRoomId: null,
+          requiredRoomCapabilities: [],
+          notes: null,
           status: 'active',
           createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z'
+          // Optional UI fields
+          sessionsPerWeek: 2,
+          sessionDuration: 60,
+          genderPreference: null
         }
       })
 
@@ -454,7 +475,7 @@ describe('PatientListPage', () => {
 
   describe('store integration', () => {
     it('should update store with fetched patients', async () => {
-      const wrapper = await mountPatientListPage()
+      await mountPatientListPage()
 
       const patientsStore = usePatientsStore()
       // Store contains at least 3 patients from our mock
@@ -462,7 +483,7 @@ describe('PatientListPage', () => {
     })
 
     it('should update total count in store', async () => {
-      const wrapper = await mountPatientListPage()
+      await mountPatientListPage()
 
       const patientsStore = usePatientsStore()
       expect(patientsStore.totalCount).toBe(3)

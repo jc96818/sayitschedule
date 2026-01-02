@@ -10,6 +10,85 @@ Tests are prioritized based on:
 3. **Usage frequency** - Most-used features get tested first
 4. **Risk** - Areas where bugs would cause significant problems
 
+### Test Expected Behavior, Not Current Implementation
+
+**Important**: Tests should verify that code behaves *correctly*, not just that it behaves *as currently implemented*. This distinction is critical:
+
+#### ❌ Wrong Approach: Testing Current Behavior
+
+```typescript
+// Bad: This just documents whatever the code does, even if it's wrong
+it('should show coverage rate', async () => {
+  const wrapper = await mountSchedulePage()
+  // If the code has a bug showing 100% always, this test would pass!
+  expect(wrapper.text()).toContain('100%')
+})
+```
+
+#### ✅ Correct Approach: Testing Expected Behavior
+
+```typescript
+// Good: This tests what SHOULD happen based on business requirements
+it('should calculate coverage rate based on scheduled vs required sessions', async () => {
+  // Patient needs 3 sessions/week, we scheduled 2
+  const patient = { sessionsPerWeek: 3, status: 'active' }
+  const sessions = [{ patientId: patient.id }, { patientId: patient.id }]
+
+  // Coverage should be 2/3 = 67%, not 100%
+  expect(calculateCoverage(sessions, [patient])).toBe(67)
+})
+```
+
+#### Guidelines for Writing Correct Tests
+
+1. **Understand the requirement first** - Before writing a test, understand what the feature *should* do, not just what it currently does. Check:
+   - Product requirements/specs
+   - User stories or tickets
+   - Common sense expectations (e.g., a "coverage rate" should actually calculate coverage)
+
+2. **Question suspicious behavior** - If you see code that seems wrong, investigate:
+   - Hardcoded values (e.g., `coverageRate: 100 // TODO`)
+   - Missing calculations
+   - Timezone issues with date handling
+   - Edge cases not handled
+
+3. **Fix bugs, don't test around them** - When you find incorrect behavior:
+   - Fix the bug in the implementation
+   - Write a test that verifies the correct behavior
+   - Document what was wrong and why
+
+4. **Test edge cases with intent** - Edge cases should test boundary conditions, not just "what happens":
+
+   ```typescript
+   // Bad: Just checking it doesn't crash
+   it('should handle empty patients', async () => {
+     expect(() => render()).not.toThrow()
+   })
+
+   // Good: Verifying correct behavior for edge case
+   it('should show 0% coverage when no patients exist', async () => {
+     const coverage = calculateCoverage([], [])
+     expect(coverage).toBe(0) // Not 100%, not NaN, not undefined
+   })
+   ```
+
+5. **Review code during test writing** - Testing is an opportunity to catch bugs:
+   - Read the implementation as you write tests
+   - Look for TODOs, FIXMEs, or placeholder values
+   - Check date/time handling for timezone bugs
+   - Verify calculations actually calculate
+
+#### Bugs Found Through This Approach
+
+During testing, we identified and fixed:
+
+| Bug                     | Location           | Issue                                    | Fix                                          |
+|-------------------------|--------------------|------------------------------------------|----------------------------------------------|
+| Hardcoded coverage rate | `SchedulePage.vue` | Always showed 100%                       | Calculate actual scheduled/required ratio    |
+| Timezone date shift     | `SchedulePage.vue` | `toISOString()` caused dates to shift    | Use local date components instead            |
+
+---
+
 ## Test Categories
 
 | Category | Framework | Purpose |

@@ -99,11 +99,35 @@ const stats = computed(() => {
   const sessions = currentSchedule.value.sessions || []
   const uniqueTherapists = new Set(sessions.map(s => s.therapistId || s.staffId))
   const uniquePatients = new Set(sessions.map(s => s.patientId))
+
+  // Calculate coverage rate based on scheduled vs required sessions per patient
+  let coverageRate = 0
+  if (patientsStore.patients.length > 0) {
+    // Count sessions per patient in this schedule
+    const sessionsPerPatient = new Map<string, number>()
+    for (const session of sessions) {
+      const count = sessionsPerPatient.get(session.patientId) || 0
+      sessionsPerPatient.set(session.patientId, count + 1)
+    }
+
+    // Calculate coverage as scheduled/required for active patients
+    let totalRequired = 0
+    let totalScheduled = 0
+    for (const patient of patientsStore.patients) {
+      if (patient.status === 'active') {
+        totalRequired += patient.sessionsPerWeek || 0
+        totalScheduled += sessionsPerPatient.get(patient.id) || 0
+      }
+    }
+
+    coverageRate = totalRequired > 0 ? Math.round((totalScheduled / totalRequired) * 100) : 0
+  }
+
   return {
     totalSessions: sessions.length,
     therapistsScheduled: uniqueTherapists.size,
     patientsCovered: uniquePatients.size,
-    coverageRate: 100 // TODO: Calculate based on patient needs
+    coverageRate
   }
 })
 
@@ -143,8 +167,12 @@ function formatSessionDate(dateStr: string): string {
 }
 
 // Format weekday date for comparison (YYYY-MM-DD)
+// Uses local date components to avoid timezone-related date shifts
 function formatWeekDayDate(date: Date): string {
-  return date.toISOString().split('T')[0]
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function getSessionsForTimeSlot(dayIndex: number, timeSlot: string): Session[] {
