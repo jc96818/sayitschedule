@@ -26,6 +26,9 @@ logs/
 
 # Testing
 coverage/
+playwright-report/
+test-results/
+.playwright/
 
 # Terraform
 **/.terraform/
