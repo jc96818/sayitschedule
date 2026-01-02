@@ -206,28 +206,28 @@ Status values:
 | people | {{labels.patient.singular}} scheduling preferences | `/help/people/patient-preferences` | admin, assistant |  | `/app/patients/:id` | Claude | ready |
 | rooms | Add and manage {{labels.room.plural}} | `/help/rooms/rooms` | admin, assistant |  | `/app/rooms` | Claude | ready |
 | rooms | Room capabilities and matching | `/help/rooms/capabilities` | admin, assistant |  | `/app/rooms/:id` | Claude | ready |
-| rules | How scheduling rules work | `/help/rules/overview` | admin, assistant |  | `/app/rules` |  | unassigned |
-| rules | Rule categories and priorities | `/help/rules/categories` | admin, assistant |  | `/app/rules` |  | unassigned |
-| rules | Create rules (UI) | `/help/rules/create` | admin, assistant |  | `/app/rules` |  | unassigned |
-| schedules | Generate a schedule | `/help/schedules/generate` | admin, assistant |  | `/app/schedule/generate` |  | unassigned |
-| schedules | View schedules | `/help/schedules/view` | admin, assistant, staff |  | `/app/schedule` |  | unassigned |
-| schedules | Print/export schedules | `/help/schedules/print` | admin, assistant, staff |  | `/app/schedule/:id/print` |  | unassigned |
-| voice | Voice commands overview | `/help/voice/overview` | admin, assistant | `features.voiceCommandsEnabled` | Voice flows |  | unassigned |
-| voice | Voice transcription settings | `/help/voice/transcription-settings` | admin, assistant |  | `/app/settings` |  | unassigned |
-| settings | Organization branding | `/help/settings/branding` | admin, assistant |  | `/app/settings` |  | unassigned |
+| rules | How scheduling rules work | `/help/rules/overview` | admin, assistant |  | `/app/rules` | Claude | ready |
+| rules | Rule categories and priorities | `/help/rules/categories` | admin, assistant |  | `/app/rules` | Claude | ready |
+| rules | Create rules (UI) | `/help/rules/create` | admin, assistant |  | `/app/rules` | Claude | ready |
+| schedules | Generate a schedule | `/help/schedules/generate` | admin, assistant |  | `/app/schedule/generate` | Codex | ready |
+| schedules | View schedules | `/help/schedules/view` | admin, assistant, staff |  | `/app/schedule` | Codex | ready |
+| schedules | Print/export schedules | `/help/schedules/print` | admin, assistant, staff |  | `/app/schedule/:id/print` | Codex | ready |
+| voice | Voice commands overview | `/help/voice/overview` | admin, assistant | `features.voiceCommandsEnabled` | Voice flows | Claude | ready |
+| voice | Voice transcription settings | `/help/voice/transcription-settings` | admin, assistant |  | `/app/settings` | Claude | ready |
+| settings | Organization branding | `/help/settings/branding` | admin, assistant |  | `/app/settings` | Claude | ready |
 | settings | Custom labels | `/help/settings/custom-labels` | admin, assistant |  | `/app/settings` | Claude | ready |
-| settings | Suggested {{labels.certification.plural}} | `/help/settings/suggested-certifications` | admin, assistant |  | `/app/settings` |  | unassigned |
-| settings | Suggested {{labels.equipment.plural}} | `/help/settings/suggested-equipment` | admin, assistant |  | `/app/settings` |  | unassigned |
-| settings | Patient portal overview | `/help/settings/patient-portal` | admin, assistant | `features.patientPortalEnabled` | `/app/settings` |  | unassigned |
-| settings | Self-booking controls | `/help/settings/self-booking` | admin, assistant | `features.selfBookingEnabled` | `/app/settings` |  | unassigned |
-| settings | Portal customization fields | `/help/settings/portal-customization` | admin, assistant | `features.patientPortalEnabled` | `/app/settings` |  | unassigned |
-| portal | Portal sign-in and verification | `/help/portal/sign-in` | staff (support), admin (support) | `features.patientPortalEnabled` | `/portal/*` |  | unassigned |
-| portal | View appointments in portal | `/help/portal/appointments` | staff (support), admin (support) | `features.patientPortalEnabled` | `/portal/appointments` |  | unassigned |
-| portal | Book an appointment (self-booking) | `/help/portal/booking` | staff (support), admin (support) | `features.patientPortalEnabled`, `features.selfBookingEnabled` | `/portal/booking` |  | unassigned |
-| troubleshooting | Search, “no results”, and best practices | `/help/troubleshooting/search` | admin, assistant, staff |  | Help Center |  | unassigned |
-| troubleshooting | Voice troubleshooting | `/help/troubleshooting/voice` | admin, assistant | `features.voiceCommandsEnabled` | Voice flows |  | unassigned |
-| security | MFA setup and account security | `/help/security/mfa` | admin, assistant, staff |  | `/mfa-setup`, `/app/account` |  | unassigned |
-| security | HIPAA/BAA basics in the app | `/help/security/hipaa-baa` | admin, assistant | `org.requiresHipaa` | `/app/baa` |  | unassigned |
+| settings | Suggested {{labels.certification.plural}} | `/help/settings/suggested-certifications` | admin, assistant |  | `/app/settings` | Claude | ready |
+| settings | Suggested {{labels.equipment.plural}} | `/help/settings/suggested-equipment` | admin, assistant |  | `/app/settings` | Claude | ready |
+| settings | Patient portal overview | `/help/settings/patient-portal` | admin, assistant | `features.patientPortalEnabled` | `/app/settings` | Claude | ready |
+| settings | Self-booking controls | `/help/settings/self-booking` | admin, assistant | `features.selfBookingEnabled` | `/app/settings` | Claude | ready |
+| settings | Portal customization fields | `/help/settings/portal-customization` | admin, assistant | `features.patientPortalEnabled` | `/app/settings` | Claude | ready |
+| portal | Portal sign-in and verification | `/help/portal/sign-in` | staff (support), admin (support) | `features.patientPortalEnabled` | `/portal/*` | Claude | ready |
+| portal | View appointments in portal | `/help/portal/appointments` | staff (support), admin (support) | `features.patientPortalEnabled` | `/portal/appointments` | Claude | ready |
+| portal | Book an appointment (self-booking) | `/help/portal/booking` | staff (support), admin (support) | `features.patientPortalEnabled`, `features.selfBookingEnabled` | `/portal/booking` | Claude | ready |
+| troubleshooting | Search, "no results", and best practices | `/help/troubleshooting/search` | admin, assistant, staff |  | Help Center | Claude | ready |
+| troubleshooting | Voice troubleshooting | `/help/troubleshooting/voice` | admin, assistant | `features.voiceCommandsEnabled` | Voice flows | Claude | ready |
+| security | MFA setup and account security | `/help/security/mfa` | admin, assistant, staff |  | `/mfa-setup`, `/app/account` | Claude | ready |
+| security | HIPAA/BAA basics in the app | `/help/security/hipaa-baa` | admin, assistant | `org.requiresHipaa` | `/app/baa` | Claude | ready |
 
 ---
 
