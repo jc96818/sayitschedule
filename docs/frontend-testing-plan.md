@@ -41,7 +41,7 @@ Critical path - users can't do anything without authentication.
 
 ---
 
-### Phase 2: Schedule Management (HIGH PRIORITY) - STORE TESTS COMPLETE
+### Phase 2: Schedule Management (HIGH PRIORITY) - COMPONENT & E2E TESTS IN PROGRESS
 
 Core business functionality - the primary purpose of the application.
 
@@ -51,17 +51,17 @@ Core business functionality - the primary purpose of the application.
 | Schedules Store - Generate | Unit | ✅ Done | `stores/__tests__/schedules.test.ts` |
 | Schedules Store - Publish | Unit | ✅ Done | `stores/__tests__/schedules.test.ts` |
 | Schedules Store - Voice Mod | Unit | ✅ Done | `stores/__tests__/schedules.test.ts` |
-| ScheduleListPage | Component | ⬜ Todo | `pages/__tests__/ScheduleListPage.test.ts` |
+| SchedulePage | Component | ✅ Done | `pages/__tests__/SchedulePage.test.ts` |
 | ScheduleViewPage - Views | Component | ⬜ Todo | `pages/__tests__/ScheduleViewPage.test.ts` |
 | ScheduleViewPage - Edit Session | Component | ⬜ Todo | `pages/__tests__/ScheduleViewPage.test.ts` |
-| E2E - Generate Schedule | E2E | ⬜ Todo | `e2e/schedules.spec.ts` |
-| E2E - View Schedule | E2E | ⬜ Todo | `e2e/schedules.spec.ts` |
-| E2E - Edit Session | E2E | ⬜ Todo | `e2e/schedules.spec.ts` |
-| E2E - Publish Schedule | E2E | ⬜ Todo | `e2e/schedules.spec.ts` |
+| E2E - Schedule Page | E2E | ✅ Done | `e2e/schedule-generation.spec.ts` |
+| E2E - Generate Schedule | E2E | ✅ Done | `e2e/schedule-generation.spec.ts` |
+| E2E - Schedule Navigation | E2E | ✅ Done | `e2e/schedule-generation.spec.ts` |
+| E2E - Publish Schedule | E2E | ⬜ Todo | `e2e/schedule-generation.spec.ts` |
 
 ---
 
-### Phase 3: Staff Management (HIGH PRIORITY) - STORE TESTS COMPLETE
+### Phase 3: Staff Management (HIGH PRIORITY) - COMPONENT TESTS COMPLETE
 
 Essential for schedule generation - staff are required inputs.
 
@@ -69,7 +69,7 @@ Essential for schedule generation - staff are required inputs.
 |---------|-----------|--------|------|
 | Staff Store - CRUD | Unit | ✅ Done | `stores/__tests__/staff.test.ts` |
 | Staff Store - Filtering | Unit | ✅ Done | `stores/__tests__/staff.test.ts` |
-| StaffListPage | Component | ⬜ Todo | `pages/__tests__/StaffListPage.test.ts` |
+| StaffListPage | Component | ✅ Done | `pages/__tests__/StaffListPage.test.ts` |
 | StaffFormPage - Create | Component | ⬜ Todo | `pages/__tests__/StaffFormPage.test.ts` |
 | StaffFormPage - Edit | Component | ⬜ Todo | `pages/__tests__/StaffFormPage.test.ts` |
 | E2E - Add Staff | E2E | ⬜ Todo | `e2e/staff.spec.ts` |
@@ -78,7 +78,7 @@ Essential for schedule generation - staff are required inputs.
 
 ---
 
-### Phase 4: Patient Management (HIGH PRIORITY) - STORE TESTS COMPLETE
+### Phase 4: Patient Management (HIGH PRIORITY) - COMPONENT TESTS COMPLETE
 
 Essential for schedule generation - patients are required inputs.
 
@@ -86,7 +86,7 @@ Essential for schedule generation - patients are required inputs.
 |---------|-----------|--------|------|
 | Patients Store - CRUD | Unit | ✅ Done | `stores/__tests__/patients.test.ts` |
 | Patients Store - Filtering | Unit | ✅ Done | `stores/__tests__/patients.test.ts` |
-| PatientListPage | Component | ⬜ Todo | `pages/__tests__/PatientListPage.test.ts` |
+| PatientListPage | Component | ✅ Done | `pages/__tests__/PatientListPage.test.ts` |
 | PatientFormPage - Create | Component | ⬜ Todo | `pages/__tests__/PatientFormPage.test.ts` |
 | PatientFormPage - Edit | Component | ⬜ Todo | `pages/__tests__/PatientFormPage.test.ts` |
 | E2E - Add Patient | E2E | ⬜ Todo | `e2e/patients.spec.ts` |
@@ -273,11 +273,20 @@ Static content, minimal logic.
 
 The following tests should be implemented next, in order:
 
-1. **ScheduleListPage** - Schedule listing and navigation component
-2. **ScheduleViewPage** - Schedule viewing and session editing
-3. **StaffListPage** - Staff listing component
-4. **PatientListPage** - Patient listing component
-5. **E2E - Generate Schedule** - Critical user flow
+1. **ScheduleViewPage** - Schedule viewing and session editing
+2. **StaffFormPage** - Staff create/edit form component
+3. **PatientFormPage** - Patient create/edit form component
+4. **E2E - Staff Management** - Add, edit, deactivate staff flows
+5. **E2E - Patient Management** - Add, edit patient flows
+
+### Recently Completed
+
+| Test | Date | Tests Added |
+|------|------|-------------|
+| SchedulePage | 2026-01-01 | 23 tests |
+| StaffListPage | 2026-01-01 | 28 tests |
+| PatientListPage | 2026-01-01 | 31 tests |
+| E2E - Schedule Generation | 2026-01-01 | 15 tests |
 
 ### Blocked / Needs Design
 
@@ -303,9 +312,9 @@ The following tests should be implemented next, in order:
 | Phase | Total Tests | Completed | Remaining |
 |-------|-------------|-----------|-----------|
 | 1. Authentication | 10 | 10 | 0 |
-| 2. Schedules | 11 | 4 | 7 |
-| 3. Staff | 8 | 2 | 6 |
-| 4. Patients | 7 | 2 | 5 |
+| 2. Schedules | 11 | 8 | 3 |
+| 3. Staff | 8 | 3 | 5 |
+| 4. Patients | 7 | 3 | 4 |
 | 5. Rooms | 4 | 0 | 4 |
 | 6. Rules | 7 | 0 | 7 |
 | 7. Availability | 6 | 0 | 6 |
@@ -318,9 +327,9 @@ The following tests should be implemented next, in order:
 | 14. Voice | 3 | 0 | 3 |
 | 15. UI Components | 12 | 0 | 12 |
 | 16. Help | 3 | 0 | 3 |
-| **Total** | **101** | **18** | **83** |
+| **Total** | **101** | **24** | **77** |
 
-*Note: Test counts are for test categories, not individual test cases. Actual test case count: 139*
+*Note: Test counts are for test categories, not individual test cases. Actual test case count: 221*
 
 ### Coverage Goals
 
