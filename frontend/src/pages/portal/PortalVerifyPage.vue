@@ -13,8 +13,16 @@ const portalStore = usePortalAuthStore()
 const code = ref('')
 const isSubmitting = ref(false)
 
-// Get token from URL (for magic links)
-const tokenFromUrl = computed(() => route.query.token as string | undefined)
+// Magic link token (from URL hash/query). Stored separately so we can clear it from the address bar.
+const magicLinkToken = ref<string | null>(null)
+
+function parseMagicLinkTokenFromHash(hash: string): string | null {
+  const cleaned = hash.replace(/^#/, '').trim()
+  if (!cleaned) return null
+  const params = new URLSearchParams(cleaned.startsWith('?') ? cleaned.slice(1) : cleaned)
+  const token = params.get('token')
+  return token && token.length > 0 ? token : null
+}
 
 // Computed
 const branding = computed(() => portalStore.branding)
@@ -24,7 +32,7 @@ const authIdentifier = computed(() => portalStore.authIdentifier)
 const authRequestSent = computed(() => portalStore.authRequestSent)
 
 // Is this a magic link (email) or OTP (sms)?
-const isMagicLink = computed(() => !!tokenFromUrl.value)
+const isMagicLink = computed(() => !!magicLinkToken.value)
 const isOtpFlow = computed(() => authChannel.value === 'sms' || (!isMagicLink.value && authRequestSent.value))
 const portalBgStyle = computed(() => {
   if (!branding.value?.backgroundUrl) return {}
@@ -57,8 +65,8 @@ watch(
   { immediate: true }
 )
 
-async function handleVerify() {
-  const tokenToVerify = isMagicLink.value ? tokenFromUrl.value : code.value.trim()
+async function handleVerify(tokenOverride?: string) {
+  const tokenToVerify = tokenOverride ?? (isMagicLink.value ? magicLinkToken.value : code.value.trim())
 
   if (!tokenToVerify) return
 
@@ -97,6 +105,21 @@ async function handleResend() {
 }
 
 onMounted(async () => {
+  // Capture magic link token (hash preferred to avoid referrer leakage).
+  magicLinkToken.value =
+    parseMagicLinkTokenFromHash(route.hash) ||
+    (route.query.token as string | undefined) ||
+    null
+
+  // Clear token from the URL to reduce accidental sharing/logging.
+  if (magicLinkToken.value && (route.hash || route.query.token)) {
+    try {
+      await router.replace({ name: 'portal-verify', query: {}, hash: '' })
+    } catch {
+      // Ignore
+    }
+  }
+
   // Load branding if not loaded
   if (!portalStore.branding) {
     try {
@@ -106,13 +129,13 @@ onMounted(async () => {
     }
   }
 
-  // Auto-verify if token in URL (magic link)
-  if (tokenFromUrl.value) {
-    await handleVerify()
+  // Auto-verify if magic link token present
+  if (magicLinkToken.value) {
+    await handleVerify(magicLinkToken.value)
   }
 
   // Redirect to login if no auth request pending and no magic link
-  if (!authRequestSent.value && !tokenFromUrl.value) {
+  if (!authRequestSent.value && !magicLinkToken.value) {
     router.push({ name: 'portal-login' })
   }
 })
@@ -157,7 +180,7 @@ onMounted(async () => {
             </p>
           </div>
 
-          <form @submit.prevent="handleVerify" class="verify-form">
+          <form @submit.prevent="handleVerify()" class="verify-form">
             <div class="form-group">
               <label for="code" class="form-label">Verification Code</label>
               <input

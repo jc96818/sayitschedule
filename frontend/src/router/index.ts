@@ -255,32 +255,32 @@ router.beforeEach(async (to, _from, next) => {
   // PORTAL ROUTE HANDLING (separate from staff app)
   // ═══════════════════════════════════════════════════════════════════════════
   if (to.meta.isPortal) {
-    const portalToken = localStorage.getItem('portal_token')
+    const { usePortalAuthStore } = await import('@/stores/portalAuth')
+    const portalStore = usePortalAuthStore()
 
-    // Portal auth required but no token
-    if (to.meta.requiresPortalAuth && !portalToken) {
-      next({ name: 'portal-login' })
-      return
-    }
-
-    // Already logged in, redirect to dashboard
-    if (to.name === 'portal-login' && portalToken) {
-      next({ name: 'portal-dashboard' })
-      return
-    }
-
-    // For authenticated portal routes, validate session
-    if (to.meta.requiresPortalAuth && portalToken) {
-      const { usePortalAuthStore } = await import('@/stores/portalAuth')
-      const portalStore = usePortalAuthStore()
-
-      // Ensure user data is loaded
+    // If user hits the login page with an existing session cookie, send them to the dashboard.
+    if (to.name === 'portal-login') {
       if (!portalStore.user) {
         try {
           await portalStore.fetchCurrentUser()
         } catch {
-          // Token invalid, redirect to login
-          localStorage.removeItem('portal_token')
+          // Ignore; user will proceed to login.
+        }
+      }
+      if (portalStore.user) {
+        next({ name: 'portal-dashboard' })
+        return
+      }
+      next()
+      return
+    }
+
+    // For authenticated portal routes, validate session via /me (cookie-backed).
+    if (to.meta.requiresPortalAuth) {
+      if (!portalStore.user) {
+        try {
+          await portalStore.fetchCurrentUser()
+        } catch {
           next({ name: 'portal-login' })
           return
         }

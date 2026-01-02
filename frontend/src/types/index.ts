@@ -579,7 +579,6 @@ export interface PortalAuthRequestResult {
 // Portal auth verify result
 export interface PortalVerifyResult {
   message: string
-  sessionToken: string
   user: PortalUser
   expiresAt: string
 }

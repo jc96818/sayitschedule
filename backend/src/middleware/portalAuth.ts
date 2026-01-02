@@ -25,13 +25,6 @@ export async function portalAuthenticate(
   const authHeader = request.headers.authorization
   const expectedOrganizationId = request.ctx?.organizationId
 
-  if (!authHeader?.startsWith('Bearer ')) {
-    return reply.code(401).send({
-      error: 'Unauthorized',
-      message: 'Missing or invalid authorization header'
-    })
-  }
-
   if (!expectedOrganizationId) {
     return reply.code(401).send({
       error: 'Unauthorized',
@@ -39,7 +32,16 @@ export async function portalAuthenticate(
     })
   }
 
-  const token = authHeader.substring(7)
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
+  const cookieToken = (request.cookies as Record<string, string | undefined> | undefined)?.portal_session
+  const token = bearerToken || cookieToken
+
+  if (!token) {
+    return reply.code(401).send({
+      error: 'Unauthorized',
+      message: 'Missing portal session'
+    })
+  }
 
   const user = await portalAuthService.validateSessionForOrganization(token, expectedOrganizationId)
 

@@ -20,7 +20,9 @@ import { organizationFeaturesRepository } from '../repositories/organizationFeat
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const TOKEN_EXPIRY_MINUTES = 15
-const SESSION_EXPIRY_HOURS = 24
+const SESSION_EXPIRY_HOURS_DEFAULT = 24
+const SESSION_EXPIRY_HOURS_HIPAA = 12
+const SESSION_IDLE_MINUTES_HIPAA = 30
 const OTP_LENGTH = 6
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -288,7 +290,9 @@ export class PortalAuthService {
     const sessionToken = generateToken()
     const sessionHash = hashToken(sessionToken)
     const expiresAt = new Date()
-    expiresAt.setHours(expiresAt.getHours() + SESSION_EXPIRY_HOURS)
+    const requiresHipaa = loginToken.contact.patient.organization.requiresHipaa === true
+    const sessionHours = requiresHipaa ? SESSION_EXPIRY_HOURS_HIPAA : SESSION_EXPIRY_HOURS_DEFAULT
+    expiresAt.setHours(expiresAt.getHours() + sessionHours)
 
     await prisma.portalSession.create({
       data: {
@@ -337,6 +341,19 @@ export class PortalAuthService {
 
     if (!session) {
       return null
+    }
+
+    // HIPAA orgs: enforce idle timeout.
+    const requiresHipaa = session.contact.patient.organization.requiresHipaa === true
+    if (requiresHipaa) {
+      const idleMs = SESSION_IDLE_MINUTES_HIPAA * 60 * 1000
+      if (session.lastActivityAt && session.lastActivityAt.getTime() < Date.now() - idleMs) {
+        await prisma.portalSession.update({
+          where: { id: session.id },
+          data: { revokedAt: new Date() }
+        })
+        return null
+      }
     }
 
     // If contact was disabled after session creation, treat session as invalid.
@@ -400,6 +417,19 @@ export class PortalAuthService {
 
     if (!session) {
       return null
+    }
+
+    // HIPAA orgs: enforce idle timeout.
+    const requiresHipaa = session.contact.patient.organization.requiresHipaa === true
+    if (requiresHipaa) {
+      const idleMs = SESSION_IDLE_MINUTES_HIPAA * 60 * 1000
+      if (session.lastActivityAt && session.lastActivityAt.getTime() < Date.now() - idleMs) {
+        await prisma.portalSession.update({
+          where: { id: session.id },
+          data: { revokedAt: new Date() }
+        })
+        return null
+      }
     }
 
     // If contact was disabled after session creation, treat session as invalid.
@@ -539,7 +569,8 @@ export class PortalAuthService {
    */
   private async sendEmail(email: string, token: string, orgName: string): Promise<boolean> {
     const portalUrl = process.env.PORTAL_URL || 'http://localhost:5173/portal'
-    const magicLink = `${portalUrl}/verify?token=${token}`
+    // Use fragment so the token is not sent in HTTP referrers to third-party assets.
+    const magicLink = `${portalUrl}/verify#token=${token}`
 
     // Development fallback - log to console
     if (process.env.NODE_ENV !== 'production') {

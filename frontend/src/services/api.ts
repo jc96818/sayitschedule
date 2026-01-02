@@ -1175,19 +1175,14 @@ import type {
 // Separate axios instance for portal (uses different token storage)
 const portalApi = axios.create({
   baseURL: '/api/portal',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
 })
 
-// Portal token interceptor
-portalApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem('portal_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
+// Portal auth uses an HttpOnly cookie (`portal_session`) by default.
+// Bearer token support may exist for backward compatibility, but should not be stored in JS for HIPAA orgs.
 
 portalApi.interceptors.response.use(
   (response) => response,
@@ -1196,7 +1191,6 @@ portalApi.interceptors.response.use(
       const url = error.config?.url || ''
       // Don't redirect for auth endpoints
       if (!url.includes('/auth/')) {
-        localStorage.removeItem('portal_token')
         window.location.href = '/portal/login'
       }
     }

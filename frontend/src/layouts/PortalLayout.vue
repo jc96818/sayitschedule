@@ -53,8 +53,8 @@ onMounted(async () => {
     }
   }
 
-  // Fetch user if we have token but no user
-  if (portalStore.token && !portalStore.user) {
+  // Fetch user if session cookie exists
+  if (!portalStore.user) {
     await portalStore.fetchCurrentUser()
   }
 })

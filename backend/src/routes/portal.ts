@@ -157,6 +157,33 @@ function mapPortalSession(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function portalRoutes(fastify: FastifyInstance) {
+  // Security headers for portal API responses (often contain PHI).
+  fastify.addHook('onSend', async (_request, reply, payload) => {
+    reply
+      .header('Cache-Control', 'no-store')
+      .header('Pragma', 'no-cache')
+      .header('Expires', '0')
+      .header('X-Content-Type-Options', 'nosniff')
+      .header('Referrer-Policy', 'no-referrer')
+      .header('X-Frame-Options', 'DENY')
+    return payload
+  })
+
+  // Minimal in-memory rate limiting for portal auth endpoints.
+  // Note: This is per-instance; use a shared store (Redis) for multi-node deployments.
+  const rateBuckets = new Map<string, { count: number; resetAt: number }>()
+  function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
+    const now = Date.now()
+    const bucket = rateBuckets.get(key)
+    if (!bucket || bucket.resetAt <= now) {
+      rateBuckets.set(key, { count: 1, resetAt: now + windowMs })
+      return true
+    }
+    if (bucket.count >= limit) return false
+    bucket.count += 1
+    return true
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   // PUBLIC ROUTES (No authentication required)
   // ─────────────────────────────────────────────────────────────────────────────
@@ -299,6 +326,18 @@ export async function portalRoutes(fastify: FastifyInstance) {
       const ipAddress = request.ip
       const userAgent = request.headers['user-agent']
 
+      // Prevent OTP spraying / inbox flooding.
+      // 10 requests per minute per org+IP (avoid storing identifier/PII).
+      const rateKey = `portal:auth:request:${organizationId}:${ipAddress}`
+      if (!checkRateLimit(rateKey, 10, 60_000)) {
+        // Always return 200 to prevent enumeration attacks
+        return reply.send({
+          success: true,
+          message: `If an account exists for this ${channel === 'email' ? 'email' : 'phone number'}, you will receive a login ${channel === 'email' ? 'link' : 'code'} shortly.`,
+          channel
+        })
+      }
+
       const result = await portalAuthService.requestLogin(
         identifier,
         channel,
@@ -339,6 +378,15 @@ export async function portalRoutes(fastify: FastifyInstance) {
       const ipAddress = request.ip
       const userAgent = request.headers['user-agent']
 
+      // OTP brute-force protection: 20 attempts per 5 minutes per org+IP.
+      const verifyRateKey = `portal:auth:verify:${organizationId}:${ipAddress}`
+      if (!checkRateLimit(verifyRateKey, 20, 5 * 60_000)) {
+        return reply.code(429).send({
+          error: 'Too Many Requests',
+          message: 'Too many verification attempts. Please wait and try again.'
+        })
+      }
+
       const result = await portalAuthService.verifyToken(token, ipAddress, userAgent, organizationId)
 
       if (!result.success) {
@@ -355,9 +403,17 @@ export async function portalRoutes(fastify: FastifyInstance) {
         })
       }
 
+      // Store session in an HttpOnly cookie to avoid exposing the session token to JS.
+      reply.setCookie('portal_session', result.sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        expires: result.expiresAt
+      })
+
       return reply.send({
         message: result.message,
-        sessionToken: result.sessionToken,
         expiresAt: result.expiresAt,
         user: {
           contactId: result.contact.id,
@@ -380,12 +436,15 @@ export async function portalRoutes(fastify: FastifyInstance) {
     { preHandler: [portalAuthenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const authHeader = request.headers.authorization
-      const token = authHeader?.substring(7)
+      const token = authHeader?.startsWith('Bearer ')
+        ? authHeader.substring(7)
+        : (request.cookies as Record<string, string | undefined> | undefined)?.portal_session
 
       if (token) {
         await portalAuthService.logout(token)
       }
 
+      reply.clearCookie('portal_session', { path: '/' })
       return reply.send({ message: 'Logged out successfully' })
     }
   )

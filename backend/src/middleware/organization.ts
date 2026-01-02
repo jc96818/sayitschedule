@@ -44,8 +44,11 @@ export async function organizationMiddleware(
   }
 
   // Get organization from subdomain or environment variable (for local dev)
-  // In development, Vite proxy forwards the original host via X-Forwarded-Host
-  const forwardedHost = request.headers['x-forwarded-host'] as string | undefined
+  // In development, Vite proxy forwards the original host via X-Forwarded-Host.
+  // Do not trust X-Forwarded-Host in production; clients can spoof it and cross-tenant requests.
+  const forwardedHost = process.env.NODE_ENV === 'development'
+    ? (request.headers['x-forwarded-host'] as string | undefined)
+    : undefined
   const hostHeader = forwardedHost || request.headers.host || ''
   const hostname = hostHeader.split(':')[0]
 
