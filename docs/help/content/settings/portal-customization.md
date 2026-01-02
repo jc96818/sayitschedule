@@ -82,7 +82,9 @@ You can customize:
 ## How this changes with your settings
 
 - **Organization branding**: If you leave portal colors blank, the portal uses your organization's primary and secondary colors from the main branding settings.
-- **Logo fallback**: If no portal logo is set, the portal uses your organization's main logo.
+- **Logo fallback**: If no portal logo URL is set, the portal uses your organization's main logo (uploaded in Organization Branding).
+
+> **Note**: Portal logo and background images use URL fields, while the main organization logo uses file upload. This allows you to use different images for the portal if desired, or leave them blank to inherit from your organization branding.
 
 ## Related
 

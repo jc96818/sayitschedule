@@ -23,9 +23,11 @@ aliases: [pdf, print schedule, export schedule]
 
 The print view creates a single-page landscape layout optimized for printing. It includes:
 
-- **Header**: Organization name, week date range, and schedule status (Draft/Published).
+- **Header**: Organization logo (grayscale), organization name, week date range, and schedule status (Draft/Published).
 - **Schedule grid**: A table showing time slots (rows) and weekdays (columns) with all sessions.
 - **Footer**: Summary statistics (total sessions, {{labels.staff.plural}} scheduled, {{labels.patient.plural}} covered) and the generation date.
+
+If your organization has a logo uploaded, the grayscale version automatically appears in the PDF header for a professional, print-friendly appearance.
 
 Federal holidays are highlighted in the grid with a light red background and the holiday name displayed in the column header.
 
@@ -56,6 +58,7 @@ Federal holidays are highlighted in the grid with a light red background and the
 
 | Element | Description |
 |---------|-------------|
+| Organization logo | Your organization's logo appears in grayscale in the header (if uploaded). |
 | Organization name | Your organization's name appears in the header. |
 | Week range | The date range for the schedule (e.g., "Jan 6, 2025 - Jan 10, 2025"). |
 | Status badge | Shows "Published" or "Draft" with version number if applicable. |
@@ -69,6 +72,7 @@ Federal holidays are highlighted in the grid with a light red background and the
 
 - **Custom labels**: The footer statistics use your organization's terminology for {{labels.staff.plural}} and {{labels.patient.plural}}.
 - **Organization name**: Your organization's name appears in the print header.
+- **Organization logo**: If you've uploaded a logo in Settings > Organization Branding, the grayscale version appears in the PDF header.
 
 ## Related
 
