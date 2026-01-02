@@ -447,7 +447,7 @@ describe('useSchedulesStore', () => {
       }
       vi.mocked(scheduleService.createDraftCopy).mockResolvedValue({
         data: mockScheduleWithSessions,
-        meta: { modifications }
+        meta: { message: 'Draft created', sourceScheduleId: 'schedule-1', modifications }
       })
 
       const store = useSchedulesStore()

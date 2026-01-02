@@ -94,9 +94,6 @@ test.describe('Schedule Generation Page', () => {
   test('should display summary cards with counts', async ({ page }) => {
     await page.goto('http://demo.localhost:5173/app/schedule/generate')
 
-    // Wait for data to load
-    await page.waitForTimeout(1000)
-
     // Check for summary cards (Therapists, Patients, Rules)
     await expect(page.getByText(/Active (Therapists|Staff)/)).toBeVisible()
     await expect(page.getByText(/Active (Patients|Clients)/)).toBeVisible()
@@ -296,14 +293,13 @@ test.describe('Schedule Navigation', () => {
 
     // Click next week
     await page.getByText('Next').click()
-    await page.waitForTimeout(500) // Wait for navigation
+    await expect(page).not.toHaveURL(initialUrl, { timeout: 5000 })
 
     // Click prev week
     await page.getByText('Prev').click()
-    await page.waitForTimeout(500)
 
     // Should be back at initial state
-    await expect(page).toHaveURL(initialUrl)
+    await expect(page).toHaveURL(initialUrl, { timeout: 5000 })
   })
 })
 

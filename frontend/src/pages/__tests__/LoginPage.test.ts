@@ -27,10 +27,12 @@ const createTestRouter = () => {
 describe('LoginPage', () => {
   let router: ReturnType<typeof createTestRouter>
 
-  beforeEach(() => {
+  beforeEach(async () => {
     setActivePinia(createPinia())
     router = createTestRouter()
     vi.clearAllMocks()
+    await router.push('/login')
+    await router.isReady()
   })
 
   const mountLoginPage = async () => {

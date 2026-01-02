@@ -45,12 +45,13 @@ describe('useStaffStore', () => {
     email: 'john.doe@example.com'
   }
 
-  const mockInactiveStaff: Staff = {
+  const _mockInactiveStaff: Staff = {
     ...mockStaff,
     id: 'staff-3',
     name: 'Dr. Inactive',
     status: 'inactive'
   }
+  void _mockInactiveStaff
 
   beforeEach(() => {
     setActivePinia(createPinia())
