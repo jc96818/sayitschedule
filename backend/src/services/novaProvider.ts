@@ -309,7 +309,7 @@ Ensure:
     const content = await invokeNova({
       systemPrompt,
       userPrompt,
-      maxTokens: 8192,
+      maxTokens: 16384, // Increased for larger schedules (30+ patients)
       jsonOutput: true
     })
 

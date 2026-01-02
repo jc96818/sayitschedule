@@ -214,8 +214,20 @@ export class ScheduleRepository {
     if (data.length === 0) return []
 
     // Prisma doesn't support createMany with returning, so we use a transaction
+    // Explicitly specify each field to avoid adapter issues
     return prisma.$transaction(
-      data.map(session => prisma.session.create({ data: session }))
+      data.map(session => prisma.session.create({
+        data: {
+          scheduleId: session.scheduleId,
+          therapistId: session.therapistId,
+          patientId: session.patientId,
+          roomId: session.roomId ?? null,
+          date: session.date,
+          startTime: session.startTime,
+          endTime: session.endTime,
+          notes: session.notes ?? null
+        }
+      }))
     )
   }
 
