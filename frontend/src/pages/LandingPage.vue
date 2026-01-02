@@ -95,6 +95,7 @@ function scrollToSection(sectionId: string) {
         <div class="nav-links" aria-label="Landing page sections">
           <a href="#product" @click.prevent="scrollToSection('product')">Product</a>
           <a href="#how" @click.prevent="scrollToSection('how')">How it works</a>
+          <a href="#portal" @click.prevent="scrollToSection('portal')">Patient Portal</a>
           <a href="#security" @click.prevent="scrollToSection('security')">Security</a>
           <a href="#contact" @click.prevent="scrollToSection('contact')">Contact</a>
         </div>
@@ -115,8 +116,8 @@ function scrollToSection(sectionId: string) {
               <p class="hero-eyebrow">Built for therapy practices</p>
               <h1>Scheduling that feels calm, not chaotic.</h1>
               <p class="hero-subtitle">
-                Voice-guided scheduling with clear review steps and audit-friendly controls—so your
-                team stays consistent and confident.
+                Voice-guided scheduling with a patient portal, smart generation, and audit-friendly
+                controls—so your team stays consistent and families stay informed.
               </p>
 
               <div class="hero-cta">
@@ -129,10 +130,10 @@ function scrollToSection(sectionId: string) {
               </div>
 
               <div class="hero-badges" aria-label="Trust and security highlights">
+                <Badge variant="secondary">Patient portal</Badge>
+                <Badge variant="secondary">Self-booking</Badge>
                 <Badge variant="secondary">BAA available</Badge>
-                <Badge variant="secondary">Role-based access</Badge>
                 <Badge variant="secondary">MFA support</Badge>
-                <Badge variant="secondary">Audit trails</Badge>
               </div>
             </div>
 
@@ -184,6 +185,36 @@ function scrollToSection(sectionId: string) {
           </div>
 
           <div class="value-grid">
+            <div class="value-card">
+              <div class="value-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 2L2 7L12 12L22 7L12 2Z"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M2 17L12 22L22 17"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M2 12L12 17L22 12"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+              <h3>Smart schedule generation</h3>
+              <p>AI builds optimized schedules respecting staff skills, room needs, and patient preferences.</p>
+            </div>
+
             <div class="value-card">
               <div class="value-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none">
@@ -255,7 +286,7 @@ function scrollToSection(sectionId: string) {
                 </svg>
               </div>
               <h3>Clear review before publish</h3>
-              <p>See what changed, confirm it’s correct, then publish with confidence.</p>
+              <p>See what changed, confirm it's correct, then publish with confidence.</p>
             </div>
           </div>
         </div>
@@ -283,9 +314,181 @@ function scrollToSection(sectionId: string) {
             </div>
             <div class="step-card">
               <div class="step-number">3</div>
-              <h3>Publish schedules</h3>
-              <p>Generate and distribute schedules with a clear record of changes.</p>
-              <div class="step-example">Print-ready views for staff.</div>
+              <h3>Publish and notify</h3>
+              <p>Distribute schedules and send automatic reminders to patients and caregivers.</p>
+              <div class="step-example">Branded PDFs for staff, portal access for families.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="portal" class="section portal-section">
+        <div class="section-container">
+          <div class="section-heading">
+            <h2>Empower patients and caregivers</h2>
+            <p>Give families visibility and control—without more phone calls.</p>
+          </div>
+
+          <div class="portal-grid">
+            <div class="portal-features">
+              <div class="portal-feature">
+                <div class="portal-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M8 7V3M16 7V3M7 11H17M7 15H13M7 19H10"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <rect
+                      x="3"
+                      y="5"
+                      width="18"
+                      height="16"
+                      rx="2"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <div class="portal-title">Self-booking</div>
+                  <div class="portal-text">
+                    Caregivers browse available slots and book on their own schedule.
+                  </div>
+                </div>
+              </div>
+
+              <div class="portal-feature">
+                <div class="portal-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M17 3L21 7L17 11"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M21 7H9C6.79086 7 5 8.79086 5 11V12"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M7 21L3 17L7 13"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M3 17H15C17.2091 17 19 15.2091 19 13V12"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <div class="portal-title">Easy rescheduling</div>
+                  <div class="portal-text">
+                    Move or cancel appointments without playing phone tag.
+                  </div>
+                </div>
+              </div>
+
+              <div class="portal-feature">
+                <div class="portal-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6Z"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M22 6L12 13L2 6"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <div class="portal-title">Automated reminders</div>
+                  <div class="portal-text">
+                    Email and SMS notifications reduce no-shows automatically.
+                  </div>
+                </div>
+              </div>
+
+              <div class="portal-feature">
+                <div class="portal-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M19.4 15C19.2 15.3 19.2 15.7 19.3 16L20.1 17.5C20.3 17.9 20.2 18.4 19.9 18.7L18.7 19.9C18.4 20.2 17.9 20.3 17.5 20.1L16 19.3C15.7 19.2 15.3 19.2 15 19.4C14.7 19.5 14.4 19.8 14.4 20.1L14.1 21.8C14 22.2 13.7 22.5 13.2 22.5H11.8C11.3 22.5 11 22.2 10.9 21.8L10.6 20.1C10.5 19.8 10.3 19.5 10 19.4C9.7 19.2 9.3 19.2 9 19.3L7.5 20.1C7.1 20.3 6.6 20.2 6.3 19.9L5.1 18.7C4.8 18.4 4.7 17.9 4.9 17.5L5.7 16C5.8 15.7 5.8 15.3 5.6 15C5.5 14.7 5.2 14.4 4.9 14.4L3.2 14.1C2.8 14 2.5 13.7 2.5 13.2V11.8C2.5 11.3 2.8 11 3.2 10.9L4.9 10.6C5.2 10.5 5.5 10.3 5.6 10C5.8 9.7 5.8 9.3 5.7 9L4.9 7.5C4.7 7.1 4.8 6.6 5.1 6.3L6.3 5.1C6.6 4.8 7.1 4.7 7.5 4.9L9 5.7C9.3 5.8 9.7 5.8 10 5.6C10.3 5.5 10.5 5.2 10.6 4.9L10.9 3.2C11 2.8 11.3 2.5 11.8 2.5H13.2C13.7 2.5 14 2.8 14.1 3.2L14.4 4.9C14.5 5.2 14.7 5.5 15 5.6C15.3 5.8 15.7 5.8 16 5.7L17.5 4.9C17.9 4.7 18.4 4.8 18.7 5.1L19.9 6.3C20.2 6.6 20.3 7.1 20.1 7.5L19.3 9C19.2 9.3 19.2 9.7 19.4 10C19.5 10.3 19.8 10.5 20.1 10.6L21.8 10.9C22.2 11 22.5 11.3 22.5 11.8V13.2C22.5 13.7 22.2 14 21.8 14.1L20.1 14.4C19.8 14.5 19.5 14.7 19.4 15Z"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <div class="portal-title">Your branding</div>
+                  <div class="portal-text">
+                    Customize the portal with your logo, colors, and terminology.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="portal-preview">
+              <div class="portal-window">
+                <div class="portal-topbar">
+                  <div class="portal-dots" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <div class="portal-url">yourpractice.sayitschedule.com</div>
+                </div>
+                <div class="portal-body">
+                  <div class="portal-header-mock">
+                    <div class="portal-logo-mock"></div>
+                    <div class="portal-nav-mock">
+                      <span>Appointments</span>
+                      <span>Book</span>
+                    </div>
+                  </div>
+                  <div class="portal-content-mock">
+                    <div class="portal-welcome">Welcome back, Jordan's family</div>
+                    <div class="portal-card-mock">
+                      <div class="portal-card-label">Next appointment</div>
+                      <div class="portal-card-content">
+                        <strong>Tuesday, Jan 14</strong> at 2:00 PM
+                      </div>
+                      <div class="portal-card-actions">
+                        <span class="portal-action">Reschedule</span>
+                        <span class="portal-action">Cancel</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -805,7 +1008,7 @@ function scrollToSection(sectionId: string) {
 
 .value-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
 }
 
@@ -896,6 +1099,183 @@ function scrollToSection(sectionId: string) {
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 12px;
   padding: 10px 12px;
+}
+
+/* Portal Section */
+.portal-section {
+  padding: 64px 24px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.5) 0%, transparent 100%);
+}
+
+.portal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: center;
+}
+
+.portal-features {
+  display: grid;
+  gap: 16px;
+}
+
+.portal-feature {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 14px;
+  align-items: start;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.portal-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--success-color, #10b981);
+  border: 1px solid rgba(16, 185, 129, 0.12);
+}
+
+.portal-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.portal-title {
+  font-weight: 650;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.portal-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.portal-preview {
+  display: flex;
+  justify-content: center;
+}
+
+.portal-window {
+  width: 100%;
+  max-width: 380px;
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 18px 45px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  overflow: hidden;
+}
+
+.portal-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  background: rgba(248, 250, 252, 0.7);
+}
+
+.portal-dots {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.portal-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: rgba(148, 163, 184, 0.7);
+}
+
+.portal-url {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: ui-monospace, monospace;
+}
+
+.portal-body {
+  padding: 0;
+}
+
+.portal-header-mock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.portal-logo-mock {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(37, 99, 235, 0.1));
+  border: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+.portal-nav-mock {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.portal-nav-mock span:first-child {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.portal-content-mock {
+  padding: 18px 16px;
+}
+
+.portal-welcome {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.portal-card-mock {
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.portal-card-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.portal-card-content {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.portal-card-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.portal-action {
+  font-size: 13px;
+  color: var(--primary-color);
+  font-weight: 500;
+  cursor: default;
 }
 
 .security-section {
@@ -1075,10 +1455,18 @@ function scrollToSection(sectionId: string) {
     justify-content: center;
   }
 
-  .value-grid,
+  .value-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .steps-grid,
-  .security-grid {
+  .security-grid,
+  .portal-grid {
     grid-template-columns: 1fr;
+  }
+
+  .portal-preview {
+    order: -1;
   }
 
   .security-grid {
