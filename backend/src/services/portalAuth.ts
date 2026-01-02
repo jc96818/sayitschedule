@@ -343,17 +343,8 @@ export class PortalAuthService {
       return null
     }
 
-    // HIPAA orgs: enforce idle timeout.
-    const requiresHipaa = session.contact.patient.organization.requiresHipaa === true
-    if (requiresHipaa) {
-      const idleMs = SESSION_IDLE_MINUTES_HIPAA * 60 * 1000
-      if (session.lastActivityAt && session.lastActivityAt.getTime() < Date.now() - idleMs) {
-        await prisma.portalSession.update({
-          where: { id: session.id },
-          data: { revokedAt: new Date() }
-        })
-        return null
-      }
+    if (await this.isHipaaIdleExpired(session)) {
+      return null
     }
 
     // If contact was disabled after session creation, treat session as invalid.
@@ -419,17 +410,8 @@ export class PortalAuthService {
       return null
     }
 
-    // HIPAA orgs: enforce idle timeout.
-    const requiresHipaa = session.contact.patient.organization.requiresHipaa === true
-    if (requiresHipaa) {
-      const idleMs = SESSION_IDLE_MINUTES_HIPAA * 60 * 1000
-      if (session.lastActivityAt && session.lastActivityAt.getTime() < Date.now() - idleMs) {
-        await prisma.portalSession.update({
-          where: { id: session.id },
-          data: { revokedAt: new Date() }
-        })
-        return null
-      }
+    if (await this.isHipaaIdleExpired(session)) {
+      return null
     }
 
     // If contact was disabled after session creation, treat session as invalid.
@@ -584,6 +566,25 @@ export class PortalAuthService {
     // For now, we'll use AWS SES or similar
     console.warn('Email sending not implemented, token:', token.substring(0, 8) + '...')
     return false
+  }
+
+  private async isHipaaIdleExpired(session: {
+    id: string
+    lastActivityAt: Date | null
+    contact: { patient: { organization: { requiresHipaa: boolean } } }
+  }): Promise<boolean> {
+    const requiresHipaa = session.contact.patient.organization.requiresHipaa === true
+    if (!requiresHipaa) return false
+
+    const idleMs = SESSION_IDLE_MINUTES_HIPAA * 60 * 1000
+    if (!session.lastActivityAt) return false
+    if (session.lastActivityAt.getTime() >= Date.now() - idleMs) return false
+
+    await prisma.portalSession.update({
+      where: { id: session.id },
+      data: { revokedAt: new Date() }
+    })
+    return true
   }
 }
 

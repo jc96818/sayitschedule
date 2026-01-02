@@ -157,6 +157,36 @@ function mapPortalSession(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function portalRoutes(fastify: FastifyInstance) {
+  // For cookie-authenticated portal requests in production, require same-origin.
+  // This mitigates CSRF and prevents cross-origin reads in case CORS is permissive.
+  fastify.addHook('onRequest', async (request, reply) => {
+    if (process.env.NODE_ENV !== 'production') return
+    const cookieToken = (request.cookies as Record<string, string | undefined> | undefined)?.portal_session
+    if (!cookieToken) return
+
+    const origin = request.headers.origin as string | undefined
+    if (!origin) return
+
+    const hostHeader = request.headers.host
+    if (!hostHeader) return
+
+    try {
+      const originHost = new URL(origin).host
+      const requestHost = hostHeader
+      if (originHost !== requestHost) {
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: 'Cross-origin portal requests are not allowed.'
+        })
+      }
+    } catch {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        message: 'Invalid Origin header.'
+      })
+    }
+  })
+
   // Security headers for portal API responses (often contain PHI).
   fastify.addHook('onSend', async (_request, reply, payload) => {
     reply
@@ -172,8 +202,18 @@ export async function portalRoutes(fastify: FastifyInstance) {
   // Minimal in-memory rate limiting for portal auth endpoints.
   // Note: This is per-instance; use a shared store (Redis) for multi-node deployments.
   const rateBuckets = new Map<string, { count: number; resetAt: number }>()
+  let lastRateCleanupAt = 0
+  function cleanupRateBuckets(now: number) {
+    // Avoid O(n) work on every request.
+    if (now - lastRateCleanupAt < 30_000) return
+    lastRateCleanupAt = now
+    for (const [key, bucket] of rateBuckets) {
+      if (bucket.resetAt <= now) rateBuckets.delete(key)
+    }
+  }
   function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
     const now = Date.now()
+    cleanupRateBuckets(now)
     const bucket = rateBuckets.get(key)
     if (!bucket || bucket.resetAt <= now) {
       rateBuckets.set(key, { count: 1, resetAt: now + windowMs })
