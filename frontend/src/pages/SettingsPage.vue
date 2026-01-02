@@ -5,16 +5,40 @@ import { organizationService, settingsService, type TranscriptionProviderType, t
 import { applyBranding } from '@/composables/useBranding'
 import { Alert, Badge, Button } from '@/components/ui'
 import type { OrganizationLabels, OrganizationFeatures } from '@/types'
+import { getSubdomain } from '@/utils/subdomain'
 
 const authStore = useAuthStore()
 
 const organization = computed(() => authStore.organization)
+
+// Compute the portal URL based on current subdomain
+const portalUrl = computed(() => {
+  const subdomain = getSubdomain()
+  if (!subdomain) return null
+
+  const hostname = window.location.hostname
+  const protocol = window.location.protocol
+  const port = window.location.port
+
+  if (hostname.endsWith('.localhost') || hostname === 'localhost') {
+    const portSuffix = port ? `:${port}` : ''
+    return `${protocol}//${subdomain}.localhost${portSuffix}/portal`
+  }
+
+  // Production
+  const parts = hostname.split('.')
+  const baseDomain = parts.slice(-2).join('.')
+  return `${protocol}//${subdomain}.${baseDomain}/portal`
+})
 
 // Form state
 const name = ref('')
 const primaryColor = ref('#2563eb')
 const secondaryColor = ref('#1e40af')
 const logoUrl = ref<string | null>(null)
+const logoFile = ref<File | null>(null)
+const logoUploading = ref(false)
+const logoDeleting = ref(false)
 
 // Transcription settings state
 const transcriptionProvider = ref<TranscriptionProviderType>('aws_medical')
@@ -141,6 +165,92 @@ function handleReset() {
     primaryColor.value = organization.value.primaryColor || '#2563eb'
     secondaryColor.value = organization.value.secondaryColor || '#1e40af'
     logoUrl.value = organization.value.logoUrl
+  }
+}
+
+// Logo file upload handling
+const logoInputRef = ref<HTMLInputElement | null>(null)
+
+function triggerLogoUpload() {
+  logoInputRef.value?.click()
+}
+
+async function handleLogoFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  // Validate file type
+  const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']
+  if (!allowedTypes.includes(file.type)) {
+    error.value = 'Invalid file type. Allowed: PNG, JPEG, WebP, GIF, SVG'
+    return
+  }
+
+  // Validate file size (5MB max)
+  if (file.size > 5 * 1024 * 1024) {
+    error.value = 'File size exceeds 5MB limit'
+    return
+  }
+
+  logoFile.value = file
+  logoUploading.value = true
+  error.value = null
+
+  try {
+    const response = await organizationService.uploadLogo(file)
+    logoUrl.value = response.data.logoUrl
+
+    // Update the auth store with new org data
+    if (organization.value) {
+      authStore.setOrganizationContext({
+        ...organization.value,
+        logoUrl: response.data.logoUrl
+      })
+    }
+
+    success.value = true
+    setTimeout(() => {
+      success.value = false
+    }, 3000)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to upload logo'
+  } finally {
+    logoUploading.value = false
+    logoFile.value = null
+    // Reset the file input
+    if (logoInputRef.value) {
+      logoInputRef.value.value = ''
+    }
+  }
+}
+
+async function handleDeleteLogo() {
+  if (!logoUrl.value) return
+
+  logoDeleting.value = true
+  error.value = null
+
+  try {
+    await organizationService.deleteLogo()
+    logoUrl.value = null
+
+    // Update the auth store
+    if (organization.value) {
+      authStore.setOrganizationContext({
+        ...organization.value,
+        logoUrl: null
+      })
+    }
+
+    success.value = true
+    setTimeout(() => {
+      success.value = false
+    }, 3000)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to delete logo'
+  } finally {
+    logoDeleting.value = false
   }
 }
 
@@ -432,20 +542,49 @@ onMounted(() => {
             </div>
 
             <div class="form-group">
-              <label for="logo-url">Logo URL</label>
-              <input
-                id="logo-url"
-                v-model="logoUrl"
-                type="url"
-                class="form-control"
-                placeholder="https://example.com/logo.png"
-              />
-              <small class="text-muted">Enter a URL to your organization's logo (recommended: 80x80px)</small>
-            </div>
-
-            <div v-if="logoUrl" class="logo-preview">
-              <label>Logo Preview</label>
-              <img :src="logoUrl" alt="Logo preview" class="preview-image" />
+              <label>Organization Logo</label>
+              <div class="logo-upload-area">
+                <div v-if="logoUrl" class="logo-preview-container">
+                  <img :src="logoUrl" alt="Logo preview" class="preview-image" />
+                  <div class="logo-actions">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline"
+                      :disabled="logoUploading"
+                      @click="triggerLogoUpload"
+                    >
+                      {{ logoUploading ? 'Uploading...' : 'Change' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-danger-outline"
+                      :disabled="logoDeleting"
+                      @click="handleDeleteLogo"
+                    >
+                      {{ logoDeleting ? 'Deleting...' : 'Remove' }}
+                    </button>
+                  </div>
+                </div>
+                <div v-else class="logo-upload-placeholder" @click="triggerLogoUpload">
+                  <div class="upload-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="17 8 12 3 7 8"/>
+                      <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                  </div>
+                  <span class="upload-text">{{ logoUploading ? 'Uploading...' : 'Click to upload logo' }}</span>
+                  <span class="upload-hint">PNG, JPG, WebP, GIF, or SVG (max 5MB)</span>
+                </div>
+                <input
+                  ref="logoInputRef"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                  class="hidden-file-input"
+                  @change="handleLogoFileChange"
+                />
+              </div>
+              <small class="text-muted">Logo will be resized to multiple sizes and a grayscale version will be created for print.</small>
             </div>
 
             <div class="button-row">
@@ -551,8 +690,17 @@ onMounted(() => {
         </div>
 
         <div class="card card-full-width">
-          <div class="card-header">
+          <div class="card-header card-header-with-action">
             <h3>Patient Portal & Self-Booking</h3>
+            <a
+              v-if="portalUrl"
+              :href="portalUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="view-portal-link"
+            >
+              View Portal →
+            </a>
           </div>
           <div class="card-body">
             <Alert v-if="portalError" variant="danger" class="mb-3" dismissible @dismiss="portalError = null">
@@ -1020,16 +1168,18 @@ onMounted(() => {
   text-transform: uppercase;
 }
 
-.logo-preview {
-  margin-bottom: 20px;
+.logo-upload-area {
+  margin-top: 8px;
 }
 
-.logo-preview label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  margin-bottom: 8px;
+.logo-preview-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
 }
 
 .preview-image {
@@ -1038,7 +1188,65 @@ onMounted(() => {
   object-fit: contain;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+  background-color: white;
+}
+
+.logo-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.logo-upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 16px;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-md);
   background-color: var(--background-color);
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.logo-upload-placeholder:hover {
+  border-color: var(--color-primary);
+  background-color: rgba(37, 99, 235, 0.05);
+}
+
+.upload-icon {
+  color: var(--text-muted);
+}
+
+.upload-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.btn-danger-outline {
+  color: #dc2626;
+  border-color: #dc2626;
+  background: transparent;
+}
+
+.btn-danger-outline:hover {
+  background-color: rgba(220, 38, 38, 0.1);
 }
 
 .button-row {
@@ -1072,6 +1280,25 @@ onMounted(() => {
 
 .card-full-width {
   grid-column: 1 / -1;
+}
+
+.card-header-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.view-portal-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.view-portal-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
 }
 
 .labels-grid {

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireSuperAdmin, authenticate } from '../middleware/auth.js'
 import { organizationRepository } from '../repositories/organizations.js'
 import { logAudit } from '../repositories/audit.js'
+import { uploadLogo, deleteUploadedImage, extractKeyPrefixFromUrl, type UploadedLogo } from '../services/imageUpload.js'
 
 const createOrgSchema = z.object({
   name: z.string().min(1),
@@ -374,6 +375,158 @@ export async function organizationRoutes(fastify: FastifyInstance) {
           suggestedRoomEquipment: organization.suggestedRoomEquipment
         }
       }
+    }
+  )
+
+  // Upload organization logo (admin only)
+  fastify.post(
+    '/current/logo',
+    { preHandler: authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const ctx = request.ctx.user!
+
+      // Only admins can upload logo
+      if (ctx.role !== 'admin' && ctx.role !== 'super_admin') {
+        return reply.status(403).send({ error: 'Admin role required' })
+      }
+
+      // Determine target organization
+      let targetOrgId: string | undefined
+      if (ctx.organizationId) {
+        targetOrgId = ctx.organizationId
+      } else if (ctx.role === 'super_admin' && request.ctx.organizationId) {
+        targetOrgId = request.ctx.organizationId
+      }
+
+      if (!targetOrgId) {
+        return reply.status(400).send({ error: 'Organization context required' })
+      }
+
+      // Get the uploaded file
+      const data = await request.file()
+      if (!data) {
+        return reply.status(400).send({ error: 'No file uploaded' })
+      }
+
+      // Validate file type
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']
+      if (!allowedTypes.includes(data.mimetype)) {
+        return reply.status(400).send({
+          error: `Invalid file type: ${data.mimetype}. Allowed: PNG, JPEG, WebP, GIF, SVG`
+        })
+      }
+
+      // Read the file buffer
+      const buffer = await data.toBuffer()
+
+      // Validate file size (already limited by multipart config, but double-check)
+      if (buffer.length > 5 * 1024 * 1024) {
+        return reply.status(400).send({ error: 'File size exceeds 5MB limit' })
+      }
+
+      try {
+        // Get current logo to delete old files
+        const currentOrg = await organizationRepository.findById(targetOrgId)
+        const oldLogoUrl = currentOrg?.logoUrl
+
+        // Upload new logo
+        const uploadedLogo: UploadedLogo = await uploadLogo(buffer, data.mimetype, {
+          organizationId: targetOrgId,
+          imageType: 'logo'
+        })
+
+        // Update organization with new logo URLs
+        const organization = await organizationRepository.update(targetOrgId, {
+          logoUrl: uploadedLogo.url,
+          logoUrlSmall: uploadedLogo.urlSmall,
+          logoUrlMedium: uploadedLogo.urlMedium,
+          logoUrlGrayscale: uploadedLogo.urlGrayscale
+        })
+
+        // Delete old logo files if they were S3 uploads
+        if (oldLogoUrl) {
+          const oldKeyPrefix = extractKeyPrefixFromUrl(oldLogoUrl)
+          if (oldKeyPrefix) {
+            await deleteUploadedImage(oldKeyPrefix).catch((err) => {
+              console.error('Failed to delete old logo:', err)
+            })
+          }
+        }
+
+        await logAudit(ctx.userId, 'upload_logo', 'organization', targetOrgId, null, {
+          logoUrl: uploadedLogo.url
+        })
+
+        return {
+          data: {
+            logoUrl: uploadedLogo.url,
+            logoUrlSmall: uploadedLogo.urlSmall,
+            logoUrlMedium: uploadedLogo.urlMedium,
+            logoUrlLarge: uploadedLogo.urlLarge,
+            logoUrlGrayscale: uploadedLogo.urlGrayscale,
+            logoUrlGrayscaleSmall: uploadedLogo.urlGrayscaleSmall,
+            logoUrlGrayscaleMedium: uploadedLogo.urlGrayscaleMedium
+          },
+          organization
+        }
+      } catch (err) {
+        console.error('Logo upload failed:', err)
+        return reply.status(500).send({
+          error: err instanceof Error ? err.message : 'Failed to upload logo'
+        })
+      }
+    }
+  )
+
+  // Delete organization logo (admin only)
+  fastify.delete(
+    '/current/logo',
+    { preHandler: authenticate },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const ctx = request.ctx.user!
+
+      // Only admins can delete logo
+      if (ctx.role !== 'admin' && ctx.role !== 'super_admin') {
+        return reply.status(403).send({ error: 'Admin role required' })
+      }
+
+      // Determine target organization
+      let targetOrgId: string | undefined
+      if (ctx.organizationId) {
+        targetOrgId = ctx.organizationId
+      } else if (ctx.role === 'super_admin' && request.ctx.organizationId) {
+        targetOrgId = request.ctx.organizationId
+      }
+
+      if (!targetOrgId) {
+        return reply.status(400).send({ error: 'Organization context required' })
+      }
+
+      // Get current logo to delete files
+      const currentOrg = await organizationRepository.findById(targetOrgId)
+      if (!currentOrg?.logoUrl) {
+        return reply.status(404).send({ error: 'No logo to delete' })
+      }
+
+      // Delete from S3 if it's an S3 upload
+      const keyPrefix = extractKeyPrefixFromUrl(currentOrg.logoUrl)
+      if (keyPrefix) {
+        await deleteUploadedImage(keyPrefix).catch((err) => {
+          console.error('Failed to delete logo files:', err)
+        })
+      }
+
+      // Clear logo URLs in database
+      const organization = await organizationRepository.update(targetOrgId, {
+        logoUrl: null,
+        logoUrlSmall: null,
+        logoUrlMedium: null,
+        logoUrlGrayscale: null
+      })
+
+      await logAudit(ctx.userId, 'delete_logo', 'organization', targetOrgId, null, {})
+
+      return { data: organization }
     }
   )
 }

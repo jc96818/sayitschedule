@@ -27,6 +27,9 @@ export interface OrganizationUpdate {
   name?: string
   subdomain?: string
   logoUrl?: string | null
+  logoUrlSmall?: string | null
+  logoUrlMedium?: string | null
+  logoUrlGrayscale?: string | null
   primaryColor?: string
   secondaryColor?: string
   status?: Status

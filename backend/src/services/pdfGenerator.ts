@@ -2,6 +2,24 @@ import PDFDocument from 'pdfkit'
 import type { ScheduleWithSessions } from '../repositories/schedules.js'
 import type { Organization } from '../repositories/organizations.js'
 
+/**
+ * Fetch an image from a URL and return it as a buffer
+ */
+async function fetchImageAsBuffer(url: string): Promise<Buffer | null> {
+  try {
+    const response = await fetch(url)
+    if (!response.ok) {
+      console.warn(`Failed to fetch logo image: ${response.status}`)
+      return null
+    }
+    const arrayBuffer = await response.arrayBuffer()
+    return Buffer.from(arrayBuffer)
+  } catch (err) {
+    console.warn('Failed to fetch logo image:', err)
+    return null
+  }
+}
+
 interface PdfGeneratorOptions {
   schedule: ScheduleWithSessions
   organization: Organization
@@ -111,6 +129,13 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
   const uniqueTherapists = new Set(schedule.sessions.map(s => s.therapistId)).size
   const uniquePatients = new Set(schedule.sessions.map(s => s.patientId)).size
 
+  // Fetch grayscale logo if available (for print-friendly output)
+  let logoBuffer: Buffer | null = null
+  const logoUrl = organization.logoUrlGrayscale || organization.logoUrl
+  if (logoUrl) {
+    logoBuffer = await fetchImageAsBuffer(logoUrl)
+  }
+
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
 
@@ -144,17 +169,34 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
     let y = 30
 
     // === HEADER ===
-    // Organization name (left)
+    // Logo and organization name (left)
+    const logoSize = 36
+    let textStartX = 40
+
+    if (logoBuffer) {
+      try {
+        doc.image(logoBuffer, 40, y, {
+          width: logoSize,
+          height: logoSize,
+          fit: [logoSize, logoSize]
+        })
+        textStartX = 40 + logoSize + 10 // Logo width + padding
+      } catch (err) {
+        console.warn('Failed to embed logo in PDF:', err)
+      }
+    }
+
+    // Organization name
     doc.fillColor(COLORS.text)
       .fontSize(16)
       .font('Helvetica-Bold')
-      .text(organization.name, 40, y)
+      .text(organization.name, textStartX, y + 2)
 
     // Schedule subtitle
     doc.fillColor(COLORS.textSecondary)
       .fontSize(10)
       .font('Helvetica')
-      .text(`Weekly Schedule: ${formatDate(weekStart)} - ${formatDate(weekEnd)}`, 40, y + 20)
+      .text(`Weekly Schedule: ${formatDate(weekStart)} - ${formatDate(weekEnd)}`, textStartX, y + 20)
 
     // Status badge (right side)
     const statusText = schedule.status === 'published' ? 'Published' : 'Draft'

@@ -219,6 +219,28 @@ export const organizationService = {
   async updateLabels(labels: OrganizationLabels & { organizationId?: string }): Promise<ApiResponse<Organization>> {
     const { data } = await api.put('/organizations/current/labels', labels)
     return data
+  },
+
+  async uploadLogo(file: File): Promise<ApiResponse<{
+    logoUrl: string
+    logoUrlSmall: string
+    logoUrlMedium: string
+    logoUrlLarge: string
+    logoUrlGrayscale: string
+    logoUrlGrayscaleSmall: string
+    logoUrlGrayscaleMedium: string
+  }>> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { data } = await api.post('/organizations/current/logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return data
+  },
+
+  async deleteLogo(): Promise<ApiResponse<Organization>> {
+    const { data } = await api.delete('/organizations/current/logo')
+    return data
   }
 }
 

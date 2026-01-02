@@ -141,7 +141,10 @@ model Organization {
   id             String   @id @default(cuid())
   name           String   @db.VarChar(255)
   subdomain      String   @unique @db.VarChar(63)
-  logoUrl        String?  @map("logo_url")
+  logoUrl        String?  @map("logo_url") @db.VarChar(500)
+  logoUrlSmall   String?  @map("logo_url_small") @db.VarChar(500)    // 64x64 for sidebar
+  logoUrlMedium  String?  @map("logo_url_medium") @db.VarChar(500)   // 128x128 for headers
+  logoUrlGrayscale String? @map("logo_url_grayscale") @db.VarChar(500) // Grayscale for print
   primaryColor   String   @default("#2563eb") @map("primary_color") @db.VarChar(7)
   secondaryColor String   @default("#1e40af") @map("secondary_color") @db.VarChar(7)
   status         Status   @default(active)

@@ -62,12 +62,15 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div
-    class="portal-login"
-    :style="branding?.backgroundUrl ? { backgroundImage: `url(${branding.backgroundUrl})` } : {}"
-  >
+  <div class="portal-login">
+    <!-- Background with optional image -->
+    <div
+      class="login-background"
+      :style="branding?.backgroundUrl ? { backgroundImage: `url(${branding.backgroundUrl})` } : {}"
+    />
+
     <div class="login-container">
-      <!-- Logo and Welcome -->
+      <!-- Header with branding -->
       <div class="login-header">
         <img
           v-if="branding?.logoUrl"
@@ -87,9 +90,9 @@ onMounted(async () => {
         <p>{{ error || 'The patient portal is not available for this organization.' }}</p>
       </div>
 
-      <!-- Login Form -->
+      <!-- Login Card -->
       <div v-else class="login-card">
-        <div class="card-header">
+        <div class="welcome-header">
           <h2 class="welcome-title">{{ branding?.welcomeTitle || 'Welcome' }}</h2>
           <p class="welcome-message">{{ branding?.welcomeMessage || 'Sign in to access your appointments.' }}</p>
         </div>
@@ -175,15 +178,32 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary-light, #dbeafe) 0%, #f8fafc 100%);
-  background-size: cover;
-  background-position: center;
+  position: relative;
   padding: 2rem;
 }
 
+/* Background layer */
+.login-background {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--primary-color, #2563eb) 0%, var(--secondary-color, #1e40af) 100%);
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+}
+
+.login-background::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.1);
+}
+
 .login-container {
+  position: relative;
+  z-index: 1;
   width: 100%;
-  max-width: 420px;
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -192,21 +212,23 @@ onMounted(async () => {
 /* Header */
 .login-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .org-logo {
-  height: 64px;
+  height: 72px;
   width: auto;
   object-fit: contain;
   margin-bottom: 1rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .org-name {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
-  color: var(--text-primary, #1e293b);
+  color: white;
   margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Portal Disabled */
@@ -215,7 +237,8 @@ onMounted(async () => {
   border-radius: 1rem;
   padding: 3rem 2rem;
   text-align: center;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 100%;
 }
 
 .disabled-icon {
@@ -232,6 +255,7 @@ onMounted(async () => {
 .portal-disabled p {
   color: var(--text-secondary, #64748b);
   margin: 0;
+  line-height: 1.5;
 }
 
 /* Login Card */
@@ -240,25 +264,27 @@ onMounted(async () => {
   border-radius: 1rem;
   padding: 2rem;
   width: 100%;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
-.card-header {
+.welcome-header {
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .welcome-title {
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-size: 1.5rem;
+  font-weight: 700;
   color: var(--text-primary, #1e293b);
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.75rem;
+  line-height: 1.3;
 }
 
 .welcome-message {
   color: var(--text-secondary, #64748b);
   margin: 0;
   font-size: 0.9375rem;
+  line-height: 1.5;
 }
 
 /* Channel Toggle */
@@ -272,20 +298,25 @@ onMounted(async () => {
 
 .toggle-btn {
   flex: 1;
-  padding: 0.625rem 1rem;
+  padding: 0.75rem 1rem;
   border: none;
   background: transparent;
   border-radius: 0.375rem;
   font-weight: 500;
+  font-size: 0.9375rem;
   color: var(--text-secondary, #64748b);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn:hover:not(.active) {
+  color: var(--text-primary, #1e293b);
 }
 
 .toggle-btn.active {
   background: white;
   color: var(--primary-color, #2563eb);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 /* Form */
@@ -303,22 +334,27 @@ onMounted(async () => {
 
 .form-input {
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1rem;
   border: 1px solid var(--border-color, #e2e8f0);
   border-radius: 0.5rem;
   font-size: 1rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--primary-color, #2563eb);
-  box-shadow: 0 0 0 3px var(--primary-light, #dbeafe);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .form-input:disabled {
   background: var(--background-color, #f1f5f9);
   cursor: not-allowed;
+}
+
+.form-input::placeholder {
+  color: var(--text-muted, #94a3b8);
 }
 
 /* Error */
@@ -329,12 +365,13 @@ onMounted(async () => {
   border-radius: 0.5rem;
   margin-bottom: 1rem;
   font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 /* Submit Button */
 .submit-btn {
   width: 100%;
-  padding: 0.875rem 1.5rem;
+  padding: 1rem 1.5rem;
   background: var(--primary-color, #2563eb);
   color: white;
   border: none;
@@ -342,15 +379,21 @@ onMounted(async () => {
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: all 0.2s ease;
 }
 
 .submit-btn:hover:not(:disabled) {
   background: var(--primary-hover, #1d4ed8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .submit-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -385,17 +428,21 @@ onMounted(async () => {
   margin-top: 2rem;
   display: flex;
   gap: 0.75rem;
-  color: var(--text-muted, #94a3b8);
   font-size: 0.875rem;
 }
 
 .login-footer a {
-  color: var(--text-secondary, #64748b);
+  color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .login-footer a:hover {
-  color: var(--primary-color, #2563eb);
+  color: white;
+}
+
+.login-footer span {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Responsive */
@@ -406,6 +453,14 @@ onMounted(async () => {
 
   .login-card {
     padding: 1.5rem;
+  }
+
+  .org-name {
+    font-size: 1.5rem;
+  }
+
+  .welcome-title {
+    font-size: 1.25rem;
   }
 }
 </style>
