@@ -205,3 +205,15 @@ variable "sales_email" {
   type        = string
   default     = "sales@sayitschedule.com"
 }
+
+variable "email_reply_to" {
+  description = "Email address users can reply to"
+  type        = string
+  default     = "support@sayitschedule.com"
+}
+
+variable "ses_configuration_set" {
+  description = "SES configuration set name for tracking bounces and complaints"
+  type        = string
+  default     = "sayitschedule-production"
+}

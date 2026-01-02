@@ -8,8 +8,23 @@ const sesClient = new SESClient({
 
 // Email configuration
 const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@sayitschedule.com'
+const EMAIL_REPLY_TO = process.env.EMAIL_REPLY_TO || 'support@sayitschedule.com'
 const EMAIL_ENABLED = process.env.EMAIL_ENABLED === 'true'
 const APP_URL = process.env.APP_URL || 'https://sayitschedule.com'
+const SES_CONFIGURATION_SET = process.env.SES_CONFIGURATION_SET || 'sayitschedule-production'
+
+/**
+ * Escape HTML special characters to prevent XSS in email templates
+ */
+function escapeHtml(text: string | null | undefined): string {
+  if (!text) return ''
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
 
 /**
  * Build a URL with the organization's subdomain
@@ -132,6 +147,8 @@ async function sendEmail(
       Destination: {
         ToAddresses: validRecipients
       },
+      ReplyToAddresses: [EMAIL_REPLY_TO],
+      ConfigurationSetName: SES_CONFIGURATION_SET,
       Message: {
         Subject: {
           Data: subject,
@@ -314,15 +331,15 @@ export async function sendTimeOffRequestSubmitted(
       <p>A new time-off request has been submitted and requires your review.</p>
       <div class="details">
         <div class="detail-row">
-          <span class="label">Staff Member:</span> ${staff.name}
+          <span class="label">Staff Member:</span> ${escapeHtml(staff.name)}
         </div>
         <div class="detail-row">
-          <span class="label">Date:</span> ${requestDate}
+          <span class="label">Date:</span> ${escapeHtml(requestDate)}
         </div>
         <div class="detail-row">
-          <span class="label">Time:</span> ${timeInfo}
+          <span class="label">Time:</span> ${escapeHtml(timeInfo)}
         </div>
-        ${availability.reason ? `<div class="detail-row"><span class="label">Reason:</span> ${availability.reason}</div>` : ''}
+        ${availability.reason ? `<div class="detail-row"><span class="label">Reason:</span> ${escapeHtml(availability.reason)}</div>` : ''}
       </div>
       <a href="${pendingUrl}" class="button">Review Request</a>
     </div>
@@ -408,14 +425,14 @@ export async function sendTimeOffReviewed(
       <p>Your time-off request has been reviewed.</p>
       <div class="details">
         <div class="detail-row">
-          <span class="label">Date:</span> ${requestDate}
+          <span class="label">Date:</span> ${escapeHtml(requestDate)}
         </div>
         <div class="detail-row">
-          <span class="label">Time:</span> ${timeInfo}
+          <span class="label">Time:</span> ${escapeHtml(timeInfo)}
         </div>
-        ${availability.reason ? `<div class="detail-row"><span class="label">Reason:</span> ${availability.reason}</div>` : ''}
+        ${availability.reason ? `<div class="detail-row"><span class="label">Reason:</span> ${escapeHtml(availability.reason)}</div>` : ''}
       </div>
-      ${reviewerNotes ? `<div class="notes"><strong>Reviewer Notes:</strong> ${reviewerNotes}</div>` : ''}
+      ${reviewerNotes ? `<div class="notes"><strong>Reviewer Notes:</strong> ${escapeHtml(reviewerNotes)}</div>` : ''}
     </div>
     <div class="footer">
       <p>This is an automated message from Say It Schedule.</p>
@@ -488,14 +505,14 @@ export async function sendUserInvitation(
       <h1>${orgName}</h1>
     </div>
     <div class="content">
-      <p class="welcome">Welcome to ${orgName}!</p>
-      <p>${invitedByName} has invited you to join ${orgName}. To get started, please set up your password by clicking the button below.</p>
+      <p class="welcome">Welcome to ${escapeHtml(orgName)}!</p>
+      <p>${escapeHtml(invitedByName)} has invited you to join ${escapeHtml(orgName)}. To get started, please set up your password by clicking the button below.</p>
       <div class="details">
         <div class="detail-row">
-          <span class="label">Your Email:</span> ${user.email}
+          <span class="label">Your Email:</span> ${escapeHtml(user.email)}
         </div>
         <div class="detail-row">
-          <span class="label">Your Name:</span> ${user.name}
+          <span class="label">Your Name:</span> ${escapeHtml(user.name)}
         </div>
       </div>
       <div style="text-align: center;">
@@ -578,13 +595,13 @@ export async function sendSuperAdminInvitation(
     </div>
     <div class="content">
       <p class="welcome">Welcome to Say It Schedule!</p>
-      <p>${invitedByName} has invited you to join Say It Schedule as a <strong>Super Administrator</strong>. This role grants you platform-wide access to manage organizations, users, and system settings.</p>
+      <p>${escapeHtml(invitedByName)} has invited you to join Say It Schedule as a <strong>Super Administrator</strong>. This role grants you platform-wide access to manage organizations, users, and system settings.</p>
       <div class="details">
         <div class="detail-row">
-          <span class="label">Your Email:</span> ${user.email}
+          <span class="label">Your Email:</span> ${escapeHtml(user.email)}
         </div>
         <div class="detail-row">
-          <span class="label">Your Name:</span> ${user.name}
+          <span class="label">Your Name:</span> ${escapeHtml(user.name)}
         </div>
         <div class="detail-row">
           <span class="label">Role:</span> Super Administrator
@@ -670,8 +687,8 @@ export async function sendPasswordResetEmail(
     </div>
     <div class="content">
       <h2>Password Reset Request</h2>
-      <p>Hi ${user.name},</p>
-      <p>We received a request to reset your password for your ${orgName} account. Click the button below to create a new password.</p>
+      <p>Hi ${escapeHtml(user.name)},</p>
+      <p>We received a request to reset your password for your ${escapeHtml(orgName)} account. Click the button below to create a new password.</p>
       <div style="text-align: center;">
         <a href="${resetUrl}" class="button">Reset Your Password</a>
       </div>
@@ -748,19 +765,19 @@ export async function sendLeadNotification(
       <p>A new lead has been submitted from the landing page.</p>
       <div class="details">
         <div class="detail-row">
-          <span class="label">Name:</span> ${lead.name}
+          <span class="label">Name:</span> ${escapeHtml(lead.name)}
         </div>
         <div class="detail-row">
-          <span class="label">Email:</span> <a href="mailto:${lead.email}">${lead.email}</a>
+          <span class="label">Email:</span> <a href="mailto:${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</a>
         </div>
-        ${lead.company ? `<div class="detail-row"><span class="label">Company:</span> ${lead.company}</div>` : ''}
-        ${lead.phone ? `<div class="detail-row"><span class="label">Phone:</span> <a href="tel:${lead.phone}">${lead.phone}</a></div>` : ''}
-        ${lead.role ? `<div class="detail-row"><span class="label">Role:</span> ${lead.role}</div>` : ''}
+        ${lead.company ? `<div class="detail-row"><span class="label">Company:</span> ${escapeHtml(lead.company)}</div>` : ''}
+        ${lead.phone ? `<div class="detail-row"><span class="label">Phone:</span> <a href="tel:${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</a></div>` : ''}
+        ${lead.role ? `<div class="detail-row"><span class="label">Role:</span> ${escapeHtml(lead.role)}</div>` : ''}
         <div class="detail-row">
-          <span class="label">Submitted:</span> ${createdAt}
+          <span class="label">Submitted:</span> ${escapeHtml(createdAt)}
         </div>
       </div>
-      ${lead.message ? `<div class="message-box"><strong>Message:</strong><br>${lead.message}</div>` : ''}
+      ${lead.message ? `<div class="message-box"><strong>Message:</strong><br>${escapeHtml(lead.message)}</div>` : ''}
     </div>
     <div class="footer">
       <p>This lead was captured from Say It Schedule landing page.</p>

@@ -255,6 +255,8 @@ resource "aws_ecs_task_definition" "app" {
         { name = "DEBUG_AI_REQUESTS", value = tostring(var.debug_ai_requests) },
         { name = "EMAIL_ENABLED", value = tostring(var.email_enabled) },
         { name = "EMAIL_FROM", value = var.email_from },
+        { name = "EMAIL_REPLY_TO", value = var.email_reply_to },
+        { name = "SES_CONFIGURATION_SET", value = var.ses_configuration_set },
         { name = "APP_URL", value = var.app_url },
         { name = "SALES_EMAIL", value = var.sales_email }
       ]
