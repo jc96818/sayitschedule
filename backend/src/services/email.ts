@@ -201,6 +201,107 @@ function formatWeekStart(date: Date | string): string {
   })
 }
 
+function sanitizeBrandColor(color: string | null | undefined, fallback: string): string {
+  if (!color) return fallback
+  const trimmed = color.trim()
+  if (/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(trimmed)) return trimmed.toLowerCase()
+  if (
+    /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/.test(
+      trimmed
+    )
+  ) {
+    return trimmed
+  }
+  return fallback
+}
+
+function renderEmailButton(href: string, label: string, color: string): string {
+  const safeHref = escapeHtml(href)
+  return `
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 0 auto;">
+    <tr>
+      <td bgcolor="${color}" style="border-radius: 8px; mso-padding-alt: 12px 18px;">
+        <a href="${safeHref}" style="display: inline-block; padding: 12px 18px; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px;">
+          ${escapeHtml(label)}
+        </a>
+      </td>
+    </tr>
+  </table>
+`
+}
+
+function renderEmailUrlFallback(url: string, color: string): string {
+  const safeUrl = escapeHtml(url)
+  return `
+  <p style="margin: 16px 0 0 0; font-size: 13px; color: #4b5563;">
+    If the button doesn’t work, copy and paste this link into your browser:<br>
+    <a href="${safeUrl}" style="color: ${color}; word-break: break-all;">${safeUrl}</a>
+  </p>
+`
+}
+
+function renderTransactionalEmailHtml(options: {
+  brandName: string
+  brandColor: string
+  preheader: string
+  heading: string
+  bodyHtml: string
+  footerHtml?: string
+}): string {
+  const brandName = escapeHtml(options.brandName)
+  const preheader = escapeHtml(options.preheader)
+  const heading = escapeHtml(options.heading)
+  const footerHtml =
+    options.footerHtml ??
+    `<p style="margin: 0;">Sent by Say It Schedule.</p><p style="margin: 8px 0 0 0;">Need help? Reply to this email.</p>`
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>${heading}</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #f3f4f6;">
+    <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
+      ${preheader}
+    </div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f3f4f6; padding: 24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width: 600px; max-width: 600px;">
+            <tr>
+              <td style="padding: 0 12px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #ffffff; border-radius: 14px; overflow: hidden; border: 1px solid #e5e7eb;">
+                  <tr>
+                    <td style="height: 6px; background-color: ${options.brandColor}; line-height: 6px; font-size: 6px;">&nbsp;</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 20px 22px 0 22px; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color: #111827;">
+                      <div style="font-size: 16px; font-weight: 700; letter-spacing: 0.2px;">${brandName}</div>
+                      <div style="margin-top: 6px; font-size: 22px; font-weight: 800; line-height: 1.25;">${heading}</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 14px 22px 18px 22px; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color: #111827; font-size: 16px; line-height: 1.6;">
+                      ${options.bodyHtml}
+                    </td>
+                  </tr>
+                </table>
+                <div style="padding: 14px 8px 0 8px; text-align: center; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color: #6b7280; font-size: 12px; line-height: 1.5;">
+                  ${footerHtml}
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`
+}
+
 // ========================
 // Email Template Functions
 // ========================
@@ -225,43 +326,25 @@ export async function sendSchedulePublishedNotification(
   }
 
   const scheduleUrl = buildOrgUrl(organization.subdomain, '/schedule')
+  const primaryColor = sanitizeBrandColor(organization.primaryColor, '#2563eb')
+  const orgName = organization.name
 
-  const htmlBody = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: ${organization.primaryColor || '#2563eb'}; color: white; padding: 20px; text-align: center; }
-    .content { padding: 20px; background-color: #f9fafb; }
-    .button { display: inline-block; background-color: ${organization.primaryColor || '#2563eb'}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 16px; }
-    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>${organization.name}</h1>
-    </div>
-    <div class="content">
-      <h2>New Schedule Published</h2>
-      <p>A new schedule has been published for the week of <strong>${weekStart}</strong>.</p>
-      <p>Please log in to view your assignments and session details.</p>
-      <a href="${scheduleUrl}" class="button">View Schedule</a>
-    </div>
-    <div class="footer">
-      <p>This is an automated message from Say It Schedule.</p>
-      <p>If you have questions about your schedule, please contact your administrator.</p>
-    </div>
-  </div>
-</body>
-</html>
-`
+  const htmlBody = renderTransactionalEmailHtml({
+    brandName: orgName,
+    brandColor: primaryColor,
+    preheader: `A new schedule is available for the week of ${weekStart}.`,
+    heading: 'Schedule published',
+    bodyHtml: `
+      <p style="margin: 0 0 12px 0;">A new schedule has been published for the week of <strong>${escapeHtml(weekStart)}</strong>.</p>
+      <p style="margin: 0 0 18px 0;">Log in to view your assignments and session details.</p>
+      ${renderEmailButton(scheduleUrl, 'View schedule', primaryColor)}
+      ${renderEmailUrlFallback(scheduleUrl, primaryColor)}
+    `,
+    footerHtml: `<p style="margin: 0;">Sent by Say It Schedule for ${escapeHtml(orgName)}.</p><p style="margin: 8px 0 0 0;">Questions? Contact your administrator.</p>`
+  })
 
   const textBody = `
-${organization.name} - New Schedule Published
+${orgName} - Schedule Published
 
 A new schedule has been published for the week of ${weekStart}.
 
@@ -270,8 +353,8 @@ Please log in to view your assignments and session details.
 View Schedule: ${scheduleUrl}
 
 ---
-This is an automated message from Say It Schedule.
-If you have questions about your schedule, please contact your administrator.
+Sent by Say It Schedule for ${orgName}.
+Questions? Contact your administrator.
 `
 
   // Send to each staff member individually for privacy
@@ -297,62 +380,50 @@ export async function sendTimeOffRequestSubmitted(
   }
 
   const pendingUrl = buildOrgUrl(organization.subdomain, '/availability/pending')
+  const primaryColor = sanitizeBrandColor(organization.primaryColor, '#2563eb')
+  const orgName = organization.name
 
   let timeInfo = 'Full Day'
   if (availability.startTime && availability.endTime) {
     timeInfo = `${availability.startTime} - ${availability.endTime}`
   }
 
-  const htmlBody = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: ${organization.primaryColor || '#2563eb'}; color: white; padding: 20px; text-align: center; }
-    .content { padding: 20px; background-color: #f9fafb; }
-    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
-    .detail-row { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-    .detail-row:last-child { border-bottom: none; }
-    .label { font-weight: bold; color: #6b7280; }
-    .button { display: inline-block; background-color: ${organization.primaryColor || '#2563eb'}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 16px; }
-    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>${organization.name}</h1>
-    </div>
-    <div class="content">
-      <h2>New Time-Off Request</h2>
-      <p>A new time-off request has been submitted and requires your review.</p>
-      <div class="details">
-        <div class="detail-row">
-          <span class="label">Staff Member:</span> ${escapeHtml(staff.name)}
-        </div>
-        <div class="detail-row">
-          <span class="label">Date:</span> ${escapeHtml(requestDate)}
-        </div>
-        <div class="detail-row">
-          <span class="label">Time:</span> ${escapeHtml(timeInfo)}
-        </div>
-        ${availability.reason ? `<div class="detail-row"><span class="label">Reason:</span> ${escapeHtml(availability.reason)}</div>` : ''}
+  const htmlBody = renderTransactionalEmailHtml({
+    brandName: orgName,
+    brandColor: primaryColor,
+    preheader: `New time-off request from ${staff.name} on ${requestDate}.`,
+    heading: 'New time-off request',
+    bodyHtml: `
+      <p style="margin: 0 0 12px 0;">A new time-off request requires your review:</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin: 0;">
+        <tr>
+          <td style="padding: 10px 12px; font-size: 13px; color: #6b7280; border-bottom: 1px solid #e5e7eb; width: 150px;">Staff member</td>
+          <td style="padding: 10px 12px; font-size: 13px; color: #111827; border-bottom: 1px solid #e5e7eb;">${escapeHtml(staff.name)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 12px; font-size: 13px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Date</td>
+          <td style="padding: 10px 12px; font-size: 13px; color: #111827; border-bottom: 1px solid #e5e7eb;">${escapeHtml(requestDate)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 12px; font-size: 13px; color: #6b7280;${availability.reason ? ' border-bottom: 1px solid #e5e7eb;' : ''}">Time</td>
+          <td style="padding: 10px 12px; font-size: 13px; color: #111827;${availability.reason ? ' border-bottom: 1px solid #e5e7eb;' : ''}">${escapeHtml(timeInfo)}</td>
+        </tr>
+        ${
+          availability.reason
+            ? `<tr><td style="padding: 10px 12px; font-size: 13px; color: #6b7280;">Reason</td><td style="padding: 10px 12px; font-size: 13px; color: #111827;">${escapeHtml(availability.reason)}</td></tr>`
+            : ''
+        }
+      </table>
+      <div style="margin-top: 18px;">
+        ${renderEmailButton(pendingUrl, 'Review request', primaryColor)}
       </div>
-      <a href="${pendingUrl}" class="button">Review Request</a>
-    </div>
-    <div class="footer">
-      <p>This is an automated message from Say It Schedule.</p>
-    </div>
-  </div>
-</body>
-</html>
-`
+      ${renderEmailUrlFallback(pendingUrl, primaryColor)}
+    `,
+    footerHtml: `<p style="margin: 0;">Sent by Say It Schedule for ${escapeHtml(orgName)}.</p>`
+  })
 
   const textBody = `
-${organization.name} - New Time-Off Request
+${orgName} - New Time-Off Request
 
 A new time-off request has been submitted and requires your review.
 
@@ -365,10 +436,13 @@ ${availability.reason ? `- Reason: ${availability.reason}` : ''}
 Review Request: ${pendingUrl}
 
 ---
-This is an automated message from Say It Schedule.
+Sent by Say It Schedule for ${orgName}.
 `
 
-  await sendEmail(adminEmails, subject, htmlBody, textBody)
+  // Send individually for privacy
+  for (const email of adminEmails) {
+    await sendEmail(email, subject, htmlBody, textBody)
+  }
 }
 
 /**
@@ -387,61 +461,56 @@ export async function sendTimeOffReviewed(
   const requestDate = formatDate(availability.date)
   const status = approved ? 'Approved' : 'Denied'
   const subject = `[${organization.name}] Time-Off Request ${status}`
+  const primaryColor = sanitizeBrandColor(organization.primaryColor, '#2563eb')
+  const orgName = organization.name
 
   let timeInfo = 'Full Day'
   if (availability.startTime && availability.endTime) {
     timeInfo = `${availability.startTime} - ${availability.endTime}`
   }
 
-  const statusColor = approved ? '#10b981' : '#ef4444'
-  const statusIcon = approved ? '✓' : '✗'
+  const statusBg = approved ? '#ecfdf5' : '#fef2f2'
+  const statusText = approved ? '#065f46' : '#991b1b'
 
-  const htmlBody = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: ${organization.primaryColor || '#2563eb'}; color: white; padding: 20px; text-align: center; }
-    .content { padding: 20px; background-color: #f9fafb; }
-    .status { font-size: 24px; font-weight: bold; color: ${statusColor}; text-align: center; padding: 20px; }
-    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
-    .detail-row { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-    .detail-row:last-child { border-bottom: none; }
-    .label { font-weight: bold; color: #6b7280; }
-    .notes { background-color: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 16px; }
-    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>${organization.name}</h1>
-    </div>
-    <div class="content">
-      <div class="status">${statusIcon} Request ${status}</div>
-      <p>Your time-off request has been reviewed.</p>
-      <div class="details">
-        <div class="detail-row">
-          <span class="label">Date:</span> ${escapeHtml(requestDate)}
-        </div>
-        <div class="detail-row">
-          <span class="label">Time:</span> ${escapeHtml(timeInfo)}
-        </div>
-        ${availability.reason ? `<div class="detail-row"><span class="label">Reason:</span> ${escapeHtml(availability.reason)}</div>` : ''}
-      </div>
-      ${reviewerNotes ? `<div class="notes"><strong>Reviewer Notes:</strong> ${escapeHtml(reviewerNotes)}</div>` : ''}
-    </div>
-    <div class="footer">
-      <p>This is an automated message from Say It Schedule.</p>
-      <p>If you have questions, please contact your administrator.</p>
-    </div>
-  </div>
-</body>
-</html>
-`
+  const htmlBody = renderTransactionalEmailHtml({
+    brandName: orgName,
+    brandColor: primaryColor,
+    preheader: `Your time-off request for ${requestDate} was ${status.toLowerCase()}.`,
+    heading: `Time-off request ${status.toLowerCase()}`,
+    bodyHtml: `
+      <p style="margin: 0 0 12px 0;">Your time-off request has been reviewed.</p>
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 0 14px 0;">
+        <tr>
+          <td style="padding: 6px 10px; border-radius: 999px; background-color: ${statusBg}; color: ${statusText}; font-size: 13px; font-weight: 700;">
+            Status: ${escapeHtml(status)}
+          </td>
+        </tr>
+      </table>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin: 0;">
+        <tr>
+          <td style="padding: 10px 12px; font-size: 13px; color: #6b7280; border-bottom: 1px solid #e5e7eb; width: 150px;">Date</td>
+          <td style="padding: 10px 12px; font-size: 13px; color: #111827; border-bottom: 1px solid #e5e7eb;">${escapeHtml(requestDate)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 12px; font-size: 13px; color: #6b7280;${availability.reason ? ' border-bottom: 1px solid #e5e7eb;' : ''}">Time</td>
+          <td style="padding: 10px 12px; font-size: 13px; color: #111827;${availability.reason ? ' border-bottom: 1px solid #e5e7eb;' : ''}">${escapeHtml(timeInfo)}</td>
+        </tr>
+        ${
+          availability.reason
+            ? `<tr><td style="padding: 10px 12px; font-size: 13px; color: #6b7280;">Reason</td><td style="padding: 10px 12px; font-size: 13px; color: #111827;">${escapeHtml(availability.reason)}</td></tr>`
+            : ''
+        }
+      </table>
+      ${
+        reviewerNotes
+          ? `<div style="margin: 14px 0 0 0; padding: 12px 14px; border-radius: 10px; background-color: #fffbeb; border: 1px solid #fde68a; color: #92400e; font-size: 13px; line-height: 1.5;">
+              <strong>Reviewer notes:</strong><br>${escapeHtml(reviewerNotes)}
+            </div>`
+          : ''
+      }
+    `,
+    footerHtml: `<p style="margin: 0;">Sent by Say It Schedule for ${escapeHtml(orgName)}.</p><p style="margin: 8px 0 0 0;">Questions? Contact your administrator.</p>`
+  })
 
   const textBody = `
 ${organization.name} - Time-Off Request ${status}
@@ -456,8 +525,8 @@ ${availability.reason ? `- Reason: ${availability.reason}` : ''}
 ${reviewerNotes ? `\nReviewer Notes: ${reviewerNotes}` : ''}
 
 ---
-This is an automated message from Say It Schedule.
-If you have questions, please contact your administrator.
+Sent by Say It Schedule for ${organization.name}.
+Questions? Contact your administrator.
 `
 
   await sendEmail(staff.email, subject, htmlBody, textBody)
@@ -472,78 +541,43 @@ export async function sendUserInvitation(
   const { user, organization, token, invitedByName } = data
 
   const orgName = organization?.name || 'Say It Schedule'
-  const primaryColor = organization?.primaryColor || '#2563eb'
+  const primaryColor = sanitizeBrandColor(organization?.primaryColor, '#2563eb')
 
   // Build the setup password URL with organization's subdomain
   const setupUrl = buildOrgUrl(organization?.subdomain, `/setup-password?token=${token}`)
 
-  const subject = `You've been invited to ${orgName}`
+  const subject = `You're invited to ${orgName}`
 
-  const htmlBody = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: ${primaryColor}; color: white; padding: 20px; text-align: center; }
-    .content { padding: 20px; background-color: #f9fafb; }
-    .welcome { font-size: 18px; margin-bottom: 16px; }
-    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
-    .detail-row { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-    .detail-row:last-child { border-bottom: none; }
-    .label { font-weight: bold; color: #6b7280; }
-    .button { display: inline-block; background-color: ${primaryColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin-top: 16px; font-weight: bold; }
-    .expiry { color: #6b7280; font-size: 14px; margin-top: 16px; }
-    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>${orgName}</h1>
-    </div>
-    <div class="content">
-      <p class="welcome">Welcome to ${escapeHtml(orgName)}!</p>
-      <p>${escapeHtml(invitedByName)} has invited you to join ${escapeHtml(orgName)}. To get started, please set up your password by clicking the button below.</p>
-      <div class="details">
-        <div class="detail-row">
-          <span class="label">Your Email:</span> ${escapeHtml(user.email)}
-        </div>
-        <div class="detail-row">
-          <span class="label">Your Name:</span> ${escapeHtml(user.name)}
-        </div>
-      </div>
-      <div style="text-align: center;">
-        <a href="${setupUrl}" class="button">Set Up Your Password</a>
-      </div>
-      <p class="expiry">This link will expire in 48 hours. If you didn't expect this invitation, you can safely ignore this email.</p>
-    </div>
-    <div class="footer">
-      <p>This is an automated message from Say It Schedule.</p>
-      <p>If you have questions, please contact your administrator.</p>
-    </div>
-  </div>
-</body>
-</html>
-`
+  const htmlBody = renderTransactionalEmailHtml({
+    brandName: orgName,
+    brandColor: primaryColor,
+    preheader: `Set up your password to join ${orgName}. Link expires in 48 hours.`,
+    heading: `You're invited`,
+    bodyHtml: `
+      <p style="margin: 0 0 12px 0;">Hi ${escapeHtml(user.name)},</p>
+      <p style="margin: 0 0 12px 0;">${escapeHtml(invitedByName)} invited you to join <strong>${escapeHtml(orgName)}</strong> on Say It Schedule.</p>
+      <p style="margin: 0 0 18px 0;">To get started, set up your password for <strong>${escapeHtml(user.email)}</strong>.</p>
+      ${renderEmailButton(setupUrl, 'Set up your password', primaryColor)}
+      ${renderEmailUrlFallback(setupUrl, primaryColor)}
+      <p style="margin: 14px 0 0 0; font-size: 13px; color: #6b7280;">This link expires in 48 hours. If you weren’t expecting this invitation, you can ignore this email.</p>
+    `,
+    footerHtml: `<p style="margin: 0;">Sent by Say It Schedule for ${escapeHtml(orgName)}.</p><p style="margin: 8px 0 0 0;">Questions? Reply to this email or contact your administrator.</p>`
+  })
 
   const textBody = `
-Welcome to ${orgName}!
+You're invited to ${orgName}
 
-${invitedByName} has invited you to join ${orgName}. To get started, please set up your password by visiting the link below.
+Hi ${user.name},
 
-Your Email: ${user.email}
-Your Name: ${user.name}
+${invitedByName} invited you to join ${orgName} on Say It Schedule. To get started, set up your password for ${user.email}.
 
-Set Up Your Password: ${setupUrl}
+Set up your password: ${setupUrl}
 
 This link will expire in 48 hours. If you didn't expect this invitation, you can safely ignore this email.
 
 ---
-This is an automated message from Say It Schedule.
-If you have questions, please contact your administrator.
+Sent by Say It Schedule for ${orgName}.
+Questions? Reply to this email or contact your administrator.
 `
 
   return sendEmail(user.email, subject, htmlBody, textBody)
@@ -558,79 +592,41 @@ export async function sendSuperAdminInvitation(
 ): Promise<boolean> {
   const { user, token, invitedByName } = data
 
-  const primaryColor = '#1e293b'  // Dark slate for super admin branding
+  const primaryColor = '#0f172a' // Dark slate for super admin branding
 
   // Super admins use the main app URL (no subdomain)
   const setupUrl = `${APP_URL}/setup-password?token=${token}`
 
   const subject = `You've been invited to Say It Schedule as a Super Admin`
 
-  const htmlBody = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); color: white; padding: 20px; text-align: center; }
-    .badge { display: inline-block; background-color: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 4px; font-size: 12px; margin-top: 8px; }
-    .content { padding: 20px; background-color: #f9fafb; }
-    .welcome { font-size: 18px; margin-bottom: 16px; }
-    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
-    .detail-row { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-    .detail-row:last-child { border-bottom: none; }
-    .label { font-weight: bold; color: #6b7280; }
-    .button { display: inline-block; background-color: ${primaryColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin-top: 16px; font-weight: bold; }
-    .expiry { color: #6b7280; font-size: 14px; margin-top: 16px; }
-    .mfa-notice { background-color: #dbeafe; padding: 12px; border-radius: 6px; margin-top: 16px; font-size: 14px; color: #1e40af; }
-    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Say It Schedule</h1>
-      <span class="badge">Super Admin Access</span>
-    </div>
-    <div class="content">
-      <p class="welcome">Welcome to Say It Schedule!</p>
-      <p>${escapeHtml(invitedByName)} has invited you to join Say It Schedule as a <strong>Super Administrator</strong>. This role grants you platform-wide access to manage organizations, users, and system settings.</p>
-      <div class="details">
-        <div class="detail-row">
-          <span class="label">Your Email:</span> ${escapeHtml(user.email)}
-        </div>
-        <div class="detail-row">
-          <span class="label">Your Name:</span> ${escapeHtml(user.name)}
-        </div>
-        <div class="detail-row">
-          <span class="label">Role:</span> Super Administrator
-        </div>
+  const htmlBody = renderTransactionalEmailHtml({
+    brandName: 'Say It Schedule',
+    brandColor: primaryColor,
+    preheader: 'Set up your password to activate super admin access. Link expires in 48 hours.',
+    heading: 'Super admin invitation',
+    bodyHtml: `
+      <p style="margin: 0 0 12px 0;">Hi ${escapeHtml(user.name)},</p>
+      <p style="margin: 0 0 12px 0;">${escapeHtml(invitedByName)} invited you to join Say It Schedule as a <strong>Super Administrator</strong>.</p>
+      <p style="margin: 0 0 18px 0;">This role grants platform-wide access to manage organizations, users, and system settings.</p>
+      ${renderEmailButton(setupUrl, 'Set up your password', primaryColor)}
+      ${renderEmailUrlFallback(setupUrl, primaryColor)}
+      <div style="margin: 16px 0 0 0; padding: 12px 14px; border-radius: 10px; background-color: #eef2ff; border: 1px solid #e0e7ff; color: #1e3a8a; font-size: 13px; line-height: 1.5;">
+        <strong>Security note:</strong> After setting your password, you’ll be required to set up two-factor authentication (2FA).
       </div>
-      <div style="text-align: center;">
-        <a href="${setupUrl}" class="button">Set Up Your Password</a>
-      </div>
-      <div class="mfa-notice">
-        <strong>Security Note:</strong> After setting your password, you will be required to set up two-factor authentication (2FA) to protect your super admin account.
-      </div>
-      <p class="expiry">This link will expire in 48 hours. If you didn't expect this invitation, you can safely ignore this email.</p>
-    </div>
-    <div class="footer">
-      <p>This is an automated message from Say It Schedule.</p>
-      <p>If you have questions, please contact the platform administrator.</p>
-    </div>
-  </div>
-</body>
-</html>
-`
+      <p style="margin: 14px 0 0 0; font-size: 13px; color: #6b7280;">This link expires in 48 hours. If you weren’t expecting this invitation, you can ignore this email.</p>
+    `,
+    footerHtml:
+      '<p style="margin: 0;">Sent by Say It Schedule.</p><p style="margin: 8px 0 0 0;">Questions? Reply to this email.</p>'
+  })
 
   const textBody = `
 Welcome to Say It Schedule!
 
 ${invitedByName} has invited you to join Say It Schedule as a Super Administrator. This role grants you platform-wide access to manage organizations, users, and system settings.
 
-Your Email: ${user.email}
-Your Name: ${user.name}
+Hi ${user.name},
+
+Account: ${user.email}
 Role: Super Administrator
 
 Set Up Your Password: ${setupUrl}
@@ -640,8 +636,8 @@ SECURITY NOTE: After setting your password, you will be required to set up two-f
 This link will expire in 48 hours. If you didn't expect this invitation, you can safely ignore this email.
 
 ---
-This is an automated message from Say It Schedule.
-If you have questions, please contact the platform administrator.
+Sent by Say It Schedule.
+Questions? Reply to this email.
 `
 
   return sendEmail(user.email, subject, htmlBody, textBody)
@@ -656,55 +652,30 @@ export async function sendPasswordResetEmail(
   const { user, organization, token } = data
 
   const orgName = organization?.name || 'Say It Schedule'
-  const primaryColor = organization?.primaryColor || '#2563eb'
+  const primaryColor = sanitizeBrandColor(organization?.primaryColor, '#2563eb')
 
   // Build the reset password URL with organization's subdomain
   const resetUrl = buildOrgUrl(organization?.subdomain, `/setup-password?token=${token}`)
 
   const subject = `Reset your ${orgName} password`
 
-  const htmlBody = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: ${primaryColor}; color: white; padding: 20px; text-align: center; }
-    .content { padding: 20px; background-color: #f9fafb; }
-    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
-    .button { display: inline-block; background-color: ${primaryColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin-top: 16px; font-weight: bold; }
-    .expiry { color: #6b7280; font-size: 14px; margin-top: 16px; }
-    .warning { background-color: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 16px; font-size: 14px; }
-    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>${orgName}</h1>
-    </div>
-    <div class="content">
-      <h2>Password Reset Request</h2>
-      <p>Hi ${escapeHtml(user.name)},</p>
-      <p>We received a request to reset your password for your ${escapeHtml(orgName)} account. Click the button below to create a new password.</p>
-      <div style="text-align: center;">
-        <a href="${resetUrl}" class="button">Reset Your Password</a>
+  const htmlBody = renderTransactionalEmailHtml({
+    brandName: orgName,
+    brandColor: primaryColor,
+    preheader: `Reset your password for ${orgName}. Link expires in 1 hour.`,
+    heading: 'Reset your password',
+    bodyHtml: `
+      <p style="margin: 0 0 12px 0;">Hi ${escapeHtml(user.name)},</p>
+      <p style="margin: 0 0 18px 0;">We received a request to reset the password for your <strong>${escapeHtml(orgName)}</strong> account.</p>
+      ${renderEmailButton(resetUrl, 'Reset your password', primaryColor)}
+      ${renderEmailUrlFallback(resetUrl, primaryColor)}
+      <p style="margin: 14px 0 0 0; font-size: 13px; color: #6b7280;">This link expires in 1 hour for security reasons.</p>
+      <div style="margin: 14px 0 0 0; padding: 12px 14px; border-radius: 10px; background-color: #fffbeb; border: 1px solid #fde68a; color: #92400e; font-size: 13px; line-height: 1.5;">
+        <strong>Didn’t request this?</strong> You can ignore this email — your password will remain unchanged.
       </div>
-      <p class="expiry">This link will expire in 1 hour for security reasons.</p>
-      <div class="warning">
-        <strong>Didn't request this?</strong> If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
-      </div>
-    </div>
-    <div class="footer">
-      <p>This is an automated message from Say It Schedule.</p>
-      <p>If you need help, please contact your administrator.</p>
-    </div>
-  </div>
-</body>
-</html>
-`
+    `,
+    footerHtml: `<p style="margin: 0;">Sent by Say It Schedule for ${escapeHtml(orgName)}.</p><p style="margin: 8px 0 0 0;">Need help? Reply to this email or contact your administrator.</p>`
+  })
 
   const textBody = `
 Password Reset Request
@@ -720,8 +691,8 @@ This link will expire in 1 hour for security reasons.
 Didn't request this? If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
 
 ---
-This is an automated message from Say It Schedule.
-If you need help, please contact your administrator.
+Sent by Say It Schedule for ${orgName}.
+Need help? Reply to this email or contact your administrator.
 `
 
   return sendEmail(user.email, subject, htmlBody, textBody)
@@ -737,56 +708,56 @@ export async function sendLeadNotification(
   const subject = `New Lead: ${lead.name}${lead.company ? ` from ${lead.company}` : ''}`
 
   const createdAt = formatDate(lead.createdAt)
+  const primaryColor = '#2563eb'
 
-  const htmlBody = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: #2563eb; color: white; padding: 20px; text-align: center; }
-    .content { padding: 20px; background-color: #f9fafb; }
-    .details { background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; }
-    .detail-row { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
-    .detail-row:last-child { border-bottom: none; }
-    .label { font-weight: bold; color: #6b7280; display: inline-block; width: 100px; }
-    .message-box { background-color: white; padding: 16px; border-radius: 8px; margin-top: 16px; border-left: 4px solid #2563eb; }
-    .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>New Lead Received</h1>
-    </div>
-    <div class="content">
-      <p>A new lead has been submitted from the landing page.</p>
-      <div class="details">
-        <div class="detail-row">
-          <span class="label">Name:</span> ${escapeHtml(lead.name)}
-        </div>
-        <div class="detail-row">
-          <span class="label">Email:</span> <a href="mailto:${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</a>
-        </div>
-        ${lead.company ? `<div class="detail-row"><span class="label">Company:</span> ${escapeHtml(lead.company)}</div>` : ''}
-        ${lead.phone ? `<div class="detail-row"><span class="label">Phone:</span> <a href="tel:${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</a></div>` : ''}
-        ${lead.role ? `<div class="detail-row"><span class="label">Role:</span> ${escapeHtml(lead.role)}</div>` : ''}
-        <div class="detail-row">
-          <span class="label">Submitted:</span> ${escapeHtml(createdAt)}
-        </div>
-      </div>
-      ${lead.message ? `<div class="message-box"><strong>Message:</strong><br>${escapeHtml(lead.message)}</div>` : ''}
-    </div>
-    <div class="footer">
-      <p>This lead was captured from Say It Schedule landing page.</p>
-      <p>Lead ID: ${lead.id}</p>
-    </div>
-  </div>
-</body>
-</html>
-`
+  const htmlBody = renderTransactionalEmailHtml({
+    brandName: 'Say It Schedule',
+    brandColor: primaryColor,
+    preheader: `New lead: ${lead.name}${lead.company ? ` (${lead.company})` : ''}`,
+    heading: 'New lead',
+    bodyHtml: `
+      <p style="margin: 0 0 12px 0;">A new lead was submitted from the landing page.</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin: 0;">
+        <tr>
+          <td style="padding: 10px 12px; font-size: 13px; color: #6b7280; border-bottom: 1px solid #e5e7eb; width: 150px;">Name</td>
+          <td style="padding: 10px 12px; font-size: 13px; color: #111827; border-bottom: 1px solid #e5e7eb;">${escapeHtml(lead.name)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 12px; font-size: 13px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Email</td>
+          <td style="padding: 10px 12px; font-size: 13px; color: #111827; border-bottom: 1px solid #e5e7eb;">
+            <a href="mailto:${escapeHtml(lead.email)}" style="color: ${primaryColor}; text-decoration: none;">${escapeHtml(lead.email)}</a>
+          </td>
+        </tr>
+        ${
+          lead.company
+            ? `<tr><td style="padding: 10px 12px; font-size: 13px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Company</td><td style="padding: 10px 12px; font-size: 13px; color: #111827; border-bottom: 1px solid #e5e7eb;">${escapeHtml(lead.company)}</td></tr>`
+            : ''
+        }
+        ${
+          lead.phone
+            ? `<tr><td style="padding: 10px 12px; font-size: 13px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Phone</td><td style="padding: 10px 12px; font-size: 13px; color: #111827; border-bottom: 1px solid #e5e7eb;"><a href="tel:${escapeHtml(lead.phone)}" style="color: ${primaryColor}; text-decoration: none;">${escapeHtml(lead.phone)}</a></td></tr>`
+            : ''
+        }
+        ${
+          lead.role
+            ? `<tr><td style="padding: 10px 12px; font-size: 13px; color: #6b7280; border-bottom: 1px solid #e5e7eb;">Role</td><td style="padding: 10px 12px; font-size: 13px; color: #111827; border-bottom: 1px solid #e5e7eb;">${escapeHtml(lead.role)}</td></tr>`
+            : ''
+        }
+        <tr>
+          <td style="padding: 10px 12px; font-size: 13px; color: #6b7280;">Submitted</td>
+          <td style="padding: 10px 12px; font-size: 13px; color: #111827;">${escapeHtml(createdAt)}</td>
+        </tr>
+      </table>
+      ${
+        lead.message
+          ? `<div style="margin: 14px 0 0 0; padding: 12px 14px; border-radius: 10px; background-color: #f9fafb; border: 1px solid #e5e7eb; color: #111827; font-size: 13px; line-height: 1.5;">
+              <strong>Message:</strong><br>${escapeHtml(lead.message)}
+            </div>`
+          : ''
+      }
+    `,
+    footerHtml: `<p style="margin: 0;">Lead ID: ${escapeHtml(lead.id)}</p>`
+  })
 
   const textBody = `
 New Lead Received
