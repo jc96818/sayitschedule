@@ -3,7 +3,9 @@ import { z } from 'zod'
 import { authenticate, requireAdminOrAssistant } from '../middleware/auth.js'
 import { staffAvailabilityRepository } from '../repositories/staffAvailability.js'
 import { staffRepository } from '../repositories/staff.js'
+import { organizationSettingsRepository } from '../repositories/organizationSettings.js'
 import { logAudit } from '../repositories/audit.js'
+import { parseLocalDateStart, parseLocalDateEnd } from '../utils/timezone.js'
 
 // Zod schemas for validation
 const createAvailabilitySchema = z.object({
@@ -60,9 +62,13 @@ export async function staffAvailabilityRoutes(fastify: FastifyInstance) {
 
       const query = dateRangeQuerySchema.parse(request.query)
 
+      // Fetch organization timezone for date parsing
+      const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+      const timezone = orgSettings.timezone || 'America/New_York'
+
       const result = await staffAvailabilityRepository.findByStaffId(staffId, {
-        startDate: query.startDate ? new Date(query.startDate) : undefined,
-        endDate: query.endDate ? new Date(query.endDate) : undefined,
+        startDate: query.startDate ? parseLocalDateStart(query.startDate, timezone) : undefined,
+        endDate: query.endDate ? parseLocalDateEnd(query.endDate, timezone) : undefined,
         status: query.status
       })
 
@@ -102,9 +108,13 @@ export async function staffAvailabilityRoutes(fastify: FastifyInstance) {
       // Staff creates pending requests; admin/assistant creates approved records directly
       const status = isStaffRole ? 'pending' : 'approved'
 
+      // Fetch organization timezone for date parsing
+      const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+      const timezone = orgSettings.timezone || 'America/New_York'
+
       const availability = await staffAvailabilityRepository.create({
         staffId,
-        date: new Date(body.date),
+        date: parseLocalDateStart(body.date, timezone),
         available: body.available,
         startTime: body.startTime,
         endTime: body.endTime,
@@ -159,8 +169,12 @@ export async function staffAvailabilityRoutes(fastify: FastifyInstance) {
         }
       }
 
+      // Fetch organization timezone for date parsing
+      const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+      const timezone = orgSettings.timezone || 'America/New_York'
+
       const updated = await staffAvailabilityRepository.update(id, staffId, {
-        date: body.date ? new Date(body.date) : undefined,
+        date: body.date ? parseLocalDateStart(body.date, timezone) : undefined,
         available: body.available,
         startTime: body.startTime,
         endTime: body.endTime,
@@ -356,9 +370,13 @@ export async function availabilityAdminRoutes(fastify: FastifyInstance) {
 
       const query = dateRangeQuerySchema.parse(request.query)
 
+      // Fetch organization timezone for date parsing
+      const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+      const timezone = orgSettings.timezone || 'America/New_York'
+
       const result = await staffAvailabilityRepository.findByOrganization(organizationId, {
-        startDate: query.startDate ? new Date(query.startDate) : undefined,
-        endDate: query.endDate ? new Date(query.endDate) : undefined,
+        startDate: query.startDate ? parseLocalDateStart(query.startDate, timezone) : undefined,
+        endDate: query.endDate ? parseLocalDateEnd(query.endDate, timezone) : undefined,
         status: query.status
       })
 

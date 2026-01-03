@@ -22,7 +22,7 @@ import { bookingRepository } from '../repositories/booking.js'
 import { auditRepository } from '../repositories/audit.js'
 import { organizationSettingsRepository } from '../repositories/organizationSettings.js'
 import { BookingSource } from '@prisma/client'
-import { parseLocalDateTime } from '../utils/timezone.js'
+import { parseLocalDateTime, parseLocalDateStart, parseLocalDateEnd } from '../utils/timezone.js'
 
 /**
  * Helper to get organizationId from request context, returning 403 if not available
@@ -533,8 +533,12 @@ export default async function bookingRoutes(fastify: FastifyInstance) {
       const { dateFrom, dateTo } = request.query
 
       try {
-        const from = dateFrom ? new Date(dateFrom) : undefined
-        const to = dateTo ? new Date(dateTo) : undefined
+        // Fetch organization timezone for date parsing
+        const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+        const timezone = orgSettings.timezone || 'America/New_York'
+
+        const from = dateFrom ? parseLocalDateStart(dateFrom, timezone) : undefined
+        const to = dateTo ? parseLocalDateEnd(dateTo, timezone) : undefined
 
         const holds = await bookingRepository.getActiveHolds(organizationId, from, to)
 

@@ -56,12 +56,14 @@ interface SchedulePublishedData {
   schedule: Schedule
   organization: Organization
   staff: Array<{ name: string; email: string | null }>
+  timezone?: string
 }
 
 interface TimeOffRequestData {
   availability: StaffAvailability
   staff: Staff
   organization: Organization
+  timezone?: string
 }
 
 interface TimeOffReviewedData {
@@ -70,6 +72,7 @@ interface TimeOffReviewedData {
   organization: Organization
   approved: boolean
   reviewerNotes?: string | null
+  timezone?: string
 }
 
 interface UserInvitationData {
@@ -177,11 +180,12 @@ async function sendEmail(
 }
 
 /**
- * Format a date for display
+ * Format a date for display in a specific timezone
  */
-function formatDate(date: Date | string): string {
+function formatDate(date: Date | string, timezone: string = 'America/New_York'): string {
   const d = typeof date === 'string' ? new Date(date) : date
   return d.toLocaleDateString('en-US', {
+    timeZone: timezone,
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -190,11 +194,12 @@ function formatDate(date: Date | string): string {
 }
 
 /**
- * Format a week start date for display
+ * Format a week start date for display in a specific timezone
  */
-function formatWeekStart(date: Date | string): string {
+function formatWeekStart(date: Date | string, timezone: string = 'America/New_York'): string {
   const d = typeof date === 'string' ? new Date(date) : date
   return d.toLocaleDateString('en-US', {
+    timeZone: timezone,
     month: 'long',
     day: 'numeric',
     year: 'numeric'
@@ -312,8 +317,8 @@ function renderTransactionalEmailHtml(options: {
 export async function sendSchedulePublishedNotification(
   data: SchedulePublishedData
 ): Promise<void> {
-  const { schedule, organization, staff } = data
-  const weekStart = formatWeekStart(schedule.weekStartDate)
+  const { schedule, organization, staff, timezone = 'America/New_York' } = data
+  const weekStart = formatWeekStart(schedule.weekStartDate, timezone)
   const subject = `[${organization.name}] Schedule Published for Week of ${weekStart}`
 
   const staffEmails = staff
@@ -370,8 +375,8 @@ export async function sendTimeOffRequestSubmitted(
   data: TimeOffRequestData,
   adminEmails: string[]
 ): Promise<void> {
-  const { availability, staff, organization } = data
-  const requestDate = formatDate(availability.date)
+  const { availability, staff, organization, timezone = 'America/New_York' } = data
+  const requestDate = formatDate(availability.date, timezone)
   const subject = `[${organization.name}] New Time-Off Request from ${staff.name}`
 
   if (adminEmails.length === 0) {
@@ -451,14 +456,14 @@ Sent by Say It Schedule for ${orgName}.
 export async function sendTimeOffReviewed(
   data: TimeOffReviewedData
 ): Promise<void> {
-  const { availability, staff, organization, approved, reviewerNotes } = data
+  const { availability, staff, organization, approved, reviewerNotes, timezone = 'America/New_York' } = data
 
   if (!staff.email) {
     console.log('[Email] Staff member has no email address')
     return
   }
 
-  const requestDate = formatDate(availability.date)
+  const requestDate = formatDate(availability.date, timezone)
   const status = approved ? 'Approved' : 'Denied'
   const subject = `[${organization.name}] Time-Off Request ${status}`
   const primaryColor = sanitizeBrandColor(organization.primaryColor, '#2563eb')
