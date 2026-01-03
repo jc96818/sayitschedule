@@ -611,6 +611,6 @@ Each migration folder contains:
 
 
 
-Use cd backend && npm run db:reset anytime you want “wipe org data + reseed” without touching migrations.
+Use `cd backend && npm run db:reset` anytime you want “wipe org data + reseed” without touching migrations.
 
-Use cd backend && npm run db:recreate if you ever hit migration drift again (full rebuild + seed).
+Use `cd backend && npm run db:recreate` if you ever hit migration drift again (full rebuild + seed).
