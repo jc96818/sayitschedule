@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
@@ -57,4 +58,3 @@ reset().catch(err => {
   console.error('Database reset failed:', err)
   process.exit(1)
 })
-

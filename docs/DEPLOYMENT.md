@@ -608,3 +608,9 @@ prisma/
 Each migration folder contains:
 - `migration.sql` - The SQL statements to apply
 - Migration metadata tracked in `_prisma_migrations` table
+
+
+
+Use cd backend && npm run db:reset anytime you want “wipe org data + reseed” without touching migrations.
+
+Use cd backend && npm run db:recreate if you ever hit migration drift again (full rebuild + seed).
