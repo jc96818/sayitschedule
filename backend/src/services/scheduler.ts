@@ -22,6 +22,7 @@ export interface SessionCreate {
   scheduleId: string
   therapistId: string
   patientId: string
+  sessionSpecId: string
   roomId?: string | null
   date: Date
   startTime: string
@@ -83,11 +84,15 @@ export function validateSessions(
   const staffMap = new Map(staff.map(s => [s.id, s]))
   const patientMap = new Map(patients.map(p => [p.id, p]))
   const roomMap = new Map(rooms.map(r => [r.id, r]))
+  const sessionSpecMap = new Map(
+    patients.flatMap(patient => patient.sessionSpecs.map(spec => [spec.id, { patient, spec }] as const))
+  )
 
   // Track scheduled sessions for overlap detection
   const therapistSessions: Map<string, { date: string; start: string; end: string }[]> = new Map()
   const patientSessions: Map<string, { date: string; start: string; end: string }[]> = new Map()
   const roomSessions: Map<string, { date: string; start: string; end: string }[]> = new Map()
+  const sessionSpecSessions: Map<string, { date: string; start: string; end: string }[]> = new Map()
 
   for (const session of sessions) {
     const sessionErrors: string[] = []
@@ -104,9 +109,20 @@ export function validateSessions(
       sessionErrors.push(`Patient ${session.patientId} not found`)
     }
 
-    if (therapist && patient) {
+    if (!session.sessionSpecId) {
+      sessionErrors.push('Session is missing sessionSpecId')
+    }
+
+    const sessionSpecEntry = session.sessionSpecId ? sessionSpecMap.get(session.sessionSpecId) : undefined
+    if (session.sessionSpecId && !sessionSpecEntry) {
+      sessionErrors.push(`Session spec ${session.sessionSpecId} not found`)
+    } else if (sessionSpecEntry && sessionSpecEntry.patient.id !== session.patientId) {
+      sessionErrors.push(`Session spec ${session.sessionSpecId} does not belong to patient ${session.patientId}`)
+    }
+
+    if (therapist && patient && sessionSpecEntry) {
       // Check certification requirements
-      const missingCerts = patient.requiredCertifications.filter(
+      const missingCerts = sessionSpecEntry.spec.requiredCertifications.filter(
         cert => !therapist.certifications.includes(cert)
       )
       if (missingCerts.length > 0) {
@@ -217,9 +233,9 @@ export function validateSessions(
             }
           }
 
-          // Check if room has required capabilities for patient
-          if (patient.requiredRoomCapabilities && patient.requiredRoomCapabilities.length > 0) {
-            const missingCapabilities = patient.requiredRoomCapabilities.filter(
+          // Check if room has required capabilities for session spec
+          if (sessionSpecEntry.spec.requiredRoomCapabilities && sessionSpecEntry.spec.requiredRoomCapabilities.length > 0) {
+            const missingCapabilities = sessionSpecEntry.spec.requiredRoomCapabilities.filter(
               cap => !room.capabilities.includes(cap)
             )
             if (missingCapabilities.length > 0) {
@@ -229,10 +245,10 @@ export function validateSessions(
             }
           }
         }
-      } else if (patient.requiredRoomCapabilities && patient.requiredRoomCapabilities.length > 0) {
-        // Patient requires room capabilities but no room assigned
+      } else if (sessionSpecEntry.spec.requiredRoomCapabilities && sessionSpecEntry.spec.requiredRoomCapabilities.length > 0) {
+        // Session spec requires room capabilities but no room assigned
         warnings.push(
-          `Patient ${patient.name} requires room capabilities (${patient.requiredRoomCapabilities.join(', ')}) but no room was assigned to this session`
+          `Patient ${patient.name} (${sessionSpecEntry.spec.name}) requires room capabilities (${sessionSpecEntry.spec.requiredRoomCapabilities.join(', ')}) but no room was assigned to this session`
         )
       }
     }
@@ -259,6 +275,15 @@ export function validateSessions(
         end: session.endTime
       })
 
+      if (!sessionSpecSessions.has(session.sessionSpecId)) {
+        sessionSpecSessions.set(session.sessionSpecId, [])
+      }
+      sessionSpecSessions.get(session.sessionSpecId)!.push({
+        date: session.date,
+        start: session.startTime,
+        end: session.endTime
+      })
+
       // Track room session if room assigned
       if (session.roomId) {
         if (!roomSessions.has(session.roomId)) {
@@ -275,6 +300,7 @@ export function validateSessions(
         scheduleId: '', // Will be set by caller
         therapistId: session.therapistId,
         patientId: session.patientId,
+        sessionSpecId: session.sessionSpecId,
         roomId: session.roomId || null,
         date: new Date(session.date),
         startTime: session.startTime,
@@ -284,14 +310,16 @@ export function validateSessions(
     }
   }
 
-  // Check if all patients got their required sessions
+  // Check if all session specs got their required sessions
   for (const patient of patients) {
-    const scheduledCount = patientSessions.get(patient.id)?.length || 0
-    if (scheduledCount < patient.sessionFrequency) {
-      const displayId = patient.identifier || patient.id
-      warnings.push(
-        `Patient ${patient.name} (ID: ${displayId}) is scheduled for ${scheduledCount} sessions instead of the requested ${patient.sessionFrequency}.`
-      )
+    const displayId = patient.identifier || patient.id
+    for (const spec of patient.sessionSpecs) {
+      const scheduledCount = sessionSpecSessions.get(spec.id)?.length || 0
+      if (scheduledCount < spec.sessionsPerWeek) {
+        warnings.push(
+          `Patient ${patient.name} (ID: ${displayId}) session spec "${spec.name}" is scheduled for ${scheduledCount} sessions instead of the requested ${spec.sessionsPerWeek}.`
+        )
+      }
     }
   }
 
@@ -309,7 +337,7 @@ export async function generateSchedule(
   // Fetch all required data
   const [staffResult, patientsResult, rules, roomsResult, unavailabilityResult] = await Promise.all([
     staffRepository.findByOrganization(organizationId, 'active'),
-    patientRepository.findByOrganization(organizationId, 'active'),
+    patientRepository.findByOrganizationWithSessionSpecs(organizationId, 'active'),
     ruleRepository.findActiveByOrganization(organizationId),
     roomRepository.findByOrganization(organizationId, 'active'),
     staffAvailabilityRepository.getApprovedUnavailability(organizationId, weekStartDate, weekEndDate)
@@ -325,7 +353,22 @@ export async function generateSchedule(
   }
 
   const staff = staffResult as StaffForScheduling[]
-  const patients = patientsResult as PatientForScheduling[]
+  const patients: PatientForScheduling[] = (patientsResult || []).map(p => ({
+    id: p.id,
+    identifier: p.identifier,
+    name: p.name,
+    gender: p.gender,
+    sessionSpecs: (p.sessionSpecs || []).map(spec => ({
+      id: spec.id,
+      name: spec.name,
+      sessionsPerWeek: spec.sessionsPerWeek,
+      durationMinutes: spec.durationMinutes ?? null,
+      requiredCertifications: (spec.requiredCertifications as string[]) || [],
+      preferredTimes: (spec.preferredTimes as string[]) || [],
+      preferredRoomId: spec.preferredRoomId ?? null,
+      requiredRoomCapabilities: (spec.requiredRoomCapabilities as string[]) || []
+    }))
+  }))
   const rooms: RoomForScheduling[] = roomsResult.map(r => ({
     id: r.id,
     name: r.name,
@@ -338,6 +381,9 @@ export async function generateSchedule(
 
   if (patients.length === 0) {
     throw new Error('No active patients found')
+  }
+  if (patients.some(p => p.sessionSpecs.length === 0)) {
+    throw new Error('One or more patients have no active session specs')
   }
 
   // Format rules for AI
@@ -446,6 +492,25 @@ async function regenerateViolatingSession(
     }
   }
 
+  const sessionSpecId =
+    originalSession.sessionSpecId ||
+    (patient.sessionSpecs.length === 1 ? patient.sessionSpecs[0].id : null)
+
+  if (!sessionSpecId) {
+    return {
+      success: false,
+      reason: `Session ${originalSession.id} is missing sessionSpecId and the patient has multiple session specs`
+    }
+  }
+
+  const sessionSpec = patient.sessionSpecs.find(s => s.id === sessionSpecId)
+  if (!sessionSpec) {
+    return {
+      success: false,
+      reason: `Session spec ${sessionSpecId} no longer exists or is inactive`
+    }
+  }
+
   // Calculate week dates
   const weekDates: string[] = []
   for (let i = 0; i < 5; i++) {
@@ -456,10 +521,8 @@ async function regenerateViolatingSession(
 
   // Format existing sessions for the prompt (to avoid conflicts)
   const existingSessionsForPrompt = existingSessions.map(s => {
-    const therapist = staff.find(st => st.id === s.therapistId)
-    const sessionPatient = patients.find(p => p.id === s.patientId)
     const dateStr = s.date instanceof Date ? s.date.toISOString().split('T')[0] : s.date
-    return `- ${therapist?.name || s.therapistId} with ${sessionPatient?.name || s.patientId} on ${dateStr} at ${s.startTime}-${s.endTime}`
+    return `- therapistId=${s.therapistId} patientId=${s.patientId} sessionSpecId=${s.sessionSpecId} on ${dateStr} at ${s.startTime}-${s.endTime}`
   }).join('\n')
 
   // Format staff availability
@@ -475,7 +538,7 @@ async function regenerateViolatingSession(
       .filter(u => !u.available)
       .map(u => u.date.toISOString().split('T')[0])
 
-    return `- ${s.name} (ID: ${s.id})
+    return `- Staff ID: ${s.id}
     Gender: ${s.gender}
     Certifications: [${s.certifications.join(', ')}]
     Working Hours: ${hours || 'Not specified'}
@@ -497,27 +560,29 @@ async function regenerateViolatingSession(
 CRITICAL RULES:
 1. The new session must NOT conflict with any existing scheduled sessions
 2. The therapist must be available (working hours and no unavailability)
-3. The therapist must have ALL required certifications for the patient
+3. The therapist must have ALL required certifications for the session spec
 4. Honor gender pairing rules when specified
 5. Standard session duration is 60 minutes
 
 You must return ONLY a valid JSON object with no additional text.`
 
-  const userPrompt = `A therapy session needs to be rescheduled for patient "${patient.name}" during the week of ${weekDates[0]} to ${weekDates[4]}.
+  const userPrompt = `A therapy session needs to be rescheduled for patientId="${patient.id}" during the week of ${weekDates[0]} to ${weekDates[4]}.
 
 ORIGINAL SESSION:
-- Therapist: ${originalSession.therapistName || originalSession.therapistId}
-- Patient: ${originalSession.patientName || originalSession.patientId}
+- Therapist ID: ${originalSession.therapistId}
+- Patient ID: ${originalSession.patientId}
+- Session Spec ID: ${sessionSpec.id}
 - Date: ${formatDateToString(originalSession.date)}
 - Time: ${originalSession.startTime}
 
 REASON FOR INVALIDATION:
 ${validationError}
 
-PATIENT REQUIREMENTS:
-- Required Certifications: [${patient.requiredCertifications.join(', ')}]
-- Required Room Capabilities: [${(patient.requiredRoomCapabilities || []).join(', ')}]
-- Preferred Times: [${(patient.preferredTimes || []).join(', ')}]
+SESSION SPEC REQUIREMENTS:
+- Session Spec: ${sessionSpec.name} (ID: ${sessionSpec.id})
+- Required Certifications: [${sessionSpec.requiredCertifications.join(', ')}]
+- Required Room Capabilities: [${(sessionSpec.requiredRoomCapabilities || []).join(', ')}]
+- Preferred Times: [${(sessionSpec.preferredTimes || []).join(', ')}]
 
 AVAILABLE STAFF:
 ${staffAvailability}
@@ -539,6 +604,7 @@ Return a JSON object with this exact structure:
   "session": {
     "therapistId": "<staff UUID>",
     "patientId": "${patient.id}",
+    "sessionSpecId": "${sessionSpec.id}",
     "roomId": "<room UUID or null>",
     "date": "YYYY-MM-DD",
     "startTime": "HH:mm",
@@ -569,6 +635,7 @@ If no valid slot can be found, return: { "success": false, "session": null, "rea
           scheduleId: '', // Will be set by caller
           therapistId: result.session.therapistId,
           patientId: result.session.patientId,
+          sessionSpecId: result.session.sessionSpecId,
           roomId: result.session.roomId || null,
           date: new Date(result.session.date),
           startTime: result.session.startTime,
@@ -605,7 +672,7 @@ export async function validateAndRegenerateCopiedSchedule(
   // Fetch all required data
   const [staffResult, patientsResult, rules, roomsResult, unavailabilityResult] = await Promise.all([
     staffRepository.findByOrganization(organizationId, 'active'),
-    patientRepository.findByOrganization(organizationId, 'active'),
+    patientRepository.findByOrganizationWithSessionSpecs(organizationId, 'active'),
     ruleRepository.findActiveByOrganization(organizationId),
     roomRepository.findByOrganization(organizationId, 'active'),
     staffAvailabilityRepository.getApprovedUnavailability(organizationId, weekStartDate, weekEndDate)
@@ -621,7 +688,22 @@ export async function validateAndRegenerateCopiedSchedule(
   }
 
   const staff = staffResult as StaffForScheduling[]
-  const patients = patientsResult as PatientForScheduling[]
+  const patients: PatientForScheduling[] = (patientsResult || []).map(p => ({
+    id: p.id,
+    identifier: p.identifier,
+    name: p.name,
+    gender: p.gender,
+    sessionSpecs: (p.sessionSpecs || []).map(spec => ({
+      id: spec.id,
+      name: spec.name,
+      sessionsPerWeek: spec.sessionsPerWeek,
+      durationMinutes: spec.durationMinutes ?? null,
+      requiredCertifications: (spec.requiredCertifications as string[]) || [],
+      preferredTimes: (spec.preferredTimes as string[]) || [],
+      preferredRoomId: spec.preferredRoomId ?? null,
+      requiredRoomCapabilities: (spec.requiredRoomCapabilities as string[]) || []
+    }))
+  }))
   const rooms: RoomForScheduling[] = roomsResult.map(r => ({
     id: r.id,
     name: r.name,
@@ -640,6 +722,7 @@ export async function validateAndRegenerateCopiedSchedule(
   const sessionsToValidate: GeneratedSession[] = sourceSchedule.sessions.map(s => ({
     therapistId: s.therapistId,
     patientId: s.patientId,
+    sessionSpecId: s.sessionSpecId || '',
     roomId: s.roomId || undefined,
     date: formatDateToString(s.date),
     startTime: s.startTime,
@@ -680,6 +763,7 @@ export async function validateAndRegenerateCopiedSchedule(
       const originalSession = sourceSchedule.sessions.find(
         s => s.therapistId === error.session.therapistId &&
              s.patientId === error.session.patientId &&
+             (!error.session.sessionSpecId || s.sessionSpecId === error.session.sessionSpecId) &&
              s.startTime === error.session.startTime
       )
 
@@ -702,6 +786,7 @@ export async function validateAndRegenerateCopiedSchedule(
     const originalSession = sourceSchedule.sessions.find(
       s => s.therapistId === error.session.therapistId &&
            s.patientId === error.session.patientId &&
+           (!error.session.sessionSpecId || s.sessionSpecId === error.session.sessionSpecId) &&
            s.startTime === error.session.startTime
     )
 
@@ -709,7 +794,7 @@ export async function validateAndRegenerateCopiedSchedule(
       continue
     }
 
-    console.log(`Regenerating session for ${originalSession.patientName} (was: ${error.errors.join('; ')})`)
+    console.log(`Regenerating session for patientId=${originalSession.patientId} (was: ${error.errors.join('; ')})`)
 
     const regenerateResult = await regenerateViolatingSession(
       originalSession,
@@ -728,6 +813,7 @@ export async function validateAndRegenerateCopiedSchedule(
       const newSessionAsGenerated: GeneratedSession = {
         therapistId: regenerateResult.newSession.therapistId,
         patientId: regenerateResult.newSession.patientId,
+        sessionSpecId: regenerateResult.newSession.sessionSpecId,
         roomId: regenerateResult.newSession.roomId || undefined,
         date: regenerateResult.newSession.date instanceof Date
           ? regenerateResult.newSession.date.toISOString().split('T')[0]
@@ -740,6 +826,7 @@ export async function validateAndRegenerateCopiedSchedule(
       const allCurrentSessions = validSessions.map(s => ({
         therapistId: s.therapistId,
         patientId: s.patientId,
+        sessionSpecId: s.sessionSpecId,
         roomId: s.roomId || undefined,
         date: s.date instanceof Date ? s.date.toISOString().split('T')[0] : String(s.date),
         startTime: s.startTime,

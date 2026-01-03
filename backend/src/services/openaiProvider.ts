@@ -22,16 +22,23 @@ export interface StaffForScheduling {
   defaultHours: Record<string, { start: string; end: string } | null>
 }
 
+export interface PatientSessionSpecForScheduling {
+  id: string
+  name: string
+  sessionsPerWeek: number
+  durationMinutes: number | null
+  requiredCertifications: string[]
+  preferredTimes: string[] | null
+  preferredRoomId?: string | null
+  requiredRoomCapabilities?: string[]
+}
+
 export interface PatientForScheduling {
   id: string
   identifier: string | null
   name: string
   gender: 'male' | 'female' | 'other'
-  sessionFrequency: number
-  requiredCertifications: string[]
-  preferredTimes: string[] | null
-  preferredRoomId?: string | null
-  requiredRoomCapabilities?: string[]
+  sessionSpecs: PatientSessionSpecForScheduling[]
 }
 
 export interface RuleForScheduling {
@@ -51,6 +58,7 @@ export interface RoomForScheduling {
 export interface GeneratedSession {
   therapistId: string
   patientId: string
+  sessionSpecId: string
   roomId?: string
   date: string // YYYY-MM-DD
   startTime: string // HH:mm
@@ -117,26 +125,33 @@ function formatStaffForPrompt(staff: StaffForScheduling[]): string {
       .join(', ')
 
     return `- ID: ${s.id}
-  Name: ${s.name}
   Gender: ${s.gender}
   Certifications: [${s.certifications.join(', ')}]
   Working Hours: ${hours || 'Not specified'}`
   }).join('\n')
 }
 
+function formatSessionSpecsForPrompt(specs: PatientSessionSpecForScheduling[]): string {
+  if (specs.length === 0) return '  (No session specs)'
+  return specs.map(spec => {
+    const roomCaps = (spec.requiredRoomCapabilities || []).join(', ')
+    return `  - ID: ${spec.id}
+    Name: ${spec.name}
+    Sessions Per Week: ${spec.sessionsPerWeek}
+    Duration (minutes): ${spec.durationMinutes ?? 60}
+    Required Certifications: [${spec.requiredCertifications.join(', ')}]
+    Preferred Times: [${(spec.preferredTimes || []).join(', ')}]
+    Preferred Room: ${spec.preferredRoomId || 'None'}
+    Required Room Capabilities: [${roomCaps}]`
+  }).join('\n')
+}
+
 function formatPatientsForPrompt(patients: PatientForScheduling[]): string {
   return patients.map(p => {
-    const displayId = p.identifier || p.id
-    const roomCaps = (p.requiredRoomCapabilities || []).join(', ')
     return `- ID: ${p.id}
-  Patient ID: ${displayId}
-  Name: ${p.name}
   Gender: ${p.gender}
-  Sessions Per Week: ${p.sessionFrequency}
-  Required Certifications: [${p.requiredCertifications.join(', ')}]
-  Preferred Times: [${(p.preferredTimes || []).join(', ')}]
-  Preferred Room: ${p.preferredRoomId || 'None'}
-  Required Room Capabilities: [${roomCaps}]`
+  Session Specs:
+${formatSessionSpecsForPrompt(p.sessionSpecs)}`
   }).join('\n')
 }
 
@@ -181,15 +196,15 @@ CRITICAL RULES:
 1. Each therapist can only have ONE session at a time (no overlapping sessions)
 2. Each patient can only have ONE session at a time (no overlapping sessions)
 3. Sessions must be within the therapist's working hours for that day
-4. Therapists must have ALL required certifications for each patient they see
+4. Therapists must have ALL required certifications for the specific session spec being scheduled
 5. Try to honor gender pairing rules when possible
-6. Each patient should receive their required number of sessions per week
+6. Each patient session spec should receive its required number of sessions per week
 7. Distribute sessions evenly across the week when possible
 8. Standard session duration is 60 minutes unless otherwise specified${hasRooms ? `
 9. Assign rooms to sessions when rooms are available
 10. Each room can only have ONE session at a time (no overlapping sessions)
 11. If a patient requires specific room capabilities, only assign rooms that have ALL required capabilities
-12. If a patient has a preferred room, try to use that room when possible` : ''}
+12. If a session spec has a preferred room, try to use that room when possible` : ''}
 
 You must return ONLY a valid JSON object with no additional text.`
 
@@ -216,7 +231,8 @@ Generate a complete schedule. Return a JSON object with this exact structure:
   "sessions": [
     {
       "therapistId": "<staff UUID>",
-      "patientId": "<patient UUID>",${hasRooms ? `
+      "patientId": "<patient UUID>",
+      "sessionSpecId": "<patient session spec UUID>",${hasRooms ? `
       "roomId": "<room UUID or null>",` : ''}
       "date": "YYYY-MM-DD",
       "startTime": "HH:mm",
@@ -228,9 +244,9 @@ Generate a complete schedule. Return a JSON object with this exact structure:
 }
 
 Ensure:
-- Use exact UUIDs from the staff${hasRooms ? ', patient, and room' : ' and patient'} lists above
+- Use exact UUIDs from the staff, patient, and session spec lists above${hasRooms ? ' (and rooms if used)' : ''}
 - Times are in 24-hour format (e.g., "09:00", "14:30")
-- Each patient gets approximately their required sessions per week
+- Each session spec gets approximately its required sessions per week
 - No time conflicts for any therapist${hasRooms ? ', patient, or room' : ' or patient'}`
 
   const debugAI = process.env.DEBUG_AI_REQUESTS === 'true'

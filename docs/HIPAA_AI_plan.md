@@ -12,7 +12,7 @@
 Restructure the rule system to:
 1. Store structured `ruleLogic` with entity IDs (not names) at rule creation time
 2. Use AWS Nova (HIPAA-eligible) for entity resolution when names are needed
-3. Send only short IDs to AI during schedule generation (any provider)
+3. Minimize PHI in schedule-generation prompts (and treat any patient-level scheduling as PHI unless formally de-identified)
 4. Validate entity references when rules are created
 5. Enable reliable chunked scheduling with specific pairings handled first
 
@@ -22,7 +22,18 @@ Restructure the rule system to:
 |------|----------|-----------|
 | Voice parsing / Entity resolution | AWS Nova (HIPAA) | Names + org context |
 | Rule analysis | AWS Nova (HIPAA) | Names for context |
-| Schedule generation | Any (Nova/OpenAI) | Short IDs only |
+| Schedule generation (production) | AWS Nova (HIPAA) | Minimal necessary fields; prefer short IDs; assume PHI |
+| Schedule generation (synthetic / de-identified) | Any (Nova/OpenAI) | Only if inputs are formally de-identified (no names, no real dates/times, no free-text notes) |
+
+### PHI Guardrails (Prompt Contract)
+
+Important: “No names” and “short IDs” alone do **not** guarantee a prompt is non‑PHI. Patient-level scheduling data (even if tokenized) is typically still PHI unless you have a formal de-identification determination.
+
+**Production rule**: If the prompt contains any patient-specific scheduling context, treat it as PHI and use a HIPAA-eligible provider under BAA (Nova).
+
+If you later introduce a non‑BAA provider for schedule generation, enforce both:
+1. **Mode gating**: only allowed for synthetic/test orgs or formally de‑identified datasets.
+2. **Prompt firewall**: hard-block anything resembling PHI (see Testing Strategy).
 
 ### Short ID Mapping (for AI prompts)
 
@@ -89,6 +100,11 @@ async function resolveEntitiesInRuleLogic(orgId: string, parsedRule: ParsedRuleD
 
 Uses fuzzy matching (leverage existing `sessionLookup.ts` patterns).
 
+Add disambiguation behavior:
+- Return top N candidates with confidence scores
+- Require explicit selection when confidence is below a threshold or multiple close matches exist
+- Never auto-bind to an entity when ambiguous
+
 ### 1.3 Create `/backend/src/services/ruleValidator.ts`
 
 Validate rules before saving:
@@ -114,6 +130,8 @@ ALTER TABLE rules ADD COLUMN migration_status VARCHAR(20) DEFAULT 'legacy';
 ```
 
 Values: `'legacy'` (old rules) | `'structured'` (new format)
+
+Implementation detail (Prisma): prefer a `migrationStatus` field mapped to the DB column, e.g. `migrationStatus String @default("legacy") @map("migration_status")`.
 
 ---
 
@@ -171,14 +189,14 @@ function formatRulesForScheduleGeneration(rules: Rule[]): string {
 
 Update `formatStaffForPrompt` and `formatPatientsForPrompt`:
 
-**Before**: Sends full names (PII risk)
+**Before**: Sends full names (PHI/PII risk)
 ```
 - ID: cmjx74dzw00077hsb86fkdm04
   Name: Lisa Chen        <- PII sent to AI
   Gender: female
 ```
 
-**After**: Sends only short IDs (HIPAA safe)
+**After**: Prefer short IDs and strict minimization (reduces exposure)
 ```
 - ID: S001
   Gender: female
@@ -188,6 +206,16 @@ Update `formatStaffForPrompt` and `formatPatientsForPrompt`:
 Create ID mapping at start of generation, use for prompt, reverse-map AI response.
 
 Update system prompt to reference entities by short ID only.
+
+Also require a structured response format (JSON) rather than free text, so we don’t reintroduce “unreliable parsing” on the output path.
+Example (AI response shape):
+```json
+{
+  "assignments": [
+    { "staffId": "S001", "patientId": "P005", "slotId": "T012" }
+  ]
+}
+```
 
 ### 4.3 Modify `/backend/src/services/scheduler.ts`
 
@@ -214,17 +242,17 @@ Script to convert legacy rules:
 
 | File | Action | Priority |
 |------|--------|----------|
-| `src/types/ruleLogic.ts` | CREATE | P0 |
-| `src/services/entityResolver.ts` | CREATE | P0 |
-| `src/services/ruleValidator.ts` | CREATE | P0 |
-| `src/services/ruleFormatter.ts` | CREATE | P0 |
-| `prisma/schema.prisma` | MODIFY - add migrationStatus | P0 |
-| `src/routes/rules.ts` | MODIFY - validation, new endpoints | P1 |
-| `src/services/voiceParser.ts` | MODIFY - entity resolution | P1 |
-| `src/services/novaProvider.ts` | MODIFY - remove names from prompts | P1 |
-| `src/services/openaiProvider.ts` | MODIFY - remove names from prompts | P1 |
-| `src/services/scheduler.ts` | MODIFY - use new formatter | P1 |
-| `src/db/migrations/migrate-rule-logic.ts` | CREATE | P2 |
+| `backend/src/types/ruleLogic.ts` | CREATE | P0 |
+| `backend/src/services/entityResolver.ts` | CREATE | P0 |
+| `backend/src/services/ruleValidator.ts` | CREATE | P0 |
+| `backend/src/services/ruleFormatter.ts` | CREATE | P0 |
+| `backend/prisma/schema.prisma` | MODIFY - add migrationStatus | P0 |
+| `backend/src/routes/rules.ts` | MODIFY - validation, new endpoints | P1 |
+| `backend/src/services/voiceParser.ts` | MODIFY - entity resolution | P1 |
+| `backend/src/services/novaProvider.ts` | MODIFY - prompt minimization | P1 |
+| `backend/src/services/openaiProvider.ts` | MODIFY - prompt minimization + mode gating | P1 |
+| `backend/src/services/scheduler.ts` | MODIFY - use new formatter | P1 |
+| `backend/src/db/migrations/migrate-rule-logic.ts` | CREATE | P2 |
 
 ---
 
@@ -232,7 +260,11 @@ Script to convert legacy rules:
 
 1. **Unit tests** for entityResolver, ruleValidator, ruleFormatter
 2. **Integration tests** for rule creation with validation
-3. **HIPAA verification**: Assert AI prompts contain no names
+3. **PHI verification**:
+   - Snapshot tests of generated prompts per provider/mode
+   - Assert prompts contain no names
+   - Assert prompts contain no obvious identifiers (emails/phones/addresses/DOB) and no raw free-text notes
+   - If non‑BAA schedule generation is enabled, assert the “de‑identified mode” contract is enforced (no patient-level scheduling in production)
 4. **Migration tests**: Verify legacy rule conversion
 
 ---
@@ -250,5 +282,5 @@ Script to convert legacy rules:
 
 1. **IDs in ruleLogic, names in description**: Human-readable display preserved
 2. **Validation at creation time**: Fail fast if entities don't exist
-3. **Fuzzy matching for voice**: Use existing sessionLookup patterns
+3. **Fuzzy matching for voice**: Use existing sessionLookup patterns with disambiguation + confidence thresholds
 4. **Gradual migration**: Legacy rules continue to work during transition

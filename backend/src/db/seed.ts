@@ -277,6 +277,20 @@ async function seed() {
         preferredTimes: ['Morning', 'Afternoon'],
         preferredRoomId: patient.preferredRoomId,
         requiredRoomCapabilities: patient.requiredRoomCapabilities || [],
+        sessionSpecs: {
+          create: [
+            {
+              name: 'Core Therapy',
+              sessionsPerWeek: patient.sessionFrequency,
+              durationMinutes: 60,
+              preferredTimes: ['Morning', 'Afternoon'],
+              requiredCertifications: patient.requiredCertifications,
+              preferredRoomId: patient.preferredRoomId,
+              requiredRoomCapabilities: patient.requiredRoomCapabilities || [],
+              isActive: true
+            }
+          ]
+        },
         status: 'active'
       }
     })

@@ -350,6 +350,7 @@ model Room {
 
   sessions         Session[]
   preferredByPatients Patient[] @relation("PreferredRoom")
+  preferredBySessionSpecs PatientSessionSpec[] @relation("PreferredRoomForSpec")
 
   @@map("rooms")
 }
@@ -388,8 +389,32 @@ model Patient {
 
   sessions         Session[]
   contacts         PatientContact[]
+  sessionSpecs     PatientSessionSpec[]
 
   @@map("patients")
+}
+
+// Patient Session Specs (per-patient recurring session requirements)
+model PatientSessionSpec {
+  id                       String   @id @default(cuid())
+  patientId                String   @map("patient_id")
+  patient                  Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name                     String   @db.VarChar(100)
+  sessionsPerWeek          Int      @default(2) @map("sessions_per_week")
+  durationMinutes          Int?     @map("duration_minutes")
+  preferredTimes           Json?    @map("preferred_times")
+  requiredCertifications   Json     @default("[]") @map("required_certifications")
+  preferredRoomId          String?  @map("preferred_room_id")
+  preferredRoom            Room?    @relation("PreferredRoomForSpec", fields: [preferredRoomId], references: [id], onDelete: SetNull)
+  requiredRoomCapabilities Json     @default("[]") @map("required_room_capabilities")
+  isActive                 Boolean  @default(true) @map("is_active")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at")
+
+  sessions                 Session[]
+
+  @@index([patientId])
+  @@map("patient_session_specs")
 }
 
 // Rules
@@ -437,6 +462,8 @@ model Session {
   therapist   Staff    @relation(fields: [therapistId], references: [id])
   patientId   String   @map("patient_id")
   patient     Patient  @relation(fields: [patientId], references: [id])
+  sessionSpecId String? @map("session_spec_id")
+  sessionSpec   PatientSessionSpec? @relation(fields: [sessionSpecId], references: [id], onDelete: SetNull)
   roomId      String?  @map("room_id")
   room        Room?    @relation(fields: [roomId], references: [id])
   date        DateTime

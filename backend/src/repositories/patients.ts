@@ -1,5 +1,5 @@
 import { prisma, paginate, getPaginationOffsets, type PaginationParams, type PaginatedResult } from './base.js'
-import type { Patient, Gender, Status, Prisma } from '@prisma/client'
+import type { Patient, Gender, Status, Prisma, PatientSessionSpec } from '@prisma/client'
 
 export type { Gender, Status }
 
@@ -30,6 +30,7 @@ export interface PatientUpdate {
 }
 
 export type { Patient }
+export type PatientWithSessionSpecs = Patient & { sessionSpecs: PatientSessionSpec[] }
 
 export class PatientRepository {
   async findAll(
@@ -86,6 +87,24 @@ export class PatientRepository {
     return prisma.patient.findMany({
       where,
       orderBy: { name: 'asc' }
+    })
+  }
+
+  async findByOrganizationWithSessionSpecs(organizationId: string, status?: Status): Promise<PatientWithSessionSpecs[]> {
+    const where: Prisma.PatientWhereInput = { organizationId }
+    if (status) {
+      where.status = status
+    }
+
+    return prisma.patient.findMany({
+      where,
+      orderBy: { name: 'asc' },
+      include: {
+        sessionSpecs: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' }
+        }
+      }
     })
   }
 

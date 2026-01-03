@@ -13,6 +13,7 @@ export interface SessionCreate {
   scheduleId: string
   therapistId: string
   patientId: string
+  sessionSpecId?: string | null
   roomId?: string | null
   date: Date
   startTime: string
@@ -23,6 +24,7 @@ export interface SessionCreate {
 export interface SessionUpdate {
   therapistId?: string
   patientId?: string
+  sessionSpecId?: string | null
   roomId?: string | null
   date?: Date
   startTime?: string

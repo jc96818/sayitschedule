@@ -99,18 +99,36 @@ describe('validateSessions', () => {
       identifier: 'EC-001',
       name: 'Emily Carter',
       gender: 'female',
-      sessionFrequency: 2,
-      requiredCertifications: ['ABA'],
-      preferredTimes: []
+      sessionSpecs: [
+        {
+          id: 'spec-1',
+          name: 'Core Therapy',
+          sessionsPerWeek: 2,
+          durationMinutes: 60,
+          requiredCertifications: ['ABA'],
+          preferredTimes: [],
+          preferredRoomId: null,
+          requiredRoomCapabilities: []
+        }
+      ]
     },
     {
       id: 'patient-2',
       identifier: 'MB-002',
       name: 'Michael Brown',
       gender: 'male',
-      sessionFrequency: 3,
-      requiredCertifications: [],
-      preferredTimes: []
+      sessionSpecs: [
+        {
+          id: 'spec-2',
+          name: 'Core Therapy',
+          sessionsPerWeek: 3,
+          durationMinutes: 60,
+          requiredCertifications: [],
+          preferredTimes: [],
+          preferredRoomId: null,
+          requiredRoomCapabilities: []
+        }
+      ]
     }
   ]
 
@@ -120,6 +138,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-1',
+          sessionSpecId: 'spec-1',
           date: '2025-01-06T12:00:00', // Monday
           startTime: '10:00',
           endTime: '11:00'
@@ -139,6 +158,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-1',
+          sessionSpecId: 'spec-1',
           date: '2025-01-06T12:00:00',
           startTime: '09:00',
           endTime: '10:00'
@@ -146,6 +166,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-2',
+          sessionSpecId: 'spec-2',
           date: '2025-01-06T12:00:00',
           startTime: '10:00',
           endTime: '11:00'
@@ -165,6 +186,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'unknown-staff',
           patientId: 'patient-1',
+          sessionSpecId: 'spec-1',
           date: '2025-01-06T12:00:00',
           startTime: '10:00',
           endTime: '11:00'
@@ -183,6 +205,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'unknown-patient',
+          sessionSpecId: 'spec-1',
           date: '2025-01-06T12:00:00',
           startTime: '10:00',
           endTime: '11:00'
@@ -203,6 +226,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-2', // John only has Physical cert
           patientId: 'patient-1', // Emily requires ABA
+          sessionSpecId: 'spec-1',
           date: '2025-01-06T12:00:00',
           startTime: '10:00',
           endTime: '11:00'
@@ -221,6 +245,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1', // Sarah has ABA and Speech
           patientId: 'patient-1', // Emily requires ABA
+          sessionSpecId: 'spec-1',
           date: '2025-01-06T12:00:00',
           startTime: '10:00',
           endTime: '11:00'
@@ -240,6 +265,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-2',
+          sessionSpecId: 'spec-2',
           date: '2025-01-06T12:00:00', // Monday
           startTime: '07:00', // Before 09:00 start
           endTime: '08:00'
@@ -258,6 +284,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-2', // John doesn't work Tuesday
           patientId: 'patient-2',
+          sessionSpecId: 'spec-2',
           date: '2025-01-07T12:00:00', // Tuesday
           startTime: '10:00',
           endTime: '11:00'
@@ -280,6 +307,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-1',
+          sessionSpecId: 'spec-1',
           date: '2025-01-06T12:00:00',
           startTime: '10:00',
           endTime: '11:00'
@@ -287,6 +315,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-2',
+          sessionSpecId: 'spec-2',
           date: '2025-01-06T12:00:00',
           startTime: '10:30', // Overlaps with first session
           endTime: '11:30'
@@ -305,6 +334,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-2',
+          sessionSpecId: 'spec-2',
           date: '2025-01-06T12:00:00',
           startTime: '10:00',
           endTime: '11:00'
@@ -312,6 +342,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-2',
           patientId: 'patient-2', // Same patient
+          sessionSpecId: 'spec-2',
           date: '2025-01-06T12:00:00',
           startTime: '10:30', // Overlaps
           endTime: '11:30'
@@ -332,6 +363,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-2', // Michael needs 3 sessions
+          sessionSpecId: 'spec-2',
           date: '2025-01-06T12:00:00',
           startTime: '10:00',
           endTime: '11:00'
@@ -342,7 +374,7 @@ describe('validateSessions', () => {
       const result = validateSessions(sessions, baseStaff, basePatients)
 
       expect(result.valid).toHaveLength(1)
-      expect(result.warnings).toContain('Patient Michael Brown (ID: MB-002) is scheduled for 1 sessions instead of the requested 3.')
+      expect(result.warnings).toContain('Patient Michael Brown (ID: MB-002) session spec "Core Therapy" is scheduled for 1 sessions instead of the requested 3.')
     })
 
     it('warns for patient with zero sessions scheduled', () => {
@@ -350,6 +382,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-2',
+          sessionSpecId: 'spec-2',
           date: '2025-01-06T12:00:00',
           startTime: '10:00',
           endTime: '11:00'
@@ -359,7 +392,7 @@ describe('validateSessions', () => {
 
       const result = validateSessions(sessions, baseStaff, basePatients)
 
-      expect(result.warnings).toContain('Patient Emily Carter (ID: EC-001) is scheduled for 0 sessions instead of the requested 2.')
+      expect(result.warnings).toContain('Patient Emily Carter (ID: EC-001) session spec "Core Therapy" is scheduled for 0 sessions instead of the requested 2.')
     })
 
     it('no warning when patient gets required sessions', () => {
@@ -367,6 +400,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-1', // Emily needs 2 sessions
+          sessionSpecId: 'spec-1',
           date: '2025-01-06T12:00:00',
           startTime: '09:00',
           endTime: '10:00'
@@ -374,6 +408,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-1',
+          sessionSpecId: 'spec-1',
           date: '2025-01-07T12:00:00',
           startTime: '09:00',
           endTime: '10:00'
@@ -395,6 +430,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-1',
+          sessionSpecId: 'spec-1',
           date: '2025-01-06T12:00:00',
           startTime: '09:00',
           endTime: '10:00'
@@ -402,6 +438,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-1',
           patientId: 'patient-2',
+          sessionSpecId: 'spec-2',
           date: '2025-01-06T12:00:00',
           startTime: '10:00',
           endTime: '11:00'
@@ -409,6 +446,7 @@ describe('validateSessions', () => {
         {
           therapistId: 'staff-2',
           patientId: 'patient-2',
+          sessionSpecId: 'spec-2',
           date: '2025-01-08T12:00:00', // Wednesday (John works)
           startTime: '09:00',
           endTime: '10:00'
