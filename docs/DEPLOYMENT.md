@@ -355,6 +355,7 @@ aws ecs run-task \
 To use a custom domain like `demo.sayitschedule.com`:
 
 1. Create a CNAME record in your DNS:
+
    ```
    demo.sayitschedule.com → sayitschedule-alb-demo-XXX.us-east-1.elb.amazonaws.com
    ```
@@ -496,6 +497,7 @@ aws ecs run-task \
 ```
 
 The seed creates:
+
 - Demo organization with subdomain `demo`
 - Super admin: `superadmin@sayitschedule.com` / `admin123`
 - Admin: `admin@demo.sayitschedule.com` / `admin123`
@@ -606,10 +608,9 @@ prisma/
 ```
 
 Each migration folder contains:
+
 - `migration.sql` - The SQL statements to apply
 - Migration metadata tracked in `_prisma_migrations` table
-
-
 
 Use `cd backend && npm run db:reset` anytime you want “wipe org data + reseed” without touching migrations.
 
