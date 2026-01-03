@@ -558,6 +558,19 @@ export const scheduleService = {
     return data
   },
 
+  async getByWeek(weekStartDate: string): Promise<ApiResponse<(Schedule & { sessions: Session[] }) | null>> {
+    try {
+      const { data } = await api.get('/schedules/by-week', { params: { weekStartDate } })
+      return data
+    } catch (error) {
+      // 404 means no schedule exists for this week
+      if ((error as { response?: { status: number } }).response?.status === 404) {
+        return { data: null }
+      }
+      throw error
+    }
+  },
+
   async generate(weekStartDate: string): Promise<ApiResponse<Schedule & { sessions: Session[] }, { stats: { totalSessions: number; patientsScheduled: number; therapistsUsed: number }; warnings: string[] }>> {
     const { data } = await api.post('/schedules/generate', { weekStartDate })
     return data

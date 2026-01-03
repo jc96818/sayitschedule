@@ -98,6 +98,16 @@ export class ScheduleRepository {
     return prisma.schedule.findFirst({ where })
   }
 
+  async findByWeekStart(organizationId: string, weekStartDate: Date): Promise<Schedule | null> {
+    return prisma.schedule.findFirst({
+      where: {
+        organizationId,
+        weekStartDate
+      },
+      orderBy: { version: 'desc' } // Return latest version if multiple exist
+    })
+  }
+
   async findByIdWithSessions(id: string, organizationId?: string): Promise<ScheduleWithSessions | null> {
     const where: { id: string; organizationId?: string } = { id }
     if (organizationId) {

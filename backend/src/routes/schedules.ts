@@ -71,6 +71,43 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
     return result
   })
 
+  // Get schedule by week start date
+  fastify.get('/by-week', { preHandler: authenticate }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const organizationId = request.ctx.organizationId
+
+    if (!organizationId) {
+      return reply.status(400).send({ error: 'Organization context required' })
+    }
+
+    const { weekStartDate } = request.query as { weekStartDate?: string }
+
+    if (!weekStartDate) {
+      return reply.status(400).send({ error: 'weekStartDate query parameter required' })
+    }
+
+    // Fetch organization settings to get timezone
+    const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+    const timezone = orgSettings.timezone || 'America/New_York'
+
+    // Parse the date string in the organization's timezone
+    const parsedDate = parseLocalDateStart(weekStartDate, timezone)
+
+    const schedule = await scheduleRepository.findByWeekStart(organizationId, parsedDate)
+    if (!schedule) {
+      return reply.status(404).send({ error: 'No schedule found for this week' })
+    }
+
+    // Get sessions for this schedule
+    const sessions = await sessionRepository.findBySchedule(schedule.id)
+
+    return {
+      data: {
+        ...schedule,
+        sessions
+      }
+    }
+  })
+
   // Get single schedule with sessions
   fastify.get('/:id', { preHandler: authenticate }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string }

@@ -74,6 +74,16 @@ export const useSchedulesStore = defineStore('schedules', () => {
     }
   }
 
+  async function checkExistingSchedule(weekStartDate: string) {
+    try {
+      const response = await scheduleService.getByWeek(weekStartDate)
+      return response.data
+    } catch {
+      // Error means no schedule exists
+      return null
+    }
+  }
+
   async function generateSchedule(weekStartDate: string) {
     generating.value = true
     error.value = null
@@ -360,6 +370,7 @@ export const useSchedulesStore = defineStore('schedules', () => {
     // Methods
     fetchSchedules,
     fetchScheduleById,
+    checkExistingSchedule,
     generateSchedule,
     publishSchedule,
     createDraftCopy,

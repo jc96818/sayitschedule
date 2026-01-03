@@ -5,8 +5,9 @@ import { useSchedulesStore } from '@/stores/schedules'
 import { useStaffStore } from '@/stores/staff'
 import { usePatientsStore } from '@/stores/patients'
 import { useRulesStore } from '@/stores/rules'
-import { Button, Alert, Badge, StatCard } from '@/components/ui'
+import { Button, Alert, Badge, StatCard, Modal } from '@/components/ui'
 import { useLabels } from '@/composables/useLabels'
+import type { Schedule, Session } from '@/types'
 
 const router = useRouter()
 const { staffLabel, patientLabel, patientLabelSingular, staffLabelSingular } = useLabels()
@@ -22,6 +23,11 @@ const generationStatus = ref('')
 const generationWarnings = ref<string[]>([])
 const generationStats = ref<{ totalSessions: number; patientsScheduled: number; therapistsUsed: number } | null>(null)
 const generationError = ref('')
+
+// Existing schedule confirmation modal
+const showExistingScheduleModal = ref(false)
+const existingSchedule = ref<(Schedule & { sessions: Session[] }) | null>(null)
+const checkingExisting = ref(false)
 
 // Calendar preview
 const timeSlots = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM']
@@ -127,7 +133,41 @@ function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-async function handleGenerate() {
+// Check for existing schedule and prompt user if found
+async function handleGenerateClick() {
+  if (!selectedWeek.value) return
+
+  checkingExisting.value = true
+  generationError.value = ''
+
+  try {
+    const existing = await schedulesStore.checkExistingSchedule(selectedWeek.value)
+    if (existing) {
+      existingSchedule.value = existing
+      showExistingScheduleModal.value = true
+    } else {
+      // No existing schedule, proceed directly
+      await proceedWithGeneration()
+    }
+  } catch {
+    // Error checking, proceed anyway
+    await proceedWithGeneration()
+  } finally {
+    checkingExisting.value = false
+  }
+}
+
+function handleViewExisting() {
+  showExistingScheduleModal.value = false
+  router.push('/app/schedule')
+}
+
+function handleGenerateAnyway() {
+  showExistingScheduleModal.value = false
+  proceedWithGeneration()
+}
+
+async function proceedWithGeneration() {
   if (!selectedWeek.value) return
 
   step.value = 'generating'
@@ -298,13 +338,14 @@ onMounted(() => {
             <Button
               variant="primary"
               size="lg"
-              :disabled="!selectedWeek"
-              @click="handleGenerate"
+              :disabled="!selectedWeek || checkingExisting"
+              :loading="checkingExisting"
+              @click="handleGenerateClick"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              Generate Schedule
+              {{ checkingExisting ? 'Checking...' : 'Generate Schedule' }}
             </Button>
           </div>
         </div>
@@ -459,6 +500,60 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Existing Schedule Confirmation Modal -->
+    <Modal
+      v-model="showExistingScheduleModal"
+      title="Schedule Already Exists"
+    >
+      <div class="existing-schedule-modal">
+        <div class="warning-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="32" height="32">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+
+        <p class="modal-message">
+          A schedule already exists for <strong>{{ weekDateRange }}</strong>.
+        </p>
+
+        <div v-if="existingSchedule" class="existing-schedule-info">
+          <div class="info-row">
+            <span class="info-label">Status:</span>
+            <Badge :variant="existingSchedule.status === 'published' ? 'success' : 'warning'">
+              {{ existingSchedule.status === 'published' ? 'Published' : 'Draft' }}
+            </Badge>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Sessions:</span>
+            <span>{{ existingSchedule.sessions?.length || 0 }}</span>
+          </div>
+          <div v-if="existingSchedule.version > 1" class="info-row">
+            <span class="info-label">Version:</span>
+            <span>{{ existingSchedule.version }}</span>
+          </div>
+        </div>
+
+        <p class="modal-note">
+          Generating a new schedule will create an additional draft for this week.
+          You may want to view the existing schedule first.
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="modal-actions">
+          <Button variant="outline" @click="showExistingScheduleModal = false">
+            Cancel
+          </Button>
+          <Button variant="secondary" @click="handleViewExisting">
+            View Existing
+          </Button>
+          <Button variant="primary" @click="handleGenerateAnyway">
+            Generate Anyway
+          </Button>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>
 
@@ -698,5 +793,64 @@ onMounted(() => {
     padding: 4px;
     font-size: 10px;
   }
+}
+
+/* Existing Schedule Modal Styles */
+.existing-schedule-modal {
+  text-align: center;
+}
+
+.warning-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: var(--warning-light);
+  color: var(--warning-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.modal-message {
+  font-size: 16px;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.existing-schedule-info {
+  background-color: var(--background-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.info-row:not(:last-child) {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.info-label {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.modal-note {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 16px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
 }
 </style>
