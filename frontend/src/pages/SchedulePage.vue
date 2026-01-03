@@ -67,18 +67,18 @@ const currentWeekDate = computed(() => {
 const weekDateRange = computed(() => {
   const start = new Date(currentWeekDate.value)
   const end = new Date(start)
-  end.setDate(start.getDate() + 4)
+  end.setDate(start.getDate() + 6)
   return `${formatDate(start)} - ${formatDate(end)}`
 })
 
 const weekDays = computed(() => {
   const days = []
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 7; i++) {
     const date = new Date(currentWeekDate.value)
     date.setDate(date.getDate() + i)
     const holidayName = getFederalHoliday(date)
     days.push({
-      name: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][i],
+      name: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i],
       date: date,
       dateStr: formatShortDate(date),
       isHoliday: holidayName !== null,
@@ -137,6 +137,13 @@ function formatDate(date: Date): string {
 
 function formatShortDate(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+// Parse a date string as a local date to avoid timezone shifts
+// YYYY-MM-DD strings are interpreted as UTC by default, causing off-by-one day errors
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number)
+  return new Date(year, month - 1, day)
 }
 
 function prevWeek() {
@@ -339,8 +346,10 @@ const scheduleRooms = computed(() => {
 })
 
 // Format day of week from date string
+// Parse as local date to avoid timezone shifts (YYYY-MM-DD strings are interpreted as UTC by default)
 function formatDayOfWeek(dateStr: string): string {
-  const date = new Date(dateStr)
+  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number)
+  const date = new Date(year, month - 1, day)
   return date.toLocaleDateString('en-US', { weekday: 'short' })
 }
 
@@ -1019,7 +1028,7 @@ onMounted(() => {
                     <tr v-for="session in group.sessions" :key="session.id">
                       <td>
                         <span class="day-badge">{{ formatDayOfWeek(session.date) }}</span>
-                        <span class="text-muted text-sm">{{ formatShortDate(new Date(session.date)) }}</span>
+                        <span class="text-muted text-sm">{{ formatShortDate(parseLocalDate(session.date)) }}</span>
                       </td>
                       <td>{{ formatTime(session.startTime) }}</td>
                       <td>{{ session.patientName || session.patientId?.slice(0, 8) }}</td>
@@ -1070,7 +1079,7 @@ onMounted(() => {
                     <tr v-for="session in group.sessions" :key="session.id">
                       <td>
                         <span class="day-badge">{{ formatDayOfWeek(session.date) }}</span>
-                        <span class="text-muted text-sm">{{ formatShortDate(new Date(session.date)) }}</span>
+                        <span class="text-muted text-sm">{{ formatShortDate(parseLocalDate(session.date)) }}</span>
                       </td>
                       <td>{{ formatTime(session.startTime) }}</td>
                       <td>
@@ -1128,7 +1137,7 @@ onMounted(() => {
                     <tr v-for="session in group.sessions" :key="session.id">
                       <td>
                         <span class="day-badge">{{ formatDayOfWeek(session.date) }}</span>
-                        <span class="text-muted text-sm">{{ formatShortDate(new Date(session.date)) }}</span>
+                        <span class="text-muted text-sm">{{ formatShortDate(parseLocalDate(session.date)) }}</span>
                       </td>
                       <td>{{ formatTime(session.startTime) }}</td>
                       <td>
@@ -1426,7 +1435,7 @@ onMounted(() => {
 
 .calendar-grid {
   display: grid;
-  grid-template-columns: 80px repeat(5, 1fr);
+  grid-template-columns: 80px repeat(7, 1fr);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   overflow: hidden;

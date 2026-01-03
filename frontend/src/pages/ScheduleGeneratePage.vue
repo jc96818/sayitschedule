@@ -26,18 +26,27 @@ const generationError = ref('')
 // Calendar preview
 const timeSlots = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM']
 
+// Parse a date string as a local date to avoid timezone shifts
+// YYYY-MM-DD strings are interpreted as UTC by default, causing off-by-one day errors
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
 const previewWeekDays = computed(() => {
   if (!selectedWeek.value) return []
   const days = []
-  const startDate = new Date(selectedWeek.value)
+  const startDate = parseLocalDate(selectedWeek.value)
   for (let i = 0; i < 5; i++) {
     const date = new Date(startDate)
     date.setDate(startDate.getDate() + i)
+    // Format isoDate using local date components to avoid timezone shifts
+    const isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     days.push({
       name: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][i],
       date: date,
       dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      isoDate: date.toISOString().split('T')[0]
+      isoDate: isoDate
     })
   }
   return days
@@ -80,7 +89,7 @@ const defaultWeekStart = computed(() => {
 
 const weekDateRange = computed(() => {
   if (!selectedWeek.value) return ''
-  const start = new Date(selectedWeek.value)
+  const start = parseLocalDate(selectedWeek.value)
   const end = new Date(start)
   end.setDate(start.getDate() + 4)
   return `${formatDate(start)} - ${formatDate(end)}`
