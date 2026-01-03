@@ -55,12 +55,12 @@ onMounted(async () => {
           </svg>
           Back to Organizations
         </RouterLink>
-        <h2>Edit Organization</h2>
-        <p v-if="organization">
-          <Badge :variant="organization.status === 'active' ? 'success' : 'warning'">
+        <div class="title-row">
+          <h2>Edit Organization</h2>
+          <Badge v-if="organization" :variant="organization.status === 'active' ? 'success' : 'warning'">
             {{ organization.status === 'active' ? 'Active' : 'Inactive' }}
           </Badge>
-        </p>
+        </div>
       </div>
       <div class="header-actions" v-if="organization">
         <Button variant="outline" @click="handleCancel">Cancel</Button>
@@ -253,6 +253,12 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .back-link {
   display: inline-flex;
   align-items: center;
