@@ -1,4 +1,4 @@
-import { PrismaClient, MedicalSpecialty } from '@prisma/client'
+import { PrismaClient, MedicalSpecialty, Gender } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcrypt'
 
@@ -144,40 +144,40 @@ async function seedAbaTestOrg() {
   // Create 30 patients with varied requirements
   const patientsData = [
     // Patients requiring BCBA-level care
-    { name: 'Aiden Johnson', gender: 'male' as const, frequency: 4, certs: ['BCBA', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: rooms[0].id, defaultDuration: 90, genderPref: null },
-    { name: 'Bella Williams', gender: 'female' as const, frequency: 4, certs: ['BCBA', 'ABA', 'Autism Specialist'], capabilities: ['quiet_space'], preferredRoom: rooms[3].id, defaultDuration: 60, genderPref: 'female' },
-    { name: 'Carter Brown', gender: 'male' as const, frequency: 3, certs: ['BCBA', 'ABA'], capabilities: ['therapy_swing'], preferredRoom: rooms[1].id, defaultDuration: 90, genderPref: null },
-    { name: 'Diana Garcia', gender: 'female' as const, frequency: 3, certs: ['BCBA', 'Pediatrics'], capabilities: ['observation_mirror'], preferredRoom: rooms[0].id, defaultDuration: 60, genderPref: 'female' },
+    { name: 'Aiden Johnson', gender: 'male' as const, frequency: 4, certs: ['BCBA', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: rooms[0].id, defaultDuration: 90, genderPref: null as Gender | null },
+    { name: 'Bella Williams', gender: 'female' as const, frequency: 4, certs: ['BCBA', 'ABA', 'Autism Specialist'], capabilities: ['quiet_space'], preferredRoom: rooms[3].id, defaultDuration: 60, genderPref: 'female' as Gender },
+    { name: 'Carter Brown', gender: 'male' as const, frequency: 3, certs: ['BCBA', 'ABA'], capabilities: ['therapy_swing'], preferredRoom: rooms[1].id, defaultDuration: 90, genderPref: null as Gender | null },
+    { name: 'Diana Garcia', gender: 'female' as const, frequency: 3, certs: ['BCBA', 'Pediatrics'], capabilities: ['observation_mirror'], preferredRoom: rooms[0].id, defaultDuration: 60, genderPref: 'female' as Gender },
 
     // Patients okay with BCaBA
-    { name: 'Ethan Miller', gender: 'male' as const, frequency: 3, certs: ['BCaBA', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: null, defaultDuration: 60, genderPref: null },
-    { name: 'Faith Davis', gender: 'female' as const, frequency: 2, certs: ['BCaBA', 'ABA'], capabilities: ['quiet_space'], preferredRoom: rooms[4].id, defaultDuration: 45, genderPref: 'female' },
-    { name: 'Gabriel Rodriguez', gender: 'male' as const, frequency: 3, certs: ['BCaBA', 'Behavioral'], capabilities: ['large_space'], preferredRoom: rooms[2].id, defaultDuration: 60, genderPref: 'male' },
-    { name: 'Hannah Wilson', gender: 'female' as const, frequency: 2, certs: ['BCaBA', 'ABA'], capabilities: [], preferredRoom: null, defaultDuration: 60, genderPref: null },
+    { name: 'Ethan Miller', gender: 'male' as const, frequency: 3, certs: ['BCaBA', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: null, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'Faith Davis', gender: 'female' as const, frequency: 2, certs: ['BCaBA', 'ABA'], capabilities: ['quiet_space'], preferredRoom: rooms[4].id, defaultDuration: 45, genderPref: 'female' as Gender },
+    { name: 'Gabriel Rodriguez', gender: 'male' as const, frequency: 3, certs: ['BCaBA', 'Behavioral'], capabilities: ['large_space'], preferredRoom: rooms[2].id, defaultDuration: 60, genderPref: 'male' as Gender },
+    { name: 'Hannah Wilson', gender: 'female' as const, frequency: 2, certs: ['BCaBA', 'ABA'], capabilities: [], preferredRoom: null, defaultDuration: 60, genderPref: null as Gender | null },
 
     // Patients okay with RBT (most common)
-    { name: 'Isaac Moore', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: rooms[0].id, defaultDuration: 60, genderPref: null },
-    { name: 'Julia Taylor', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: ['quiet_space'], preferredRoom: null, defaultDuration: 45, genderPref: 'female' },
-    { name: 'Kevin Anderson', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['therapy_swing'], preferredRoom: rooms[1].id, defaultDuration: 60, genderPref: null },
-    { name: 'Lily Thomas', gender: 'female' as const, frequency: 2, certs: ['RBT', 'Pediatrics'], capabilities: ['observation_mirror'], preferredRoom: null, defaultDuration: 60, genderPref: null },
-    { name: 'Mason Jackson', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['large_space'], preferredRoom: rooms[2].id, defaultDuration: 90, genderPref: 'male' },
-    { name: 'Natalie White', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: [], preferredRoom: null, defaultDuration: 45, genderPref: null },
-    { name: 'Oliver Harris', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['reward_station'], preferredRoom: rooms[1].id, defaultDuration: 60, genderPref: null },
-    { name: 'Penelope Martin', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA', 'Autism Specialist'], capabilities: ['quiet_space'], preferredRoom: rooms[3].id, defaultDuration: 60, genderPref: 'female' },
-    { name: 'Quinn Thompson', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: null, defaultDuration: 60, genderPref: null },
-    { name: 'Rose Garcia', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: [], preferredRoom: null, defaultDuration: 45, genderPref: null },
-    { name: 'Samuel Martinez', gender: 'male' as const, frequency: 4, certs: ['RBT', 'Behavioral'], capabilities: ['large_space', 'wheelchair_accessible'], preferredRoom: rooms[2].id, defaultDuration: 90, genderPref: null },
-    { name: 'Tiffany Robinson', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: ['computer_station'], preferredRoom: rooms[4].id, defaultDuration: 45, genderPref: null },
-    { name: 'Ulysses Clark', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: null, defaultDuration: 60, genderPref: 'male' },
-    { name: 'Victoria Lewis', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: ['quiet_space'], preferredRoom: rooms[3].id, defaultDuration: 60, genderPref: null },
-    { name: 'William Walker', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['therapy_swing'], preferredRoom: null, defaultDuration: 60, genderPref: null },
-    { name: 'Xena Hall', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: [], preferredRoom: null, defaultDuration: 45, genderPref: 'female' },
-    { name: 'Yosef Allen', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['reward_station'], preferredRoom: rooms[1].id, defaultDuration: 60, genderPref: null },
-    { name: 'Zoe Young', gender: 'female' as const, frequency: 2, certs: ['RBT', 'Pediatrics'], capabilities: ['observation_mirror'], preferredRoom: rooms[0].id, defaultDuration: 60, genderPref: null },
-    { name: 'Adam King', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: null, defaultDuration: 60, genderPref: null },
-    { name: 'Brianna Scott', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: ['quiet_space'], preferredRoom: null, defaultDuration: 45, genderPref: null },
-    { name: 'Caleb Green', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: [], preferredRoom: null, defaultDuration: 60, genderPref: null },
-    { name: 'Daisy Baker', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: ['natural_lighting'], preferredRoom: rooms[3].id, defaultDuration: 45, genderPref: null }
+    { name: 'Isaac Moore', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: rooms[0].id, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'Julia Taylor', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: ['quiet_space'], preferredRoom: null, defaultDuration: 45, genderPref: 'female' as Gender },
+    { name: 'Kevin Anderson', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['therapy_swing'], preferredRoom: rooms[1].id, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'Lily Thomas', gender: 'female' as const, frequency: 2, certs: ['RBT', 'Pediatrics'], capabilities: ['observation_mirror'], preferredRoom: null, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'Mason Jackson', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['large_space'], preferredRoom: rooms[2].id, defaultDuration: 90, genderPref: 'male' as Gender },
+    { name: 'Natalie White', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: [], preferredRoom: null, defaultDuration: 45, genderPref: null as Gender | null },
+    { name: 'Oliver Harris', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['reward_station'], preferredRoom: rooms[1].id, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'Penelope Martin', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA', 'Autism Specialist'], capabilities: ['quiet_space'], preferredRoom: rooms[3].id, defaultDuration: 60, genderPref: 'female' as Gender },
+    { name: 'Quinn Thompson', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: null, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'Rose Garcia', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: [], preferredRoom: null, defaultDuration: 45, genderPref: null as Gender | null },
+    { name: 'Samuel Martinez', gender: 'male' as const, frequency: 4, certs: ['RBT', 'Behavioral'], capabilities: ['large_space', 'wheelchair_accessible'], preferredRoom: rooms[2].id, defaultDuration: 90, genderPref: null as Gender | null },
+    { name: 'Tiffany Robinson', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: ['computer_station'], preferredRoom: rooms[4].id, defaultDuration: 45, genderPref: null as Gender | null },
+    { name: 'Ulysses Clark', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: null, defaultDuration: 60, genderPref: 'male' as Gender },
+    { name: 'Victoria Lewis', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: ['quiet_space'], preferredRoom: rooms[3].id, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'William Walker', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['therapy_swing'], preferredRoom: null, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'Xena Hall', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: [], preferredRoom: null, defaultDuration: 45, genderPref: 'female' as Gender },
+    { name: 'Yosef Allen', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['reward_station'], preferredRoom: rooms[1].id, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'Zoe Young', gender: 'female' as const, frequency: 2, certs: ['RBT', 'Pediatrics'], capabilities: ['observation_mirror'], preferredRoom: rooms[0].id, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'Adam King', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: ['sensory_equipment'], preferredRoom: null, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'Brianna Scott', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: ['quiet_space'], preferredRoom: null, defaultDuration: 45, genderPref: null as Gender | null },
+    { name: 'Caleb Green', gender: 'male' as const, frequency: 3, certs: ['RBT', 'ABA'], capabilities: [], preferredRoom: null, defaultDuration: 60, genderPref: null as Gender | null },
+    { name: 'Daisy Baker', gender: 'female' as const, frequency: 2, certs: ['RBT', 'ABA'], capabilities: ['natural_lighting'], preferredRoom: rooms[3].id, defaultDuration: 45, genderPref: null as Gender | null }
   ]
 
   const patients = await Promise.all(

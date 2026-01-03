@@ -211,7 +211,7 @@ describe('Schedule Routes', () => {
       }
       const mockGenerationResult = {
         sessions: [
-          { scheduleId: '', therapistId: 'staff-1', patientId: 'patient-1', date: new Date(), startTime: '09:00', endTime: '10:00' }
+          { scheduleId: '', therapistId: 'staff-1', patientId: 'patient-1', sessionSpecId: 'spec-1', date: new Date(), startTime: '09:00', endTime: '10:00' }
         ],
         warnings: [],
         stats: { totalSessions: 1, patientsScheduled: 1, therapistsUsed: 1 }
@@ -920,6 +920,7 @@ describe('Schedule Routes', () => {
           scheduleId: 'schedule-2',
           therapistId: 'staff-1',
           patientId: 'patient-1',
+          sessionSpecId: 'spec-1',
           date: new Date('2025-01-06'),
           startTime: '09:00',
           endTime: '10:00'
@@ -960,6 +961,7 @@ describe('Schedule Routes', () => {
           scheduleId: 'schedule-2',
           therapistId: 'staff-2',
           patientId: 'patient-1',
+          sessionSpecId: 'spec-1',
           date: new Date('2025-01-07'),
           startTime: '14:00',
           endTime: '15:00'
