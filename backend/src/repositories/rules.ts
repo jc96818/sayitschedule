@@ -18,6 +18,9 @@ export interface RuleUpdate {
   ruleLogic?: Record<string, unknown>
   priority?: number
   isActive?: boolean
+  reviewStatus?: string
+  reviewIssues?: Record<string, unknown> | unknown[]
+  reviewedAt?: Date | null
 }
 
 export type { Rule }
@@ -103,6 +106,9 @@ export class RuleRepository {
       if (data.ruleLogic !== undefined) updateData.ruleLogic = data.ruleLogic as Prisma.InputJsonValue
       if (data.priority !== undefined) updateData.priority = data.priority
       if (data.isActive !== undefined) updateData.isActive = data.isActive
+      if (data.reviewStatus !== undefined) updateData.reviewStatus = data.reviewStatus
+      if (data.reviewIssues !== undefined) updateData.reviewIssues = data.reviewIssues as Prisma.InputJsonValue
+      if (data.reviewedAt !== undefined) updateData.reviewedAt = data.reviewedAt
 
       return await prisma.rule.update({
         where: { id, organizationId },

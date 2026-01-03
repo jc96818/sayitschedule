@@ -15,6 +15,7 @@ import {
 } from '../services/sessionLookup.js'
 import { validateSessionEntities } from '../services/sessionValidation.js'
 import { isProviderConfigured, getActiveProvider } from '../services/aiProvider.js'
+import { RuleReviewRequiredError } from '../services/ruleReview.js'
 import { parseLocalDateStart, formatLocalDate } from '../utils/timezone.js'
 
 const generateScheduleSchema = z.object({
@@ -169,6 +170,14 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       console.error('Schedule generation failed:', error)
 
       if (error instanceof Error) {
+        if (error instanceof RuleReviewRequiredError) {
+          return reply.status(409).send({
+            error: 'Rules require review before schedule generation.',
+            data: {
+              rulesNeedingReview: error.results
+            }
+          })
+        }
         if (error.message.includes('AI service error')) {
           return reply.status(503).send({
             error: 'AI scheduling service temporarily unavailable. Please try again.'

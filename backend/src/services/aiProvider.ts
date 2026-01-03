@@ -6,7 +6,7 @@
  * determined by the AI_PROVIDER environment variable.
  *
  * Environment variables:
- * - AI_PROVIDER: 'nova' (default) or 'openai'
+ * - AI_PROVIDER: 'openai' (default) or 'nova'
  * - For Nova: AWS_REGION (default: us-east-1), plus AWS credentials via IAM or env vars
  * - For OpenAI: OPENAI_API_KEY
  */
@@ -34,10 +34,10 @@ type AIProvider = 'nova' | 'openai'
 
 function getProvider(): AIProvider {
   const provider = process.env.AI_PROVIDER?.toLowerCase()
-  if (provider === 'openai') {
-    return 'openai'
+  if (provider === 'nova') {
+    return 'nova'
   }
-  return 'nova' // Default to Nova
+  return 'openai' // Default to OpenAI
 }
 
 /**

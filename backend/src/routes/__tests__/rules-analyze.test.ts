@@ -129,6 +129,9 @@ describe('Rules Analyze Route', () => {
           ruleLogic: {},
           priority: 10,
           isActive: true,
+          reviewStatus: 'ok',
+          reviewIssues: [],
+          reviewedAt: null,
           createdById: 'user-1',
           createdAt: new Date(),
           updatedAt: new Date()
@@ -141,6 +144,9 @@ describe('Rules Analyze Route', () => {
           ruleLogic: {},
           priority: 5,
           isActive: true,
+          reviewStatus: 'ok',
+          reviewIssues: [],
+          reviewedAt: null,
           createdById: 'user-1',
           createdAt: new Date(),
           updatedAt: new Date()
@@ -222,6 +228,9 @@ describe('Rules Analyze Route', () => {
           ruleLogic: {},
           priority: 10,
           isActive: true,
+          reviewStatus: 'ok',
+          reviewIssues: [],
+          reviewedAt: null,
           createdById: 'user-1',
           createdAt: new Date(),
           updatedAt: new Date()
@@ -234,6 +243,9 @@ describe('Rules Analyze Route', () => {
           ruleLogic: {},
           priority: 10,
           isActive: true,
+          reviewStatus: 'ok',
+          reviewIssues: [],
+          reviewedAt: null,
           createdById: 'user-1',
           createdAt: new Date(),
           updatedAt: new Date()
@@ -302,6 +314,9 @@ describe('Rules Analyze Route', () => {
           ruleLogic: {},
           priority: 5,
           isActive: true,
+          reviewStatus: 'ok',
+          reviewIssues: [],
+          reviewedAt: null,
           createdById: 'user-1',
           createdAt: new Date(),
           updatedAt: new Date()
@@ -332,6 +347,9 @@ describe('Rules Analyze Route', () => {
           ruleLogic: {},
           priority: 5,
           isActive: true,
+          reviewStatus: 'ok',
+          reviewIssues: [],
+          reviewedAt: null,
           createdById: 'user-1',
           createdAt: new Date(),
           updatedAt: new Date()
@@ -344,6 +362,9 @@ describe('Rules Analyze Route', () => {
           ruleLogic: {},
           priority: 5,
           isActive: true,
+          reviewStatus: 'ok',
+          reviewIssues: [],
+          reviewedAt: null,
           createdById: 'user-1',
           createdAt: new Date(),
           updatedAt: new Date()

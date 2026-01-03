@@ -14,6 +14,7 @@ import {
   type RoomForScheduling,
   type GeneratedSession
 } from './aiProvider.js'
+import { evaluateRulesForReview, RuleReviewRequiredError } from './ruleReview.js'
 import type { SessionWithDetails, ScheduleWithSessions } from '../repositories/schedules.js'
 import {
   getLocalDayOfWeek,
@@ -407,6 +408,18 @@ export async function generateSchedule(
     ruleLogic: r.ruleLogic as Record<string, unknown>,
     priority: r.priority
   }))
+
+  const reviewResults = evaluateRulesForReview(
+    rulesForAI.map(r => ({ id: r.id, description: r.description, ruleLogic: r.ruleLogic })),
+    {
+      staff: staff.map(s => ({ id: s.id, name: s.name })),
+      patients: patients.map(p => ({ id: p.id, name: p.name }))
+    }
+  ).filter(r => r.status === 'needs_review')
+
+  if (reviewResults.length > 0) {
+    throw new RuleReviewRequiredError(reviewResults)
+  }
 
   // Call OpenAI to generate schedule
   console.log(`Generating schedule for ${staff.length} staff, ${patients.length} patients, and ${rooms.length} rooms...`)

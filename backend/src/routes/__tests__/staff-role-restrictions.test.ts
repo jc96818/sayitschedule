@@ -30,6 +30,7 @@ vi.mock('../../repositories/staff.js', () => ({
     }),
     findById: vi.fn().mockResolvedValue({ id: 'staff-1', name: 'Test Staff', organizationId: 'org-1' }),
     findByUserId: vi.fn().mockResolvedValue(null),
+    findByOrganization: vi.fn().mockResolvedValue([{ id: 'staff-1', name: 'Test Staff', organizationId: 'org-1' }]),
     create: vi.fn().mockResolvedValue({ id: 'new-staff', name: 'New Staff', gender: 'female', organizationId: 'org-1' }),
     update: vi.fn().mockResolvedValue({ id: 'staff-1', name: 'Updated Staff', organizationId: 'org-1' }),
     delete: vi.fn().mockResolvedValue(true)
@@ -46,6 +47,7 @@ vi.mock('../../repositories/patients.js', () => ({
       totalPages: 1
     }),
     findById: vi.fn().mockResolvedValue({ id: 'patient-1', name: 'Test Patient', organizationId: 'org-1' }),
+    findByOrganization: vi.fn().mockResolvedValue([{ id: 'patient-1', name: 'Test Patient', organizationId: 'org-1' }]),
     create: vi.fn().mockResolvedValue({ id: 'new-patient', name: 'New Patient', gender: 'female', organizationId: 'org-1' }),
     update: vi.fn().mockResolvedValue({ id: 'patient-1', name: 'Updated Patient', organizationId: 'org-1' }),
     delete: vi.fn().mockResolvedValue(true)

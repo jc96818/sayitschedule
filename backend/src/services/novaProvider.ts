@@ -5,6 +5,7 @@ import {
   type ContentBlock,
 } from '@aws-sdk/client-bedrock-runtime'
 import { formatLocalDate, addDaysToLocalDate } from '../utils/timezone.js'
+import { getEntityBindings, applyEntityBindingsToText } from './ruleBindings.js'
 
 const MODEL_ID = 'us.amazon.nova-2-lite-v1:0'
 
@@ -228,7 +229,9 @@ function formatRoomsForPrompt(rooms: RoomForScheduling[]): string {
 
 function formatRulesForPrompt(rules: RuleForScheduling[]): string {
   return rules.map((r, i) => {
-    return `${i + 1}. [${r.category}] ${r.description} (priority: ${r.priority})`
+    const bindings = getEntityBindings(r.ruleLogic || {})
+    const rendered = bindings.length > 0 ? applyEntityBindingsToText(r.description, bindings) : r.description
+    return `${i + 1}. [${r.category}] ${rendered} (priority: ${r.priority})`
   }).join('\n')
 }
 

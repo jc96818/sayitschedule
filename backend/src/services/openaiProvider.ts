@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { formatLocalDate, addDaysToLocalDate } from '../utils/timezone.js'
+import { getEntityBindings, applyEntityBindingsToText } from './ruleBindings.js'
 
 let openaiClient: OpenAI | null = null
 
@@ -167,7 +168,9 @@ function formatRoomsForPrompt(rooms: RoomForScheduling[]): string {
 
 function formatRulesForPrompt(rules: RuleForScheduling[]): string {
   return rules.map((r, i) => {
-    return `${i + 1}. [${r.category}] ${r.description} (priority: ${r.priority})`
+    const bindings = getEntityBindings(r.ruleLogic || {})
+    const rendered = bindings.length > 0 ? applyEntityBindingsToText(r.description, bindings) : r.description
+    return `${i + 1}. [${r.category}] ${rendered} (priority: ${r.priority})`
   }).join('\n')
 }
 

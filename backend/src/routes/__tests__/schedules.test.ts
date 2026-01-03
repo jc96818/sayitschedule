@@ -105,6 +105,7 @@ import { generateSchedule, validateAndRegenerateCopiedSchedule } from '../../ser
 import { findMatchingSessions, checkForConflicts, getDateForDayOfWeek } from '../../services/sessionLookup.js'
 import { validateSessionEntities } from '../../services/sessionValidation.js'
 import { isProviderConfigured } from '../../services/aiProvider.js'
+import { RuleReviewRequiredError } from '../../services/ruleReview.js'
 
 describe('Schedule Routes', () => {
   let app: FastifyInstance
@@ -271,6 +272,44 @@ describe('Schedule Routes', () => {
       expect(response.statusCode).toBe(503)
       const body = JSON.parse(response.payload)
       expect(body.error).toContain('not configured')
+    })
+
+    it('returns 409 when rules require review', async () => {
+      const originalEnv = process.env.OPENAI_API_KEY
+      process.env.OPENAI_API_KEY = 'test-key'
+
+      vi.mocked(generateSchedule).mockRejectedValue(
+        new RuleReviewRequiredError([
+          {
+            ruleId: 'rule-1',
+            status: 'needs_review',
+            issues: [
+              {
+                type: 'ambiguous_entity_reference',
+                mention: 'amy',
+                candidates: [
+                  { entityType: 'staff', id: 's1', name: 'Amy Smith' },
+                  { entityType: 'staff', id: 's2', name: 'Amy Douglas' }
+                ],
+                detail: 'The mention "amy" matches multiple entities.'
+              }
+            ]
+          }
+        ])
+      )
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/schedules/generate',
+        payload: { weekStartDate: '2025-01-06' }
+      })
+
+      process.env.OPENAI_API_KEY = originalEnv
+
+      expect(response.statusCode).toBe(409)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toContain('Rules require review')
+      expect(body.data.rulesNeedingReview).toHaveLength(1)
     })
 
     it('returns 400 when no active staff', async () => {
