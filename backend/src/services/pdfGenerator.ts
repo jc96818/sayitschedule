@@ -108,7 +108,7 @@ function buildDayColumns(schedule: ScheduleWithSessions, timezone: string = 'UTC
     }
 
     columns.push({
-      shortName: dayNames[i],
+      shortName: dayNames[displayDate.getDay()], // Use actual day of week from date
       dateStr: formatShortDate(displayDate),
       sessions: sessionsMap
     })

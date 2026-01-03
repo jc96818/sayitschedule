@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSchedulesStore } from '@/stores/schedules'
 import { useStaffStore } from '@/stores/staff'
@@ -33,9 +33,36 @@ function parseLocalDate(dateStr: string): Date {
   return new Date(year, month - 1, day)
 }
 
+// Get the Sunday of the week containing the given date
+function getSundayOfWeek(date: Date): Date {
+  const result = new Date(date)
+  const dayOfWeek = result.getDay() // 0 = Sunday, 1 = Monday, etc.
+  result.setDate(result.getDate() - dayOfWeek)
+  return result
+}
+
+// Format date as YYYY-MM-DD for input value
+function formatDateForInput(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+// Watch for date changes and snap to Sunday
+watch(selectedWeek, (newValue) => {
+  if (!newValue) return
+  const selectedDate = parseLocalDate(newValue)
+  const sunday = getSundayOfWeek(selectedDate)
+  const sundayStr = formatDateForInput(sunday)
+
+  // Only update if it's different (avoid infinite loop)
+  if (newValue !== sundayStr) {
+    selectedWeek.value = sundayStr
+  }
+})
+
 const previewWeekDays = computed(() => {
   if (!selectedWeek.value) return []
   const days = []
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   const startDate = parseLocalDate(selectedWeek.value)
   for (let i = 0; i < 7; i++) {
     const date = new Date(startDate)
@@ -43,7 +70,7 @@ const previewWeekDays = computed(() => {
     // Format isoDate using local date components to avoid timezone shifts
     const isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     days.push({
-      name: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i],
+      name: dayNames[date.getDay()], // Use actual day of week from date
       date: date,
       dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       isoDate: isoDate
@@ -214,7 +241,7 @@ onMounted(() => {
         </div>
         <div class="card-body">
           <div class="form-group">
-            <label for="week">Select Week Start Date</label>
+            <label for="week">Select Week</label>
             <input
               id="week"
               v-model="selectedWeek"
@@ -224,7 +251,7 @@ onMounted(() => {
               style="max-width: 300px;"
             />
             <small v-if="weekDateRange" class="text-muted">
-              Week: {{ weekDateRange }}
+              {{ weekDateRange }}
             </small>
           </div>
 

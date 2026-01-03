@@ -34,13 +34,15 @@ const weekEnd = computed(() => {
 
 const weekDays = computed(() => {
   const days = []
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const shortNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   for (let i = 0; i < 7; i++) {
     const date = new Date(weekStart.value)
     date.setDate(date.getDate() + i)
     const holidayName = getFederalHoliday(date)
     days.push({
-      name: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i],
-      shortName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i],
+      name: dayNames[date.getDay()], // Use actual day of week from date
+      shortName: shortNames[date.getDay()],
       date: date,
       dateStr: formatShortDate(date),
       isHoliday: holidayName !== null,
