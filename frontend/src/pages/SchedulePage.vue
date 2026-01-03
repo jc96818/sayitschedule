@@ -60,7 +60,8 @@ const weekOffset = ref(0)
 const currentWeekDate = computed(() => {
   const today = new Date()
   const startOfWeek = new Date(today)
-  startOfWeek.setDate(today.getDate() - today.getDay() + 1 + (weekOffset.value * 7))
+  // Sunday is day 0, so subtract today.getDay() to get to Sunday
+  startOfWeek.setDate(today.getDate() - today.getDay() + (weekOffset.value * 7))
   return startOfWeek
 })
 
@@ -78,7 +79,7 @@ const weekDays = computed(() => {
     date.setDate(date.getDate() + i)
     const holidayName = getFederalHoliday(date)
     days.push({
-      name: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i],
+      name: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i],
       date: date,
       dateStr: formatShortDate(date),
       isHoliday: holidayName !== null,

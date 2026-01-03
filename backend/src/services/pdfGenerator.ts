@@ -79,9 +79,9 @@ function buildDayColumns(schedule: ScheduleWithSessions, timezone: string = 'UTC
   const weekStart = new Date(schedule.weekStartDate)
   const weekStartStr = formatLocalDate(weekStart, timezone)
   const columns: DayColumn[] = []
-  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 7; i++) {
     const dateKey = addDaysToLocalDate(weekStartStr, i, timezone)
     // Parse the date string for display formatting
     const [year, month, day] = dateKey.split('-').map(Number)
@@ -123,7 +123,7 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
   // Calculate week date range using timezone-aware handling
   const weekStart = new Date(schedule.weekStartDate)
   const weekStartStr = formatLocalDate(weekStart, timezone)
-  const weekEndStr = addDaysToLocalDate(weekStartStr, 4, timezone) // Friday
+  const weekEndStr = addDaysToLocalDate(weekStartStr, 6, timezone) // Sunday
 
   // Parse dates for display
   const [startYear, startMonth, startDay] = weekStartStr.split('-').map(Number)
@@ -171,7 +171,7 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
 
     // Layout calculations
     const timeColWidth = 55
-    const dayColWidth = (pageWidth - timeColWidth) / 5
+    const dayColWidth = (pageWidth - timeColWidth) / 7
     const headerHeight = 50
     const tableHeaderHeight = 35
     const rowHeight = (pageHeight - headerHeight - tableHeaderHeight - 50) / TIME_SLOTS.length // 50 for footer
@@ -258,7 +258,7 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
       .text('Time', tableStartX + 5, tableStartY + 12)
 
     // Day column headers
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 7; i++) {
       const x = tableStartX + timeColWidth + (i * dayColWidth)
       const col = dayColumns[i]
 
@@ -299,7 +299,7 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
         .text(timeLabel, tableStartX + 5, rowY + (rowHeight / 2) - 5)
 
       // Day cells
-      for (let dayIdx = 0; dayIdx < 5; dayIdx++) {
+      for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
         const cellX = tableStartX + timeColWidth + (dayIdx * dayColWidth)
         const col = dayColumns[dayIdx]
         const sessions = col.sessions.get(timeSlot) || []

@@ -13,6 +13,7 @@
 
 import * as novaProvider from './novaProvider.js'
 import * as openaiProvider from './openaiProvider.js'
+import type { BusinessHours } from '../repositories/organizationSettings.js'
 
 // Re-export types from providers
 export type {
@@ -29,6 +30,8 @@ export type {
   RuleAnalysisResult,
   EntityNamesContext,
 } from './novaProvider.js'
+
+export type { BusinessHours } from '../repositories/organizationSettings.js'
 
 type AIProvider = 'nova' | 'openai'
 
@@ -67,15 +70,16 @@ export async function generateScheduleWithAI(
   patients: novaProvider.PatientForScheduling[],
   rules: novaProvider.RuleForScheduling[],
   rooms: novaProvider.RoomForScheduling[] = [],
-  timezone: string = 'UTC'
+  timezone: string = 'UTC',
+  businessHours?: BusinessHours
 ): Promise<novaProvider.ScheduleGenerationResult> {
   const provider = getProvider()
 
   if (provider === 'openai') {
-    return openaiProvider.generateScheduleWithAI(weekStartDate, staff, patients, rules, rooms, timezone)
+    return openaiProvider.generateScheduleWithAI(weekStartDate, staff, patients, rules, rooms, timezone, businessHours)
   }
 
-  return novaProvider.generateScheduleWithAI(weekStartDate, staff, patients, rules, rooms, timezone)
+  return novaProvider.generateScheduleWithAI(weekStartDate, staff, patients, rules, rooms, timezone, businessHours)
 }
 
 /**

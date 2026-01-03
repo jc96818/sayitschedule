@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { organizationService, settingsService, type TranscriptionProviderType, type MedicalSpecialty } from '@/services/api'
 import { applyBranding } from '@/composables/useBranding'
 import { Alert, Badge, Button } from '@/components/ui'
-import type { OrganizationLabels, OrganizationFeatures } from '@/types'
+import type { OrganizationLabels, OrganizationFeatures, BusinessHours } from '@/types'
 import { getSubdomain } from '@/utils/subdomain'
 
 const authStore = useAuthStore()
@@ -49,6 +49,33 @@ const schedulingLoading = ref(false)
 const schedulingSaving = ref(false)
 const schedulingError = ref<string | null>(null)
 const schedulingSuccess = ref(false)
+
+// Business hours state
+const defaultBusinessHours: BusinessHours = {
+  sunday: { open: false, start: '08:00', end: '18:00' },
+  monday: { open: true, start: '08:00', end: '18:00' },
+  tuesday: { open: true, start: '08:00', end: '18:00' },
+  wednesday: { open: true, start: '08:00', end: '18:00' },
+  thursday: { open: true, start: '08:00', end: '18:00' },
+  friday: { open: true, start: '08:00', end: '18:00' },
+  saturday: { open: false, start: '08:00', end: '18:00' }
+}
+const businessHours = ref<BusinessHours>({ ...defaultBusinessHours })
+const businessHoursLoading = ref(false)
+const businessHoursSaving = ref(false)
+const businessHoursError = ref<string | null>(null)
+const businessHoursSuccess = ref(false)
+
+// Day labels for display
+const dayLabels: { key: keyof BusinessHours; label: string }[] = [
+  { key: 'sunday', label: 'Sunday' },
+  { key: 'monday', label: 'Monday' },
+  { key: 'tuesday', label: 'Tuesday' },
+  { key: 'wednesday', label: 'Wednesday' },
+  { key: 'thursday', label: 'Thursday' },
+  { key: 'friday', label: 'Friday' },
+  { key: 'saturday', label: 'Saturday' }
+]
 
 // Common timezone options
 const timezoneOptions = [
@@ -319,6 +346,41 @@ async function handleSaveScheduling() {
   }
 }
 
+// Load business hours
+async function loadBusinessHours() {
+  businessHoursLoading.value = true
+  businessHoursError.value = null
+
+  try {
+    const response = await settingsService.getBusinessHours()
+    businessHours.value = response.data
+  } catch (e) {
+    businessHoursError.value = e instanceof Error ? e.message : 'Failed to load business hours'
+  } finally {
+    businessHoursLoading.value = false
+  }
+}
+
+// Save business hours
+async function handleSaveBusinessHours() {
+  businessHoursSaving.value = true
+  businessHoursError.value = null
+  businessHoursSuccess.value = false
+
+  try {
+    await settingsService.updateBusinessHours(businessHours.value)
+
+    businessHoursSuccess.value = true
+    setTimeout(() => {
+      businessHoursSuccess.value = false
+    }, 3000)
+  } catch (e) {
+    businessHoursError.value = e instanceof Error ? e.message : 'Failed to save business hours'
+  } finally {
+    businessHoursSaving.value = false
+  }
+}
+
 // Load transcription settings
 // Note: Backend determines org from subdomain context, so we don't require organization.value
 async function loadTranscriptionSettings() {
@@ -526,6 +588,7 @@ async function handleSavePortalSettings() {
 // Load settings on mount
 onMounted(() => {
   loadSchedulingSettings()
+  loadBusinessHours()
   loadTranscriptionSettings()
   loadLabelsSettings()
   loadPortalSettings()
@@ -755,6 +818,77 @@ onMounted(() => {
                   @click="handleSaveScheduling"
                 >
                   {{ schedulingSaving ? 'Saving...' : 'Save Scheduling Settings' }}
+                </button>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Operating Days</h3>
+          </div>
+          <div class="card-body">
+            <Alert v-if="businessHoursError" variant="danger" class="mb-3" dismissible @dismiss="businessHoursError = null">
+              {{ businessHoursError }}
+            </Alert>
+
+            <Alert v-if="businessHoursSuccess" variant="success" class="mb-3">
+              Operating days saved successfully!
+            </Alert>
+
+            <div v-if="businessHoursLoading" class="loading-state">
+              Loading operating days...
+            </div>
+
+            <template v-else>
+              <p class="text-muted mb-3">
+                Select which days of the week your organization is open for scheduling sessions.
+                The AI scheduler will only create sessions on open days.
+              </p>
+
+              <div class="business-hours-grid">
+                <div
+                  v-for="day in dayLabels"
+                  :key="day.key"
+                  class="business-hours-row"
+                  :class="{ 'day-closed': !businessHours[day.key].open }"
+                >
+                  <label class="day-toggle">
+                    <input
+                      v-model="businessHours[day.key].open"
+                      type="checkbox"
+                    />
+                    <span class="day-name">{{ day.label }}</span>
+                  </label>
+
+                  <div v-if="businessHours[day.key].open" class="hours-inputs">
+                    <input
+                      v-model="businessHours[day.key].start"
+                      type="time"
+                      class="form-control time-input"
+                    />
+                    <span class="time-separator">to</span>
+                    <input
+                      v-model="businessHours[day.key].end"
+                      type="time"
+                      class="form-control time-input"
+                    />
+                  </div>
+                  <div v-else class="closed-label">
+                    Closed
+                  </div>
+                </div>
+              </div>
+
+              <div class="button-row">
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  :disabled="businessHoursSaving"
+                  @click="handleSaveBusinessHours"
+                >
+                  {{ businessHoursSaving ? 'Saving...' : 'Save Operating Days' }}
                 </button>
               </div>
             </template>
@@ -1531,6 +1665,88 @@ onMounted(() => {
 @media (max-width: 768px) {
   .labels-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Business Hours Styles */
+.business-hours-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.business-hours-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.business-hours-row.day-closed {
+  background-color: #f8f9fa;
+  opacity: 0.7;
+}
+
+.day-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.day-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.day-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.hours-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-input {
+  width: 120px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+.time-separator {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.closed-label {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-style: italic;
+}
+
+@media (max-width: 640px) {
+  .business-hours-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .hours-inputs {
+    width: 100%;
+  }
+
+  .time-input {
+    flex: 1;
   }
 }
 </style>

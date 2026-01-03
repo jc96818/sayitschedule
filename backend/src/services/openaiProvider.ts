@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
-import { formatLocalDate, addDaysToLocalDate } from '../utils/timezone.js'
+import { formatLocalDate, addDaysToLocalDate, getLocalDayOfWeek } from '../utils/timezone.js'
 import { getEntityBindings, applyEntityBindingsToText } from './ruleBindings.js'
+import type { BusinessHours } from '../repositories/organizationSettings.js'
 
 let openaiClient: OpenAI | null = null
 
@@ -174,11 +175,27 @@ function formatRulesForPrompt(rules: RuleForScheduling[]): string {
   }).join('\n')
 }
 
-function getWeekDates(weekStartDate: Date, timezone: string = 'UTC'): string[] {
+function getWeekDates(
+  weekStartDate: Date,
+  timezone: string = 'UTC',
+  businessHours?: BusinessHours
+): string[] {
   const weekStartDateStr = formatLocalDate(weekStartDate, timezone)
   const dates: string[] = []
-  for (let i = 0; i < 5; i++) { // Monday to Friday
-    dates.push(addDaysToLocalDate(weekStartDateStr, i, timezone))
+
+  for (let i = 0; i < 7; i++) { // Sunday to Saturday
+    const dateStr = addDaysToLocalDate(weekStartDateStr, i, timezone)
+
+    // If business hours provided, only include days when org is open
+    if (businessHours) {
+      const dayOfWeek = getLocalDayOfWeek(dateStr, timezone)
+      const dayKey = dayOfWeek as keyof BusinessHours
+      if (businessHours[dayKey]?.open) {
+        dates.push(dateStr)
+      }
+    } else {
+      dates.push(dateStr)
+    }
   }
   return dates
 }
@@ -189,10 +206,19 @@ export async function generateScheduleWithAI(
   patients: PatientForScheduling[],
   rules: RuleForScheduling[],
   rooms: RoomForScheduling[] = [],
-  timezone: string = 'UTC'
+  timezone: string = 'UTC',
+  businessHours?: BusinessHours
 ): Promise<ScheduleGenerationResult> {
-  const weekDates = getWeekDates(weekStartDate, timezone)
+  const weekDates = getWeekDates(weekStartDate, timezone, businessHours)
   const hasRooms = rooms.length > 0
+
+  // If no dates are available (org closed all week), return empty schedule
+  if (weekDates.length === 0) {
+    return {
+      sessions: [],
+      warnings: ['No scheduling days available - organization is closed all days this week.']
+    }
+  }
 
   const systemPrompt = `You are an expert therapy scheduling assistant. Your task is to generate an optimal weekly schedule that assigns therapists to patients while respecting all constraints.
 
@@ -217,7 +243,7 @@ You must return ONLY a valid JSON object with no additional text.`
 ROOMS (${rooms.length} rooms):
 ${formatRoomsForPrompt(rooms)}` : ''
 
-  const userPrompt = `Generate a schedule for the week of ${weekDates[0]} to ${weekDates[4]}.
+  const userPrompt = `Generate a schedule for the week of ${weekDates[0]} to ${weekDates[weekDates.length - 1]}.
 
 AVAILABLE DATES: ${weekDates.join(', ')}
 

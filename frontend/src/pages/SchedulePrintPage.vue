@@ -28,19 +28,19 @@ const weekStart = computed(() => {
 
 const weekEnd = computed(() => {
   const end = new Date(weekStart.value)
-  end.setDate(end.getDate() + 4)
+  end.setDate(end.getDate() + 6)
   return end
 })
 
 const weekDays = computed(() => {
   const days = []
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 7; i++) {
     const date = new Date(weekStart.value)
     date.setDate(date.getDate() + i)
     const holidayName = getFederalHoliday(date)
     days.push({
-      name: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][i],
-      shortName: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][i],
+      name: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i],
+      shortName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i],
       date: date,
       dateStr: formatShortDate(date),
       isHoliday: holidayName !== null,
@@ -378,7 +378,7 @@ onMounted(async () => {
 }
 
 .day-col {
-  width: calc((100% - 60px) / 5);
+  width: calc((100% - 60px) / 7);
 }
 
 .day-col.holiday {

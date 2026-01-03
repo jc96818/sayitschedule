@@ -37,13 +37,13 @@ const previewWeekDays = computed(() => {
   if (!selectedWeek.value) return []
   const days = []
   const startDate = parseLocalDate(selectedWeek.value)
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 7; i++) {
     const date = new Date(startDate)
     date.setDate(startDate.getDate() + i)
     // Format isoDate using local date components to avoid timezone shifts
     const isoDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     days.push({
-      name: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'][i],
+      name: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i],
       date: date,
       dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       isoDate: isoDate
@@ -77,21 +77,22 @@ function getTherapistColor(session: { therapistId?: string; staffId?: string }):
   return (therapistId?.charCodeAt(0) ?? 0) % 2 === 0 ? 'blue' : 'green'
 }
 
-// Get next Monday as default
+// Get next Sunday as default
 const defaultWeekStart = computed(() => {
   const today = new Date()
   const dayOfWeek = today.getDay()
-  const daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek
-  const nextMonday = new Date(today)
-  nextMonday.setDate(today.getDate() + daysUntilMonday)
-  return nextMonday.toISOString().split('T')[0]
+  // If today is Sunday (0), use today; otherwise calculate days until next Sunday
+  const daysUntilSunday = dayOfWeek === 0 ? 7 : 7 - dayOfWeek
+  const nextSunday = new Date(today)
+  nextSunday.setDate(today.getDate() + daysUntilSunday)
+  return nextSunday.toISOString().split('T')[0]
 })
 
 const weekDateRange = computed(() => {
   if (!selectedWeek.value) return ''
   const start = parseLocalDate(selectedWeek.value)
   const end = new Date(start)
-  end.setDate(start.getDate() + 4)
+  end.setDate(start.getDate() + 6)
   return `${formatDate(start)} - ${formatDate(end)}`
 })
 
@@ -542,7 +543,7 @@ onMounted(() => {
 
 .calendar-grid {
   display: grid;
-  grid-template-columns: 80px repeat(5, 1fr);
+  grid-template-columns: 80px repeat(7, 1fr);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   overflow: hidden;

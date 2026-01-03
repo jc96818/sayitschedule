@@ -337,9 +337,10 @@ export async function generateSchedule(
   organizationId: string,
   weekStartDate: Date
 ): Promise<ScheduleGenerationOutput> {
-  // Fetch organization settings to get timezone
+  // Fetch organization settings to get timezone and business hours
   const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
   const timezone = orgSettings.timezone || 'America/New_York'
+  const businessHours = await organizationSettingsRepository.getBusinessHours(organizationId)
 
   // Format the week start date as a local date string for timezone-aware operations
   const weekStartDateStr = formatLocalDate(weekStartDate, timezone)
@@ -421,9 +422,9 @@ export async function generateSchedule(
     throw new RuleReviewRequiredError(reviewResults)
   }
 
-  // Call OpenAI to generate schedule
+  // Call AI to generate schedule (respecting business hours)
   console.log(`Generating schedule for ${staff.length} staff, ${patients.length} patients, and ${rooms.length} rooms...`)
-  const aiResult = await generateScheduleWithAI(weekStartDate, staff, patients, rulesForAI, rooms, timezone)
+  const aiResult = await generateScheduleWithAI(weekStartDate, staff, patients, rulesForAI, rooms, timezone, businessHours)
   console.log(`AI generated ${aiResult.sessions.length} sessions`)
 
   // Validate the generated sessions (including staff availability)
@@ -541,7 +542,7 @@ async function regenerateViolatingSession(
   // Calculate week dates using timezone-aware date handling
   const weekStartDateStr = formatLocalDate(weekStartDate, timezone)
   const weekDates: string[] = []
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 7; i++) { // Sunday to Saturday
     weekDates.push(addDaysToLocalDate(weekStartDateStr, i, timezone))
   }
 
@@ -592,7 +593,7 @@ CRITICAL RULES:
 
 You must return ONLY a valid JSON object with no additional text.`
 
-  const userPrompt = `A therapy session needs to be rescheduled for patientId="${patient.id}" during the week of ${weekDates[0]} to ${weekDates[4]}.
+  const userPrompt = `A therapy session needs to be rescheduled for patientId="${patient.id}" during the week of ${weekDates[0]} to ${weekDates[6]}.
 
 ORIGINAL SESSION:
 - Therapist ID: ${originalSession.therapistId}
