@@ -1,4 +1,8 @@
 import { defineConfig } from 'prisma/config'
+import { config } from 'dotenv'
+
+// Load .env file for local development
+config()
 
 // Declare process for TypeScript (Node.js global)
 declare const process: { env: Record<string, string | undefined> }
