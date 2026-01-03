@@ -82,6 +82,21 @@ vi.mock('../../services/aiProvider.js', () => ({
   getActiveProvider: vi.fn(() => 'openai')
 }))
 
+// Mock organization settings repository for timezone
+vi.mock('../../repositories/organizationSettings.js', () => ({
+  organizationSettingsRepository: {
+    findByOrganizationId: vi.fn().mockResolvedValue({
+      id: 'test-settings-id',
+      organizationId: 'test-org-id',
+      timezone: 'America/New_York',
+      businessHours: {},
+      defaultSessionDuration: 60,
+      slotInterval: 30,
+      lateCancelWindowHours: 24
+    })
+  }
+}))
+
 // Import mocked modules
 import { scheduleRepository, sessionRepository } from '../../repositories/schedules.js'
 import { staffRepository } from '../../repositories/staff.js'

@@ -4,6 +4,7 @@ import {
   type Message,
   type ContentBlock,
 } from '@aws-sdk/client-bedrock-runtime'
+import { formatLocalDate, addDaysToLocalDate } from '../utils/timezone.js'
 
 const MODEL_ID = 'us.amazon.nova-2-lite-v1:0'
 
@@ -231,12 +232,11 @@ function formatRulesForPrompt(rules: RuleForScheduling[]): string {
   }).join('\n')
 }
 
-function getWeekDates(weekStartDate: Date): string[] {
+function getWeekDates(weekStartDate: Date, timezone: string = 'UTC'): string[] {
+  const weekStartDateStr = formatLocalDate(weekStartDate, timezone)
   const dates: string[] = []
   for (let i = 0; i < 5; i++) { // Monday to Friday
-    const date = new Date(weekStartDate)
-    date.setDate(date.getDate() + i)
-    dates.push(date.toISOString().split('T')[0])
+    dates.push(addDaysToLocalDate(weekStartDateStr, i, timezone))
   }
   return dates
 }
@@ -246,9 +246,10 @@ export async function generateScheduleWithAI(
   staff: StaffForScheduling[],
   patients: PatientForScheduling[],
   rules: RuleForScheduling[],
-  rooms: RoomForScheduling[] = []
+  rooms: RoomForScheduling[] = [],
+  timezone: string = 'UTC'
 ): Promise<ScheduleGenerationResult> {
-  const weekDates = getWeekDates(weekStartDate)
+  const weekDates = getWeekDates(weekStartDate, timezone)
   const hasRooms = rooms.length > 0
 
   const systemPrompt = `You are an expert therapy scheduling assistant. Your task is to generate an optimal weekly schedule that assigns therapists to patients while respecting all constraints.

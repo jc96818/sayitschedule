@@ -66,15 +66,16 @@ export async function generateScheduleWithAI(
   staff: novaProvider.StaffForScheduling[],
   patients: novaProvider.PatientForScheduling[],
   rules: novaProvider.RuleForScheduling[],
-  rooms: novaProvider.RoomForScheduling[] = []
+  rooms: novaProvider.RoomForScheduling[] = [],
+  timezone: string = 'UTC'
 ): Promise<novaProvider.ScheduleGenerationResult> {
   const provider = getProvider()
 
   if (provider === 'openai') {
-    return openaiProvider.generateScheduleWithAI(weekStartDate, staff, patients, rules, rooms)
+    return openaiProvider.generateScheduleWithAI(weekStartDate, staff, patients, rules, rooms, timezone)
   }
 
-  return novaProvider.generateScheduleWithAI(weekStartDate, staff, patients, rules, rooms)
+  return novaProvider.generateScheduleWithAI(weekStartDate, staff, patients, rules, rooms, timezone)
 }
 
 /**

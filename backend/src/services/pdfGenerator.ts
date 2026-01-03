@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit'
 import type { ScheduleWithSessions } from '../repositories/schedules.js'
 import type { Organization } from '../repositories/organizations.js'
+import { formatLocalDate, addDaysToLocalDate } from '../utils/timezone.js'
 
 /**
  * Fetch an image from a URL and return it as a buffer
@@ -23,6 +24,7 @@ async function fetchImageAsBuffer(url: string): Promise<Buffer | null> {
 interface PdfGeneratorOptions {
   schedule: ScheduleWithSessions
   organization: Organization
+  timezone?: string
 }
 
 interface SessionData {
@@ -73,15 +75,17 @@ function formatShortDate(date: Date): string {
 }
 
 // Build day columns with sessions organized by time slot
-function buildDayColumns(schedule: ScheduleWithSessions): DayColumn[] {
+function buildDayColumns(schedule: ScheduleWithSessions, timezone: string = 'UTC'): DayColumn[] {
   const weekStart = new Date(schedule.weekStartDate)
+  const weekStartStr = formatLocalDate(weekStart, timezone)
   const columns: DayColumn[] = []
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
   for (let i = 0; i < 5; i++) {
-    const date = new Date(weekStart)
-    date.setDate(date.getDate() + i)
-    const dateKey = date.toISOString().split('T')[0]
+    const dateKey = addDaysToLocalDate(weekStartStr, i, timezone)
+    // Parse the date string for display formatting
+    const [year, month, day] = dateKey.split('-').map(Number)
+    const displayDate = new Date(year, month - 1, day)
 
     const sessionsMap = new Map<string, SessionData[]>()
     TIME_SLOTS.forEach(slot => sessionsMap.set(slot, []))
@@ -89,7 +93,7 @@ function buildDayColumns(schedule: ScheduleWithSessions): DayColumn[] {
     // Find sessions for this day
     for (const session of schedule.sessions) {
       const sessionDateObj = session.date instanceof Date ? session.date : new Date(session.date)
-      const sessionDate = sessionDateObj.toISOString().split('T')[0]
+      const sessionDate = formatLocalDate(sessionDateObj, timezone)
       if (sessionDate === dateKey) {
         const timeSlot = session.startTime?.slice(0, 5) || '09:00'
         const sessions = sessionsMap.get(timeSlot) || []
@@ -105,7 +109,7 @@ function buildDayColumns(schedule: ScheduleWithSessions): DayColumn[] {
 
     columns.push({
       shortName: dayNames[i],
-      dateStr: formatShortDate(date),
+      dateStr: formatShortDate(displayDate),
       sessions: sessionsMap
     })
   }
@@ -114,15 +118,21 @@ function buildDayColumns(schedule: ScheduleWithSessions): DayColumn[] {
 }
 
 export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise<Buffer> {
-  const { schedule, organization } = options
+  const { schedule, organization, timezone = 'UTC' } = options
 
-  // Calculate week date range
+  // Calculate week date range using timezone-aware handling
   const weekStart = new Date(schedule.weekStartDate)
-  const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekEnd.getDate() + 4) // Friday
+  const weekStartStr = formatLocalDate(weekStart, timezone)
+  const weekEndStr = addDaysToLocalDate(weekStartStr, 4, timezone) // Friday
 
-  // Build day columns
-  const dayColumns = buildDayColumns(schedule)
+  // Parse dates for display
+  const [startYear, startMonth, startDay] = weekStartStr.split('-').map(Number)
+  const [endYear, endMonth, endDay] = weekEndStr.split('-').map(Number)
+  const weekStartDisplay = new Date(startYear, startMonth - 1, startDay)
+  const weekEndDisplay = new Date(endYear, endMonth - 1, endDay)
+
+  // Build day columns with timezone
+  const dayColumns = buildDayColumns(schedule, timezone)
 
   // Calculate stats
   const totalSessions = schedule.sessions.length
@@ -145,7 +155,7 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
       layout: 'landscape',
       margins: { top: 30, bottom: 30, left: 40, right: 40 },
       info: {
-        Title: `Schedule - ${formatDate(weekStart)} to ${formatDate(weekEnd)}`,
+        Title: `Schedule - ${formatDate(weekStartDisplay)} to ${formatDate(weekEndDisplay)}`,
         Author: organization.name,
         Subject: 'Weekly Schedule',
         Creator: 'Say It Schedule'
@@ -196,7 +206,7 @@ export async function generateSchedulePdf(options: PdfGeneratorOptions): Promise
     doc.fillColor(COLORS.textSecondary)
       .fontSize(10)
       .font('Helvetica')
-      .text(`Weekly Schedule: ${formatDate(weekStart)} - ${formatDate(weekEnd)}`, textStartX, y + 20)
+      .text(`Weekly Schedule: ${formatDate(weekStartDisplay)} - ${formatDate(weekEndDisplay)}`, textStartX, y + 20)
 
     // Status badge (right side)
     const statusText = schedule.status === 'published' ? 'Published' : 'Draft'

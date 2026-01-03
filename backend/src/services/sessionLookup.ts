@@ -1,5 +1,6 @@
 import { prisma } from '../db/index.js'
 import type { SessionWithDetails } from '../repositories/schedules.js'
+import { formatLocalDate, getLocalDayOfWeek, addDaysToLocalDate } from '../utils/timezone.js'
 
 export interface SessionLookupParams {
   scheduleId: string
@@ -7,6 +8,7 @@ export interface SessionLookupParams {
   patientName?: string
   dayOfWeek?: string
   startTime?: string
+  timezone?: string
 }
 
 export interface SessionLookupResult {
@@ -17,8 +19,9 @@ export interface SessionLookupResult {
 
 export const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
-export function getDayOfWeekFromDate(date: Date): string {
-  return DAYS_OF_WEEK[date.getDay()]
+export function getDayOfWeekFromDate(date: Date, timezone: string = 'UTC'): string {
+  const dateStr = formatLocalDate(date, timezone)
+  return getLocalDayOfWeek(dateStr, timezone)
 }
 
 export function normalizeName(name: string): string {
@@ -91,7 +94,8 @@ export async function findMatchingSessions(params: SessionLookupParams): Promise
 
     // Check day of week match
     if (params.dayOfWeek) {
-      const sessionDay = getDayOfWeekFromDate(new Date(row.date))
+      const timezone = params.timezone || 'UTC'
+      const sessionDay = getDayOfWeekFromDate(new Date(row.date), timezone)
       if (sessionDay === params.dayOfWeek.toLowerCase()) {
         matchScore += 30
         matchDetails.push(`Day: ${sessionDay}`)
@@ -150,7 +154,8 @@ export async function findSessionsByPatientName(
 
 export async function findSessionsByDayOfWeek(
   scheduleId: string,
-  dayOfWeek: string
+  dayOfWeek: string,
+  timezone: string = 'UTC'
 ): Promise<SessionWithDetails[]> {
   // Get all sessions and filter by day
   const sessionData = await prisma.session.findMany({
@@ -163,7 +168,7 @@ export async function findSessionsByDayOfWeek(
   })
 
   return sessionData
-    .filter(row => getDayOfWeekFromDate(new Date(row.date)) === dayOfWeek.toLowerCase())
+    .filter(row => getDayOfWeekFromDate(new Date(row.date), timezone) === dayOfWeek.toLowerCase())
     .map(row => ({
       ...row,
       therapistName: row.therapist?.name || undefined,
@@ -179,6 +184,7 @@ export interface ConflictCheckParams {
   startTime: string
   endTime: string
   excludeSessionId?: string
+  timezone?: string
 }
 
 export async function checkForConflicts(params: ConflictCheckParams): Promise<SessionWithDetails[]> {
@@ -191,7 +197,8 @@ export async function checkForConflicts(params: ConflictCheckParams): Promise<Se
   })
 
   const conflicts: SessionWithDetails[] = []
-  const paramDate = params.date.toISOString().split('T')[0]
+  const timezone = params.timezone || 'UTC'
+  const paramDate = formatLocalDate(params.date, timezone)
 
   for (const row of sessionData) {
     // Skip the session we're updating
@@ -199,7 +206,7 @@ export async function checkForConflicts(params: ConflictCheckParams): Promise<Se
       continue
     }
 
-    const sessionDate = new Date(row.date).toISOString().split('T')[0]
+    const sessionDate = formatLocalDate(new Date(row.date), timezone)
 
     // Check if same date
     if (sessionDate !== paramDate) {
@@ -243,17 +250,21 @@ export function calculateNewEndTime(startTime: string, durationMinutes: number =
   return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`
 }
 
-export function getDateForDayOfWeek(weekStartDate: Date, targetDayOfWeek: string): Date {
+export function getDateForDayOfWeek(weekStartDate: Date, targetDayOfWeek: string, timezone: string = 'UTC'): Date {
   const targetIndex = DAYS_OF_WEEK.indexOf(targetDayOfWeek.toLowerCase())
   if (targetIndex === -1) {
     throw new Error(`Invalid day of week: ${targetDayOfWeek}`)
   }
 
-  const weekStart = new Date(weekStartDate)
-  const currentDay = weekStart.getDay()
+  // Get the week start date in the target timezone
+  const weekStartStr = formatLocalDate(weekStartDate, timezone)
+  const currentDay = DAYS_OF_WEEK.indexOf(getLocalDayOfWeek(weekStartStr, timezone))
   const daysToAdd = targetIndex - currentDay
 
-  const result = new Date(weekStart)
-  result.setDate(result.getDate() + daysToAdd)
-  return result
+  // Use timezone-aware date addition
+  const resultDateStr = addDaysToLocalDate(weekStartStr, daysToAdd, timezone)
+
+  // Parse the result date string as a local date (noon to avoid DST issues)
+  const [year, month, day] = resultDateStr.split('-').map(Number)
+  return new Date(year, month - 1, day, 12, 0, 0)
 }

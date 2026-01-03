@@ -3,6 +3,7 @@ import { patientRepository } from '../repositories/patients.js'
 import { ruleRepository } from '../repositories/rules.js'
 import { roomRepository } from '../repositories/rooms.js'
 import { staffAvailabilityRepository, type StaffAvailability } from '../repositories/staffAvailability.js'
+import { organizationSettingsRepository } from '../repositories/organizationSettings.js'
 import {
   generateScheduleWithAI,
   chatCompletion,
@@ -14,6 +15,12 @@ import {
   type GeneratedSession
 } from './aiProvider.js'
 import type { SessionWithDetails, ScheduleWithSessions } from '../repositories/schedules.js'
+import {
+  getLocalDayOfWeek,
+  parseLocalDateStart,
+  formatLocalDate,
+  addDaysToLocalDate
+} from '../utils/timezone.js'
 
 // Map of staff ID to their unavailability records for a date range
 export type UnavailabilityMap = Map<string, StaffAvailability[]>
@@ -64,10 +71,8 @@ export function sessionsOverlap(
   return s1 < e2 && s2 < e1
 }
 
-export function getDayOfWeek(dateStr: string): string {
-  const date = new Date(dateStr)
-  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-  return days[date.getDay()]
+export function getDayOfWeek(dateStr: string, timezone: string = 'UTC'): string {
+  return getLocalDayOfWeek(dateStr, timezone)
 }
 
 export function validateSessions(
@@ -75,7 +80,8 @@ export function validateSessions(
   staff: StaffForScheduling[],
   patients: PatientForScheduling[],
   rooms: RoomForScheduling[] = [],
-  unavailabilityMap?: UnavailabilityMap
+  unavailabilityMap?: UnavailabilityMap,
+  timezone: string = 'UTC'
 ): { valid: SessionCreate[]; errors: ValidationError[]; warnings: string[] } {
   const valid: SessionCreate[] = []
   const errors: ValidationError[] = []
@@ -132,7 +138,7 @@ export function validateSessions(
       }
 
       // Check therapist working hours
-      const dayOfWeek = getDayOfWeek(session.date)
+      const dayOfWeek = getDayOfWeek(session.date, timezone)
       const workHours = therapist.defaultHours[dayOfWeek]
       if (workHours) {
         const sessionStart = timeToMinutes(session.startTime)
@@ -157,8 +163,8 @@ export function validateSessions(
         const staffUnavail = unavailabilityMap.get(session.therapistId)
         if (staffUnavail) {
           for (const unavail of staffUnavail) {
-            // Compare dates (normalize to YYYY-MM-DD)
-            const unavailDate = unavail.date.toISOString().split('T')[0]
+            // Compare dates using timezone-aware formatting
+            const unavailDate = formatLocalDate(unavail.date, timezone)
             if (unavailDate === session.date) {
               if (!unavail.available) {
                 // Staff is completely unavailable this day
@@ -302,7 +308,7 @@ export function validateSessions(
         patientId: session.patientId,
         sessionSpecId: session.sessionSpecId,
         roomId: session.roomId || null,
-        date: new Date(session.date),
+        date: parseLocalDateStart(session.date, timezone),
         startTime: session.startTime,
         endTime: session.endTime,
         notes: session.notes || null
@@ -330,9 +336,16 @@ export async function generateSchedule(
   organizationId: string,
   weekStartDate: Date
 ): Promise<ScheduleGenerationOutput> {
-  // Calculate week end date (7 days from start)
-  const weekEndDate = new Date(weekStartDate)
-  weekEndDate.setDate(weekEndDate.getDate() + 6)
+  // Fetch organization settings to get timezone
+  const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+  const timezone = orgSettings.timezone || 'America/New_York'
+
+  // Format the week start date as a local date string for timezone-aware operations
+  const weekStartDateStr = formatLocalDate(weekStartDate, timezone)
+
+  // Calculate week end date (6 days after start)
+  const weekEndDateStr = addDaysToLocalDate(weekStartDateStr, 6, timezone)
+  const weekEndDate = parseLocalDateStart(weekEndDateStr, timezone)
 
   // Fetch all required data
   const [staffResult, patientsResult, rules, roomsResult, unavailabilityResult] = await Promise.all([
@@ -397,11 +410,11 @@ export async function generateSchedule(
 
   // Call OpenAI to generate schedule
   console.log(`Generating schedule for ${staff.length} staff, ${patients.length} patients, and ${rooms.length} rooms...`)
-  const aiResult = await generateScheduleWithAI(weekStartDate, staff, patients, rulesForAI, rooms)
+  const aiResult = await generateScheduleWithAI(weekStartDate, staff, patients, rulesForAI, rooms, timezone)
   console.log(`AI generated ${aiResult.sessions.length} sessions`)
 
   // Validate the generated sessions (including staff availability)
-  const { valid, errors, warnings } = validateSessions(aiResult.sessions, staff, patients, rooms, unavailabilityMap)
+  const { valid, errors, warnings } = validateSessions(aiResult.sessions, staff, patients, rooms, unavailabilityMap, timezone)
 
   // Log validation errors for debugging
   if (errors.length > 0) {
@@ -481,7 +494,8 @@ async function regenerateViolatingSession(
   patients: PatientForScheduling[],
   rules: RuleForScheduling[],
   rooms: RoomForScheduling[],
-  unavailabilityMap: UnavailabilityMap
+  unavailabilityMap: UnavailabilityMap,
+  timezone: string = 'UTC'
 ): Promise<RegenerateSessionResult> {
   // Find the patient for this session
   const patient = patients.find(p => p.id === originalSession.patientId)
@@ -511,17 +525,16 @@ async function regenerateViolatingSession(
     }
   }
 
-  // Calculate week dates
+  // Calculate week dates using timezone-aware date handling
+  const weekStartDateStr = formatLocalDate(weekStartDate, timezone)
   const weekDates: string[] = []
   for (let i = 0; i < 5; i++) {
-    const date = new Date(weekStartDate)
-    date.setDate(date.getDate() + i)
-    weekDates.push(date.toISOString().split('T')[0])
+    weekDates.push(addDaysToLocalDate(weekStartDateStr, i, timezone))
   }
 
   // Format existing sessions for the prompt (to avoid conflicts)
   const existingSessionsForPrompt = existingSessions.map(s => {
-    const dateStr = s.date instanceof Date ? s.date.toISOString().split('T')[0] : s.date
+    const dateStr = s.date instanceof Date ? formatLocalDate(s.date, timezone) : s.date
     return `- therapistId=${s.therapistId} patientId=${s.patientId} sessionSpecId=${s.sessionSpecId} on ${dateStr} at ${s.startTime}-${s.endTime}`
   }).join('\n')
 
@@ -536,7 +549,7 @@ async function regenerateViolatingSession(
     const unavail = unavailabilityMap.get(s.id) || []
     const unavailDates = unavail
       .filter(u => !u.available)
-      .map(u => u.date.toISOString().split('T')[0])
+      .map(u => formatLocalDate(u.date, timezone))
 
     return `- Staff ID: ${s.id}
     Gender: ${s.gender}
@@ -637,7 +650,7 @@ If no valid slot can be found, return: { "success": false, "session": null, "rea
           patientId: result.session.patientId,
           sessionSpecId: result.session.sessionSpecId,
           roomId: result.session.roomId || null,
-          date: new Date(result.session.date),
+          date: parseLocalDateStart(result.session.date, timezone),
           startTime: result.session.startTime,
           endTime: result.session.endTime,
           notes: `Rescheduled from ${originalSession.startTime} on ${formatDateToString(originalSession.date)}`
@@ -665,9 +678,16 @@ export async function validateAndRegenerateCopiedSchedule(
   organizationId: string,
   sourceSchedule: ScheduleWithSessions
 ): Promise<CopyValidationResult> {
+  // Fetch organization settings to get timezone
+  const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+  const timezone = orgSettings.timezone || 'America/New_York'
+
   const weekStartDate = new Date(sourceSchedule.weekStartDate)
-  const weekEndDate = new Date(weekStartDate)
-  weekEndDate.setDate(weekEndDate.getDate() + 6)
+  const weekStartDateStr = formatLocalDate(weekStartDate, timezone)
+
+  // Calculate week end date using timezone-aware date handling
+  const weekEndDateStr = addDaysToLocalDate(weekStartDateStr, 6, timezone)
+  const weekEndDate = parseLocalDateStart(weekEndDateStr, timezone)
 
   // Fetch all required data
   const [staffResult, patientsResult, rules, roomsResult, unavailabilityResult] = await Promise.all([
@@ -736,7 +756,8 @@ export async function validateAndRegenerateCopiedSchedule(
     staff,
     patients,
     rooms,
-    unavailabilityMap
+    unavailabilityMap,
+    timezone
   )
 
   const validSessions: SessionCreate[] = [...initialValid]
@@ -805,7 +826,8 @@ export async function validateAndRegenerateCopiedSchedule(
       patients,
       rulesForAI,
       rooms,
-      unavailabilityMap
+      unavailabilityMap,
+      timezone
     )
 
     if (regenerateResult.success && regenerateResult.newSession) {
@@ -816,7 +838,7 @@ export async function validateAndRegenerateCopiedSchedule(
         sessionSpecId: regenerateResult.newSession.sessionSpecId,
         roomId: regenerateResult.newSession.roomId || undefined,
         date: regenerateResult.newSession.date instanceof Date
-          ? regenerateResult.newSession.date.toISOString().split('T')[0]
+          ? formatLocalDate(regenerateResult.newSession.date, timezone)
           : regenerateResult.newSession.date,
         startTime: regenerateResult.newSession.startTime,
         endTime: regenerateResult.newSession.endTime
@@ -828,7 +850,7 @@ export async function validateAndRegenerateCopiedSchedule(
         patientId: s.patientId,
         sessionSpecId: s.sessionSpecId,
         roomId: s.roomId || undefined,
-        date: s.date instanceof Date ? s.date.toISOString().split('T')[0] : String(s.date),
+        date: s.date instanceof Date ? formatLocalDate(s.date, timezone) : String(s.date),
         startTime: s.startTime,
         endTime: s.endTime
       }))
@@ -838,7 +860,8 @@ export async function validateAndRegenerateCopiedSchedule(
         staff,
         patients,
         rooms,
-        unavailabilityMap
+        unavailabilityMap,
+        timezone
       )
 
       // Check if the new session passed validation (it should be the last one)
@@ -849,7 +872,7 @@ export async function validateAndRegenerateCopiedSchedule(
 
         const newTherapist = staff.find(s => s.id === regenerateResult.newSession!.therapistId)
         const newDateStr = regenerateResult.newSession.date instanceof Date
-          ? regenerateResult.newSession.date.toISOString().split('T')[0]
+          ? formatLocalDate(regenerateResult.newSession.date, timezone)
           : regenerateResult.newSession.date
 
         modifications.regenerated.push({

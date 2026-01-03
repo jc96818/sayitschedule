@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { authenticate, requireAdminOrAssistant } from '../middleware/auth.js'
 import { scheduleRepository, sessionRepository } from '../repositories/schedules.js'
 import { organizationRepository } from '../repositories/organizations.js'
+import { organizationSettingsRepository } from '../repositories/organizationSettings.js'
 import { logAudit } from '../repositories/audit.js'
 import { generateSchedule, validateAndRegenerateCopiedSchedule, type SessionModification } from '../services/scheduler.js'
 import { generateSchedulePdf } from '../services/pdfGenerator.js'
@@ -14,6 +15,7 @@ import {
 } from '../services/sessionLookup.js'
 import { validateSessionEntities } from '../services/sessionValidation.js'
 import { isProviderConfigured, getActiveProvider } from '../services/aiProvider.js'
+import { parseLocalDateStart, formatLocalDate } from '../utils/timezone.js'
 
 const generateScheduleSchema = z.object({
   weekStartDate: z.string()
@@ -103,7 +105,12 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Organization context required' })
     }
 
-    const weekStartDate = new Date(body.weekStartDate)
+    // Fetch organization settings to get timezone
+    const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+    const timezone = orgSettings.timezone || 'America/New_York'
+
+    // Parse the date string in the organization's timezone
+    const weekStartDate = parseLocalDateStart(body.weekStartDate, timezone)
 
     // Check if AI provider is configured
     if (!isProviderConfigured()) {
@@ -374,12 +381,16 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       })
     }
 
+    // Fetch organization settings to get timezone for date parsing
+    const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+    const timezone = orgSettings.timezone || 'America/New_York'
+
     const session = await sessionRepository.create({
       scheduleId: id,
       therapistId: body.staffId,
       patientId: body.patientId,
       roomId: body.roomId || null,
-      date: new Date(body.date),
+      date: parseLocalDateStart(body.date, timezone),
       startTime: body.startTime,
       endTime: body.endTime,
       notes: body.notes
@@ -435,9 +446,13 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       }
     }
 
+    // Fetch organization settings to get timezone for date parsing
+    const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+    const timezone = orgSettings.timezone || 'America/New_York'
+
     const session = await sessionRepository.update(sessionId, scheduleId, {
       ...body,
-      date: body.date ? new Date(body.date) : undefined
+      date: body.date ? parseLocalDateStart(body.date, timezone) : undefined
     })
 
     if (!session) {
@@ -500,6 +515,10 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
       })
     }
 
+    // Fetch organization settings to get timezone
+    const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+    const timezone = orgSettings.timezone || 'America/New_York'
+
     // For create action, skip session lookup (we're creating new, not modifying existing)
     // For other actions, find matching session(s) based on the voice command criteria
     let matchingResults: Awaited<ReturnType<typeof findMatchingSessions>> = []
@@ -510,7 +529,8 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
         therapistName: body.therapistName,
         patientName: body.patientName,
         dayOfWeek: body.currentDayOfWeek,
-        startTime: body.currentStartTime
+        startTime: body.currentStartTime,
+        timezone
       })
 
       if (matchingResults.length === 0) {
@@ -559,9 +579,9 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
         // Calculate new date if dayOfWeek provided
         let newDate: Date | undefined
         if (body.newDayOfWeek) {
-          newDate = getDateForDayOfWeek(schedule.weekStartDate, body.newDayOfWeek)
+          newDate = getDateForDayOfWeek(schedule.weekStartDate, body.newDayOfWeek, timezone)
         } else if (body.newDate) {
-          newDate = new Date(body.newDate)
+          newDate = parseLocalDateStart(body.newDate, timezone)
         } else {
           // Keep the same date, just changing time
           newDate = new Date(session.date)
@@ -578,7 +598,8 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
           date: newDate,
           startTime: newStartTime,
           endTime: newEndTime,
-          excludeSessionId: session.id
+          excludeSessionId: session.id,
+          timezone
         })
 
         if (conflicts.length > 0) {
@@ -704,9 +725,9 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
         // Calculate the date
         let sessionDate: Date
         if (body.newDayOfWeek) {
-          sessionDate = getDateForDayOfWeek(schedule.weekStartDate, body.newDayOfWeek)
+          sessionDate = getDateForDayOfWeek(schedule.weekStartDate, body.newDayOfWeek, timezone)
         } else if (body.newDate) {
-          sessionDate = new Date(body.newDate)
+          sessionDate = parseLocalDateStart(body.newDate, timezone)
         } else {
           // Default to the first day of the schedule week
           sessionDate = new Date(schedule.weekStartDate)
@@ -722,7 +743,8 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
           patientId: patient.id,
           date: sessionDate,
           startTime: startTime,
-          endTime: endTime
+          endTime: endTime,
+          timezone
         })
 
         if (conflicts.length > 0) {
@@ -792,15 +814,20 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      // Generate PDF with branding
+      // Get timezone for proper date display
+      const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+      const timezone = orgSettings.timezone || 'America/New_York'
+
+      // Generate PDF with branding and timezone
       const pdfBuffer = await generateSchedulePdf({
         schedule,
-        organization
+        organization,
+        timezone
       })
 
       // Format filename with week date
       const weekStart = new Date(schedule.weekStartDate)
-      const dateStr = weekStart.toISOString().split('T')[0]
+      const dateStr = formatLocalDate(weekStart, timezone)
       const filename = `schedule-${dateStr}.pdf`
 
       reply.header('Content-Type', 'application/pdf')

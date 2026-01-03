@@ -40,6 +40,28 @@ const logoFile = ref<File | null>(null)
 const logoUploading = ref(false)
 const logoDeleting = ref(false)
 
+// Scheduling settings state
+const timezone = ref('America/New_York')
+const defaultSessionDuration = ref(60)
+const slotInterval = ref(30)
+const lateCancelWindowHours = ref(24)
+const schedulingLoading = ref(false)
+const schedulingSaving = ref(false)
+const schedulingError = ref<string | null>(null)
+const schedulingSuccess = ref(false)
+
+// Common timezone options
+const timezoneOptions = [
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'America/Phoenix', label: 'Arizona (no DST)' },
+  { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time (HST)' },
+  { value: 'UTC', label: 'UTC' }
+]
+
 // Transcription settings state
 const transcriptionProvider = ref<TranscriptionProviderType>('aws_medical')
 const medicalSpecialty = ref<MedicalSpecialty>('PRIMARYCARE')
@@ -254,6 +276,49 @@ async function handleDeleteLogo() {
   }
 }
 
+// Load scheduling settings
+async function loadSchedulingSettings() {
+  schedulingLoading.value = true
+  schedulingError.value = null
+
+  try {
+    const response = await settingsService.getSettings()
+    timezone.value = response.data.timezone || 'America/New_York'
+    defaultSessionDuration.value = response.data.defaultSessionDuration || 60
+    slotInterval.value = response.data.slotInterval || 30
+    lateCancelWindowHours.value = response.data.lateCancelWindowHours || 24
+  } catch (e) {
+    schedulingError.value = e instanceof Error ? e.message : 'Failed to load scheduling settings'
+  } finally {
+    schedulingLoading.value = false
+  }
+}
+
+// Save scheduling settings
+async function handleSaveScheduling() {
+  schedulingSaving.value = true
+  schedulingError.value = null
+  schedulingSuccess.value = false
+
+  try {
+    await settingsService.updateSettings({
+      timezone: timezone.value,
+      defaultSessionDuration: defaultSessionDuration.value,
+      slotInterval: slotInterval.value,
+      lateCancelWindowHours: lateCancelWindowHours.value
+    })
+
+    schedulingSuccess.value = true
+    setTimeout(() => {
+      schedulingSuccess.value = false
+    }, 3000)
+  } catch (e) {
+    schedulingError.value = e instanceof Error ? e.message : 'Failed to save scheduling settings'
+  } finally {
+    schedulingSaving.value = false
+  }
+}
+
 // Load transcription settings
 // Note: Backend determines org from subdomain context, so we don't require organization.value
 async function loadTranscriptionSettings() {
@@ -460,6 +525,7 @@ async function handleSavePortalSettings() {
 
 // Load settings on mount
 onMounted(() => {
+  loadSchedulingSettings()
   loadTranscriptionSettings()
   loadLabelsSettings()
   loadPortalSettings()
@@ -600,6 +666,98 @@ onMounted(() => {
                 {{ saving ? 'Saving...' : 'Save Changes' }}
               </button>
             </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Scheduling Settings</h3>
+          </div>
+          <div class="card-body">
+            <Alert v-if="schedulingError" variant="danger" class="mb-3" dismissible @dismiss="schedulingError = null">
+              {{ schedulingError }}
+            </Alert>
+
+            <Alert v-if="schedulingSuccess" variant="success" class="mb-3">
+              Scheduling settings saved successfully!
+            </Alert>
+
+            <div v-if="schedulingLoading" class="loading-state">
+              Loading scheduling settings...
+            </div>
+
+            <template v-else>
+              <div class="form-group">
+                <label for="timezone">Timezone</label>
+                <select
+                  id="timezone"
+                  v-model="timezone"
+                  class="form-control"
+                >
+                  <option v-for="tz in timezoneOptions" :key="tz.value" :value="tz.value">
+                    {{ tz.label }}
+                  </option>
+                </select>
+                <small class="text-muted">
+                  Used for schedule generation and displaying session times.
+                </small>
+              </div>
+
+              <div class="form-group">
+                <label for="default-duration">Default Session Duration (minutes)</label>
+                <input
+                  id="default-duration"
+                  v-model.number="defaultSessionDuration"
+                  type="number"
+                  min="15"
+                  max="240"
+                  step="15"
+                  class="form-control"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="slot-interval">Slot Interval (minutes)</label>
+                <input
+                  id="slot-interval"
+                  v-model.number="slotInterval"
+                  type="number"
+                  min="5"
+                  max="60"
+                  step="5"
+                  class="form-control"
+                />
+                <small class="text-muted">
+                  How often new time slots start (e.g., 30 = slots at :00 and :30).
+                </small>
+              </div>
+
+              <div class="form-group">
+                <label for="late-cancel">Late Cancellation Window (hours)</label>
+                <input
+                  id="late-cancel"
+                  v-model.number="lateCancelWindowHours"
+                  type="number"
+                  min="0"
+                  max="168"
+                  class="form-control"
+                />
+                <small class="text-muted">
+                  Cancellations within this window of the session time are marked as late.
+                </small>
+              </div>
+
+              <div class="button-row">
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  :disabled="schedulingSaving"
+                  @click="handleSaveScheduling"
+                >
+                  {{ schedulingSaving ? 'Saving...' : 'Save Scheduling Settings' }}
+                </button>
+              </div>
+            </template>
           </div>
         </div>
 

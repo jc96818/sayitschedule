@@ -155,17 +155,23 @@ export function parseLocalDateTime(
  * for the given timezone.
  *
  * Useful for date range queries where you want "all of Monday" in local time.
+ * Accepts date strings in YYYY-MM-DD format or ISO format (YYYY-MM-DDTHH:mm:ss).
  */
 export function parseLocalDateStart(dateStr: string, timezone: string): Date {
-  return parseLocalDateTime(dateStr, '00:00', timezone)
+  // Strip any time component if present
+  const dateOnly = dateStr.split('T')[0]
+  return parseLocalDateTime(dateOnly, '00:00', timezone)
 }
 
 /**
  * Parse a local date string (YYYY-MM-DD) to the end of that day in UTC
  * for the given timezone (23:59:59.999).
+ * Accepts date strings in YYYY-MM-DD format or ISO format (YYYY-MM-DDTHH:mm:ss).
  */
 export function parseLocalDateEnd(dateStr: string, timezone: string): Date {
-  const endOfDay = parseLocalDateTime(dateStr, '23:59', timezone)
+  // Strip any time component if present
+  const dateOnly = dateStr.split('T')[0]
+  const endOfDay = parseLocalDateTime(dateOnly, '23:59', timezone)
   // Add 59 seconds and 999 milliseconds
   endOfDay.setTime(endOfDay.getTime() + 59 * 1000 + 999)
   return endOfDay
@@ -287,10 +293,14 @@ export function getCurrentLocalDateTime(timezone: string): LocalDateTime {
 /**
  * Get the day of week (lowercase) for a local date in a timezone.
  * Returns: 'sunday', 'monday', 'tuesday', etc.
+ * Accepts date strings in YYYY-MM-DD format or ISO format (YYYY-MM-DDTHH:mm:ss).
  */
 export function getLocalDayOfWeek(dateStr: string, timezone: string): string {
+  // Strip any time component if present (handle both 'YYYY-MM-DD' and 'YYYY-MM-DDTHH:mm:ss' formats)
+  const dateOnly = dateStr.split('T')[0]
+
   // Parse the date at noon to avoid any DST edge cases
-  const date = parseLocalDateTime(dateStr, '12:00', timezone)
+  const date = parseLocalDateTime(dateOnly, '12:00', timezone)
 
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: getValidTimezone(timezone),
