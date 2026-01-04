@@ -219,16 +219,33 @@ function handleReset() {
 
 // Logo file upload handling
 const logoInputRef = ref<HTMLInputElement | null>(null)
+const isDragging = ref(false)
 
 function triggerLogoUpload() {
   logoInputRef.value?.click()
 }
 
-async function handleLogoFileChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
+function handleDragOver(event: DragEvent) {
+  event.preventDefault()
+  isDragging.value = true
+}
 
+function handleDragLeave(event: DragEvent) {
+  event.preventDefault()
+  isDragging.value = false
+}
+
+function handleDrop(event: DragEvent) {
+  event.preventDefault()
+  isDragging.value = false
+
+  const file = event.dataTransfer?.files?.[0]
+  if (file) {
+    processLogoFile(file)
+  }
+}
+
+async function processLogoFile(file: File) {
   // Validate file type
   const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']
   if (!allowedTypes.includes(file.type)) {
@@ -271,6 +288,14 @@ async function handleLogoFileChange(event: Event) {
     if (logoInputRef.value) {
       logoInputRef.value.value = ''
     }
+  }
+}
+
+function handleLogoFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) {
+    processLogoFile(file)
   }
 }
 
@@ -694,7 +719,15 @@ onMounted(() => {
                     </button>
                   </div>
                 </div>
-                <div v-else class="logo-upload-placeholder" @click="triggerLogoUpload">
+                <div
+                  v-else
+                  class="logo-upload-placeholder"
+                  :class="{ 'drag-over': isDragging }"
+                  @click="triggerLogoUpload"
+                  @dragover="handleDragOver"
+                  @dragleave="handleDragLeave"
+                  @drop="handleDrop"
+                >
                   <div class="upload-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -702,7 +735,7 @@ onMounted(() => {
                       <line x1="12" y1="3" x2="12" y2="15"/>
                     </svg>
                   </div>
-                  <span class="upload-text">{{ logoUploading ? 'Uploading...' : 'Click to upload logo' }}</span>
+                  <span class="upload-text">{{ logoUploading ? 'Uploading...' : isDragging ? 'Drop to upload' : 'Click or drag to upload logo' }}</span>
                   <span class="upload-hint">PNG, JPG, WebP, GIF, or SVG (max 5MB)</span>
                 </div>
                 <input
@@ -1502,9 +1535,14 @@ onMounted(() => {
   transition: border-color 0.2s, background-color 0.2s;
 }
 
-.logo-upload-placeholder:hover {
+.logo-upload-placeholder:hover,
+.logo-upload-placeholder.drag-over {
   border-color: var(--color-primary);
   background-color: rgba(37, 99, 235, 0.05);
+}
+
+.logo-upload-placeholder.drag-over {
+  border-style: solid;
 }
 
 .upload-icon {
