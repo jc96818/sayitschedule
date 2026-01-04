@@ -46,9 +46,8 @@ async function load() {
 
 onMounted(load)
 
-watch([categoryParam, articleParam], () => {
-  load()
-})
+// Only reload when route params change (not on initial mount)
+watch([categoryParam, articleParam], load, { immediate: false })
 </script>
 
 <template>

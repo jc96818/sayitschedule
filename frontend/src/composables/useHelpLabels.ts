@@ -9,6 +9,18 @@ import { useLabels } from './useLabels'
 export function useHelpLabels() {
   const labels = useLabels()
 
+  // Pre-compute the label map as a reactive computed to avoid recreating it on every call
+  const labelMap = computed(() => ({
+    'labels.staff.plural': labels.staffLabel.value,
+    'labels.staff.singular': labels.staffLabelSingular.value,
+    'labels.patient.plural': labels.patientLabel.value,
+    'labels.patient.singular': labels.patientLabelSingular.value,
+    'labels.room.plural': labels.roomLabel.value,
+    'labels.room.singular': labels.roomLabelSingular.value,
+    'labels.certification.plural': labels.certificationLabel.value,
+    'labels.equipment.plural': labels.equipmentLabel.value
+  }))
+
   /**
    * Replace label tokens in text with organization-specific values.
    * Tokens use the format: {{labels.entity.form}}
@@ -17,18 +29,8 @@ export function useHelpLabels() {
   function applyLabelTokens(text: string): string {
     if (!text) return text
 
-    const map: Record<string, string> = {
-      'labels.staff.plural': labels.staffLabel.value,
-      'labels.staff.singular': labels.staffLabelSingular.value,
-      'labels.patient.plural': labels.patientLabel.value,
-      'labels.patient.singular': labels.patientLabelSingular.value,
-      'labels.room.plural': labels.roomLabel.value,
-      'labels.room.singular': labels.roomLabelSingular.value,
-      'labels.certification.plural': labels.certificationLabel.value,
-      'labels.equipment.plural': labels.equipmentLabel.value
-    }
-
-    return text.replace(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g, (_m, key: string) => map[key] ?? _m)
+    const map = labelMap.value
+    return text.replace(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g, (_m, key: string) => map[key as keyof typeof map] ?? _m)
   }
 
   /**
