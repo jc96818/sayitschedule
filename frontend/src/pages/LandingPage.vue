@@ -1,6 +1,19 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+
+// Generate a dynamic upcoming date for the portal preview
+const upcomingAppointment = computed(() => {
+  const today = new Date()
+  // Find next Tuesday (or use today if it's Tuesday)
+  const daysUntilTuesday = (2 - today.getDay() + 7) % 7 || 7
+  const nextTuesday = new Date(today)
+  nextTuesday.setDate(today.getDate() + daysUntilTuesday)
+
+  const dayName = nextTuesday.toLocaleDateString('en-US', { weekday: 'long' })
+  const monthDay = nextTuesday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return `${dayName}, ${monthDay}`
+})
 import { Alert, Badge, Button, FormInput, FormSelect, FormTextarea } from '@/components/ui'
 import { leadService } from '@/services/api'
 
@@ -233,7 +246,7 @@ function scrollToSection(sectionId: string) {
                 </svg>
               </div>
               <h3>Less time on admin</h3>
-              <p>Make common schedule updates in seconds—without losing the thread.</p>
+              <p>Drag-and-drop sessions, voice commands, or quick edits—your choice.</p>
             </div>
 
             <div class="value-card">
@@ -256,7 +269,7 @@ function scrollToSection(sectionId: string) {
                 </svg>
               </div>
               <h3>Rule-aware changes</h3>
-              <p>Keep consistency across staff availability, rooms, and scheduling rules.</p>
+              <p>Enforce gender pairing, certifications, and therapist preferences automatically.</p>
             </div>
 
             <div class="value-card">
@@ -448,9 +461,9 @@ function scrollToSection(sectionId: string) {
                   </svg>
                 </div>
                 <div>
-                  <div class="portal-title">Your branding</div>
+                  <div class="portal-title">Your branding & terminology</div>
                   <div class="portal-text">
-                    Customize the portal with your logo, colors, and terminology.
+                    Customize logo, colors, and rename "patients" or "staff" to match your practice.
                   </div>
                 </div>
               </div>
@@ -479,7 +492,7 @@ function scrollToSection(sectionId: string) {
                     <div class="portal-card-mock">
                       <div class="portal-card-label">Next appointment</div>
                       <div class="portal-card-content">
-                        <strong>Tuesday, Jan 14</strong> at 2:00 PM
+                        <strong>{{ upcomingAppointment }}</strong> at 2:00 PM
                       </div>
                       <div class="portal-card-actions">
                         <span class="portal-action">Reschedule</span>
@@ -526,8 +539,8 @@ function scrollToSection(sectionId: string) {
                   </svg>
                 </span>
                 <div>
-                  <div class="security-title">BAA available</div>
-                  <div class="security-text">Support for regulated workflows and agreements.</div>
+                  <div class="security-title">HIPAA-ready with BAA</div>
+                  <div class="security-text">Built for healthcare compliance with signed agreements.</div>
                 </div>
               </div>
 
