@@ -2,7 +2,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { helpService } from '@/services/api'
 import { Alert, Card, EmptyState, SearchBox } from '@/components/ui'
+import { useHelpLabels } from '@/composables/useHelpLabels'
 import type { HelpCategory, HelpSearchResult } from '@/types'
+
+const { applyLabelTokens } = useHelpLabels()
 
 const categories = ref<HelpCategory[]>([])
 const categoriesLoading = ref(false)
@@ -61,18 +64,20 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="help-center">
-    <div class="header">
-      <div>
-        <h1>Help</h1>
-        <p class="subtitle">Browse articles or search for an answer.</p>
+  <div>
+    <header class="header">
+      <div class="header-title">
+        <h2>Help</h2>
+        <p>Browse articles or search for an answer.</p>
       </div>
+      <div class="header-actions">
+        <SearchBox v-model="query" placeholder="Search help…" @search="runSearch" />
+      </div>
+    </header>
 
-      <SearchBox v-model="query" placeholder="Search help…" @search="runSearch" />
-    </div>
-
-    <Alert v-if="categoriesError" type="error" :message="categoriesError" />
-    <Alert v-if="searchError" type="error" :message="searchError" />
+    <div class="page-content help-content">
+      <Alert v-if="categoriesError" type="error" :message="categoriesError" />
+      <Alert v-if="searchError" type="error" :message="searchError" />
 
     <Card v-if="isSearching" class="section">
       <template #header>
@@ -95,9 +100,9 @@ onMounted(async () => {
           class="result"
           :to="toAppHelpPath(r.slug)"
         >
-          <div class="result-title">{{ r.title }}</div>
+          <div class="result-title">{{ applyLabelTokens(r.title) }}</div>
           <div class="result-meta">{{ r.categoryTitle }}</div>
-          <div v-if="r.summary" class="result-summary">{{ r.summary }}</div>
+          <div v-if="r.summary" class="result-summary">{{ applyLabelTokens(r.summary) }}</div>
         </RouterLink>
       </div>
     </Card>
@@ -123,36 +128,28 @@ onMounted(async () => {
             class="article"
             :to="toAppHelpPath(a.slug)"
           >
-            <div class="article-title">{{ a.title }}</div>
-            <div v-if="a.summary" class="article-summary">{{ a.summary }}</div>
+            <div class="article-title">{{ applyLabelTokens(a.title) }}</div>
+            <div v-if="a.summary" class="article-summary">{{ applyLabelTokens(a.summary) }}</div>
           </RouterLink>
         </div>
       </Card>
+    </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.help-center {
-  padding: 24px;
+.help-content {
   max-width: 980px;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.subtitle {
-  margin: 6px 0 0;
-  color: var(--text-muted);
 }
 
 .section {
   margin-top: 16px;
+}
+
+.section:first-child,
+.categories > .section:first-child {
+  margin-top: 0;
 }
 
 .section-header {

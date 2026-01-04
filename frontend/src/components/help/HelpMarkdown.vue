@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useLabels } from '@/composables/useLabels'
+import { useHelpLabels } from '@/composables/useHelpLabels'
 import type { Organization, OrganizationFeatures, OrganizationSettings } from '@/types'
 
 const props = defineProps<{
@@ -12,7 +12,7 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
-const labels = useLabels()
+const { applyLabelTokens } = useHelpLabels()
 
 function escapeHtml(value: string): string {
   return value
@@ -113,21 +113,6 @@ function applyHelpConditionals(markdown: string): string {
   }
 
   return out.join('\n')
-}
-
-function applyLabelTokens(markdown: string): string {
-  const map: Record<string, string> = {
-    'labels.staff.plural': labels.staffLabel.value,
-    'labels.staff.singular': labels.staffLabelSingular.value,
-    'labels.patient.plural': labels.patientLabel.value,
-    'labels.patient.singular': labels.patientLabelSingular.value,
-    'labels.room.plural': labels.roomLabel.value,
-    'labels.room.singular': labels.roomLabelSingular.value,
-    'labels.certification.plural': labels.certificationLabel.value,
-    'labels.equipment.plural': labels.equipmentLabel.value
-  }
-
-  return markdown.replace(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g, (_m, key: string) => map[key] ?? _m)
 }
 
 function renderMarkdownToHtml(markdown: string): string {
