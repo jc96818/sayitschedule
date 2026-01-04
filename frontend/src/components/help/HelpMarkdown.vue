@@ -44,13 +44,13 @@ function renderInlineNoLinks(raw: string): string {
   // Code spans (keep simple; content already escaped)
   const withCode = escaped.replace(/`([^`]+)`/g, '<code>$1</code>')
 
-  // Bold
+  // Bold - match ** pairs with content that doesn't contain **
   const withBold = withCode.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
 
-  // Italic
-  const withItalic = withBold.replace(/\*([^*]+)\*/g, '<em>$1</em>')
+  // Italic support removed - was causing catastrophic backtracking on large documents
+  // If needed, use underscore syntax (_text_) instead and add a simple regex for that
 
-  return withItalic
+  return withBold
 }
 
 function renderInline(raw: string): string {
@@ -123,7 +123,11 @@ function renderMarkdownToHtml(markdown: string): string {
   function isTableSeparator(line: string): boolean {
     const t = line.trim()
     if (!t.includes('|')) return false
-    return /^(\|?\s*:?-+:?\s*)+(\|?\s*:?-+:?\s*)*$/.test(t.replace(/\|/g, '|'))
+    // Simple check: line should only contain |, -, :, and whitespace
+    // and have at least one - character
+    if (!/^[\s|:\-]+$/.test(t)) return false
+    if (!t.includes('-')) return false
+    return true
   }
 
   function splitTableRow(line: string): string[] {
