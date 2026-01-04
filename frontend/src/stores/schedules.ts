@@ -133,7 +133,14 @@ export const useSchedulesStore = defineStore('schedules', () => {
           (s) => s.id === sessionId
         )
         if (sessionIndex !== -1) {
-          currentSchedule.value.sessions[sessionIndex] = response.data
+          // Preserve joined name fields from original session since API doesn't return them
+          const originalSession = currentSchedule.value.sessions[sessionIndex]
+          currentSchedule.value.sessions[sessionIndex] = {
+            ...response.data,
+            therapistName: response.data.therapistName || originalSession.therapistName,
+            patientName: response.data.patientName || originalSession.patientName,
+            roomName: response.data.roomName || originalSession.roomName
+          }
         }
       }
       return response.data
