@@ -279,8 +279,16 @@ async function processLogoFile(file: File) {
     setTimeout(() => {
       success.value = false
     }, 3000)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to upload logo'
+  } catch (e: unknown) {
+    // Extract error message from API response or Error object
+    const axiosError = e as { response?: { data?: { error?: string } } }
+    if (axiosError.response?.data?.error) {
+      error.value = axiosError.response.data.error
+    } else if (e instanceof Error) {
+      error.value = e.message
+    } else {
+      error.value = 'Failed to upload logo'
+    }
   } finally {
     logoUploading.value = false
     logoFile.value = null
@@ -697,14 +705,18 @@ onMounted(() => {
 
             <div class="form-group">
               <label>Organization Logo</label>
-              <div class="logo-upload-area">
+              <div class="logo-upload-area" :class="{ 'is-uploading': logoUploading }">
+                <div v-if="logoUploading" class="logo-uploading-overlay">
+                  <div class="spinner"></div>
+                  <span>Uploading...</span>
+                </div>
                 <div v-if="logoUrl" class="logo-preview-container">
                   <img :src="logoUrl" alt="Logo preview" class="preview-image" />
                   <div class="logo-actions">
                     <button
                       type="button"
                       class="btn btn-sm btn-outline"
-                      :disabled="logoUploading"
+                      :disabled="logoUploading || logoDeleting"
                       @click="triggerLogoUpload"
                     >
                       {{ logoUploading ? 'Uploading...' : 'Change' }}
@@ -712,7 +724,7 @@ onMounted(() => {
                     <button
                       type="button"
                       class="btn btn-sm btn-danger-outline"
-                      :disabled="logoDeleting"
+                      :disabled="logoDeleting || logoUploading"
                       @click="handleDeleteLogo"
                     >
                       {{ logoDeleting ? 'Deleting...' : 'Remove' }}
@@ -1495,6 +1507,44 @@ onMounted(() => {
 
 .logo-upload-area {
   margin-top: 8px;
+  position: relative;
+}
+
+.logo-upload-area.is-uploading {
+  pointer-events: none;
+}
+
+.logo-uploading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 10;
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .logo-preview-container {
