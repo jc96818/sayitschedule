@@ -42,9 +42,9 @@ vi.mock('@/services/api', () => ({
   patientService: {
     list: vi.fn().mockResolvedValue({
       data: [
-        { id: 'patient-1', name: 'John Doe', sessionsPerWeek: 3, status: 'active' },
-        { id: 'patient-2', name: 'Jane Smith', sessionsPerWeek: 2, status: 'active' },
-        { id: 'patient-3', name: 'Bob Jones', sessionsPerWeek: 1, status: 'inactive' }
+        { id: 'patient-1', name: 'John Doe', sessionFrequency: 3, status: 'active' },
+        { id: 'patient-2', name: 'Jane Smith', sessionFrequency: 2, status: 'active' },
+        { id: 'patient-3', name: 'Bob Jones', sessionFrequency: 1, status: 'inactive' }
       ],
       total: 3,
       page: 1,

@@ -90,9 +90,31 @@ If the schedule is a draft, you can:
 The stats cards below the view tabs show:
 
 - **Total Sessions**: Number of sessions in the schedule.
-- **{{labels.staff.plural}} Scheduled**: Number of distinct {{labels.staff.plural}} with assignments.
-- **{{labels.patient.plural}} Covered**: Number of distinct {{labels.patient.plural}} with sessions.
-- **Coverage Rate**: Percentage indicator (currently shows overall coverage).
+- **{{labels.staff.plural}} Scheduled**: Number of distinct {{labels.staff.plural}} with at least one session.
+- **{{labels.patient.plural}} Covered**: Number of distinct {{labels.patient.plural}} with at least one session.
+- **Coverage Rate**: Percentage of required weekly sessions that are scheduled.
+
+#### How Coverage Rate is calculated
+
+The Coverage Rate measures how well the schedule meets each {{labels.patient.singular}}'s prescribed session frequency:
+
+1. For each active {{labels.patient.singular}}, the system looks at their **Sessions per Week** requirement (set on the {{labels.patient.singular}}'s profile).
+2. It counts how many sessions are scheduled for that {{labels.patient.singular}} in the current week.
+3. Scheduled sessions are capped at the required amount—if a {{labels.patient.singular}} needs 2 sessions and has 4 scheduled, only 2 count toward coverage.
+4. The rate is calculated as: `(Total scheduled sessions capped at requirements) ÷ (Total required sessions across all active {{labels.patient.plural}}) × 100`
+
+**Example:**
+
+| {{labels.patient.singular}} | Required | Scheduled | Counts As |
+| --- | --- | --- | --- |
+| Emma | 3 | 3 | 3 |
+| Noah | 2 | 1 | 1 |
+| Olivia | 2 | 4 | 2 (capped) |
+| **Total** | **7** | **8** | **6** |
+
+Coverage Rate = 6 ÷ 7 = **86%**
+
+A 100% coverage rate means every active {{labels.patient.singular}} has their full weekly session requirement scheduled. Rates below 100% indicate some {{labels.patient.plural}} are under-scheduled.
 
 ## How this changes with your settings
 

@@ -124,8 +124,11 @@ const stats = computed(() => {
     let totalScheduled = 0
     for (const patient of patientsStore.patients) {
       if (patient.status === 'active') {
-        totalRequired += patient.sessionsPerWeek || 0
-        totalScheduled += sessionsPerPatient.get(patient.id) || 0
+        const required = patient.sessionFrequency || 0
+        const scheduled = sessionsPerPatient.get(patient.id) || 0
+        totalRequired += required
+        // Cap scheduled at required to prevent over-scheduling from inflating the rate
+        totalScheduled += Math.min(scheduled, required)
       }
     }
 
