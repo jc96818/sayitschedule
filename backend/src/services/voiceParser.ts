@@ -101,7 +101,7 @@ export interface ParsedSessionData {
 }
 
 export interface ParsedScheduleModifyData {
-  action: 'move' | 'cancel' | 'swap' | 'create'
+  action: 'move' | 'cancel' | 'swap' | 'create' | 'reassign_therapist' | 'reassign_room'
   therapistName?: string
   patientName?: string
   currentDate?: string
@@ -111,6 +111,8 @@ export interface ParsedScheduleModifyData {
   newDayOfWeek?: string
   newStartTime?: string
   newEndTime?: string
+  newTherapistName?: string
+  newRoomName?: string
   notes?: string
 }
 
@@ -240,7 +242,7 @@ Extract session information like:
 
     schedule_modify: `${basePrompt}
 
-The user is MODIFYING an existing schedule. They want to move, cancel, or swap sessions.
+The user is MODIFYING an existing schedule. They want to move, cancel, swap, reassign, or add sessions.
 Determine the action and extract the relevant information:
 
 ACTIONS:
@@ -248,9 +250,11 @@ ACTIONS:
 - cancel: Remove/delete a session
 - swap: Exchange two sessions' times
 - create: Add a new session (if they're not modifying existing)
+- reassign_therapist: Change the ${staffSingularLower} assigned to a session (uses newTherapistName)
+- reassign_room: Change the ${roomSingularLower} for a session (uses newRoomName)
 
 EXTRACT:
-- action (required): one of [move, cancel, swap, create]
+- action (required): one of [move, cancel, swap, create, reassign_therapist, reassign_room]
 - therapistName: the ${staffSingularLower}'s name (to identify the session)
 - patientName: the ${patientSingularLower}'s name (alternative way to identify)
 - currentDayOfWeek: current day (monday/tuesday/etc) - lowercase
@@ -258,6 +262,8 @@ EXTRACT:
 - newDayOfWeek: new day for move/swap - lowercase
 - newStartTime: new time in HH:mm format (24-hour)
 - newEndTime: new end time (usually startTime + 1 hour)
+- newTherapistName: for reassign_therapist, the new ${staffSingularLower}'s name
+- newRoomName: for reassign_room, the new ${roomSingularLower} name
 - notes: any additional context
 
 TIME PARSING:
@@ -271,7 +277,11 @@ EXAMPLES:
 - "Cancel Sarah's Friday 10 AM" → action: cancel, therapistName: Sarah, currentDayOfWeek: friday, currentStartTime: 10:00
 - "Reschedule Monday 2 PM with Emma to Wednesday" → action: move, patientName: Emma, currentDayOfWeek: monday, currentStartTime: 14:00, newDayOfWeek: wednesday
 - "Add a session for Sarah with Emma on Tuesday at 10 AM" → action: create, therapistName: Sarah, patientName: Emma, newDayOfWeek: tuesday, newStartTime: 10:00
-- "Schedule John to see Noah on Friday at 2 PM" → action: create, therapistName: John, patientName: Noah, newDayOfWeek: friday, newStartTime: 14:00`,
+- "Schedule John to see Noah on Friday at 2 PM" → action: create, therapistName: John, patientName: Noah, newDayOfWeek: friday, newStartTime: 14:00
+- "Change the therapist for Monday's 9 AM to Emily" → action: reassign_therapist, currentDayOfWeek: monday, currentStartTime: 09:00, newTherapistName: Emily
+- "Assign David to the 2 PM session with Emma" → action: reassign_therapist, patientName: Emma, currentStartTime: 14:00, newTherapistName: David
+- "Move Sarah's 10 AM session to Room B" → action: reassign_room, therapistName: Sarah, currentStartTime: 10:00, newRoomName: Room B
+- "Put the Friday 3 PM session in the Sensory Room" → action: reassign_room, currentDayOfWeek: friday, currentStartTime: 15:00, newRoomName: Sensory Room`,
 
     schedule_generate: `${basePrompt}
 

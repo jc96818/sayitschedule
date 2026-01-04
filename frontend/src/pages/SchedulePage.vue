@@ -1037,6 +1037,56 @@ onMounted(() => {
                 </div>
               </div>
             </template>
+            <!-- Reassign therapist action -->
+            <template v-else-if="schedulesStore.pendingModification.action === 'reassign_therapist'">
+              <strong>Change {{ staffLabelSingular }}:</strong>
+              <div class="modification-details">
+                <div v-if="schedulesStore.pendingModification.patientName" class="detail-row">
+                  <span class="detail-label">{{ patientLabelSingular }}:</span>
+                  <span>{{ schedulesStore.pendingModification.patientName }}</span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.therapistName" class="detail-row">
+                  <span class="detail-label">Current {{ staffLabelSingular }}:</span>
+                  <span>{{ schedulesStore.pendingModification.therapistName }}</span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.currentDayOfWeek || schedulesStore.pendingModification.currentStartTime" class="detail-row">
+                  <span class="detail-label">Session:</span>
+                  <span>
+                    {{ schedulesStore.pendingModification.currentDayOfWeek ? capitalizeFirst(schedulesStore.pendingModification.currentDayOfWeek) : '' }}
+                    {{ formatTime(schedulesStore.pendingModification.currentStartTime) }}
+                  </span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.newTherapistName" class="detail-row">
+                  <span class="detail-label">New {{ staffLabelSingular }}:</span>
+                  <span class="highlight-change">{{ schedulesStore.pendingModification.newTherapistName }}</span>
+                </div>
+              </div>
+            </template>
+            <!-- Reassign room action -->
+            <template v-else-if="schedulesStore.pendingModification.action === 'reassign_room'">
+              <strong>Change {{ roomLabelSingular }}:</strong>
+              <div class="modification-details">
+                <div v-if="schedulesStore.pendingModification.therapistName" class="detail-row">
+                  <span class="detail-label">{{ staffLabelSingular }}:</span>
+                  <span>{{ schedulesStore.pendingModification.therapistName }}</span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.patientName" class="detail-row">
+                  <span class="detail-label">{{ patientLabelSingular }}:</span>
+                  <span>{{ schedulesStore.pendingModification.patientName }}</span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.currentDayOfWeek || schedulesStore.pendingModification.currentStartTime" class="detail-row">
+                  <span class="detail-label">Session:</span>
+                  <span>
+                    {{ schedulesStore.pendingModification.currentDayOfWeek ? capitalizeFirst(schedulesStore.pendingModification.currentDayOfWeek) : '' }}
+                    {{ formatTime(schedulesStore.pendingModification.currentStartTime) }}
+                  </span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.newRoomName" class="detail-row">
+                  <span class="detail-label">New {{ roomLabelSingular }}:</span>
+                  <span class="highlight-change">{{ schedulesStore.pendingModification.newRoomName }}</span>
+                </div>
+              </div>
+            </template>
             <div v-if="schedulesStore.parseConfidence" class="confidence-indicator">
               Confidence: {{ Math.round(schedulesStore.parseConfidence * 100) }}%
             </div>
@@ -1844,6 +1894,11 @@ onMounted(() => {
 .detail-label {
   color: var(--text-muted);
   min-width: 60px;
+}
+
+.highlight-change {
+  color: var(--primary-color);
+  font-weight: 600;
 }
 
 .confidence-indicator {

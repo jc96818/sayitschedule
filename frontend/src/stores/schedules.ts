@@ -212,6 +212,8 @@ export const useSchedulesStore = defineStore('schedules', () => {
           newDayOfWeek: data.newDayOfWeek as string | undefined,
           newStartTime: data.newStartTime as string | undefined,
           newEndTime: data.newEndTime as string | undefined,
+          newTherapistName: data.newTherapistName as string | undefined,
+          newRoomName: data.newRoomName as string | undefined,
           notes: data.notes as string | undefined
         }
         parseConfidence.value = parsed.confidence
@@ -268,6 +270,21 @@ export const useSchedulesStore = defineStore('schedules', () => {
       } else if (response.data.action === 'created') {
         // Add the new session to local state
         currentSchedule.value.sessions.push(response.data.session)
+      } else if (response.data.action === 'reassigned_therapist' || response.data.action === 'reassigned_room') {
+        // Update the reassigned session in local state
+        const sessionIndex = currentSchedule.value.sessions.findIndex(
+          (s) => s.id === response.data.session.id
+        )
+        if (sessionIndex !== -1) {
+          // For reassignments, update with new values from response
+          // The response includes the new therapist/room name
+          currentSchedule.value.sessions[sessionIndex] = {
+            ...response.data.session,
+            therapistName: response.data.session.therapistName,
+            patientName: response.data.session.patientName,
+            roomName: response.data.session.roomName
+          }
+        }
       }
 
       clearPendingModification()

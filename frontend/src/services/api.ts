@@ -503,7 +503,7 @@ export const roomService = {
 
 // Schedule Modification Types (used by scheduleService)
 export interface ScheduleModification {
-  action: 'move' | 'cancel' | 'swap' | 'create'
+  action: 'move' | 'cancel' | 'swap' | 'create' | 'reassign_therapist' | 'reassign_room'
   therapistName?: string
   patientName?: string
   currentDate?: string
@@ -513,6 +513,8 @@ export interface ScheduleModification {
   newDayOfWeek?: string
   newStartTime?: string
   newEndTime?: string
+  newTherapistName?: string
+  newRoomName?: string
   notes?: string
 }
 
@@ -520,8 +522,8 @@ export interface VoiceModifyResult {
   action: string
   session: Session
   message: string
-  from?: { date: string; startTime: string }
-  to?: { date: string; startTime: string }
+  from?: { date?: string; startTime?: string; therapistName?: string; roomName?: string }
+  to?: { date?: string; startTime?: string; therapistName?: string; roomName?: string }
 }
 
 // Schedule copy modification types

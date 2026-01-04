@@ -36,7 +36,7 @@ const updateSessionSchema = z.object({
 })
 
 const voiceModifySchema = z.object({
-  action: z.enum(['move', 'cancel', 'swap', 'create']),
+  action: z.enum(['move', 'cancel', 'swap', 'create', 'reassign_therapist', 'reassign_room']),
   therapistName: z.string().optional(),
   patientName: z.string().optional(),
   currentDate: z.string().optional(),
@@ -46,6 +46,8 @@ const voiceModifySchema = z.object({
   newDayOfWeek: z.string().optional(),
   newStartTime: z.string().optional(),
   newEndTime: z.string().optional(),
+  newTherapistName: z.string().optional(),  // For reassign_therapist action
+  newRoomName: z.string().optional(),        // For reassign_room action
   notes: z.string().optional()
 })
 
@@ -871,6 +873,156 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
               patientName: patient.name
             },
             message: `Created session for ${patient.name} with ${therapist.name} at ${startTime}`
+          }
+        }
+      }
+
+      case 'reassign_therapist': {
+        // Reassign session to a different therapist
+        const session = matchingResults[0].session
+
+        if (!body.newTherapistName) {
+          return reply.status(400).send({
+            error: 'Please specify the new therapist name.'
+          })
+        }
+
+        // Look up the new therapist by name
+        const { staffRepository } = await import('../repositories/staff.js')
+        const staffResult = await staffRepository.findAll(organizationId, {
+          search: body.newTherapistName,
+          page: 1,
+          limit: 10
+        })
+        const matchingStaff = staffResult.data.filter(s =>
+          s.name.toLowerCase().includes(body.newTherapistName!.toLowerCase())
+        )
+
+        if (matchingStaff.length === 0) {
+          return reply.status(404).send({
+            error: `Could not find staff member "${body.newTherapistName}".`
+          })
+        }
+        if (matchingStaff.length > 1) {
+          return reply.status(400).send({
+            error: `Multiple staff members match "${body.newTherapistName}". Please be more specific.`
+          })
+        }
+
+        const newTherapist = matchingStaff[0]
+
+        // Check for conflicts with the new therapist
+        const conflicts = await checkForConflicts({
+          scheduleId: id,
+          therapistId: newTherapist.id,
+          patientId: session.patientId,
+          date: new Date(session.date),
+          startTime: session.startTime,
+          endTime: session.endTime,
+          excludeSessionId: session.id,
+          timezone
+        })
+
+        if (conflicts.length > 0) {
+          const conflict = conflicts[0]
+          return reply.status(409).send({
+            error: `Time conflict: ${newTherapist.name} already has a session with ${conflict.patientName || 'patient'} at ${conflict.startTime}`,
+            conflictWith: conflict
+          })
+        }
+
+        // Update the session with new therapist
+        const updatedSession = await sessionRepository.update(session.id, id, {
+          therapistId: newTherapist.id
+        })
+
+        if (!updatedSession) {
+          return reply.status(500).send({ error: 'Failed to reassign therapist' })
+        }
+
+        await logAudit(ctx.userId, 'update', 'session', session.id, organizationId, {
+          action: 'voice_reassign_therapist',
+          from: { therapistId: session.therapistId, therapistName: session.therapistName },
+          to: { therapistId: newTherapist.id, therapistName: newTherapist.name }
+        })
+
+        return {
+          data: {
+            action: 'reassigned_therapist',
+            session: {
+              ...updatedSession,
+              therapistName: newTherapist.name,
+              patientName: session.patientName,
+              roomName: session.roomName
+            },
+            from: { therapistName: session.therapistName },
+            to: { therapistName: newTherapist.name },
+            message: `Reassigned session from ${session.therapistName || 'previous therapist'} to ${newTherapist.name}`
+          }
+        }
+      }
+
+      case 'reassign_room': {
+        // Reassign session to a different room
+        const session = matchingResults[0].session
+
+        if (!body.newRoomName) {
+          return reply.status(400).send({
+            error: 'Please specify the new room name.'
+          })
+        }
+
+        // Look up the new room by name
+        const { roomRepository } = await import('../repositories/rooms.js')
+        const roomResult = await roomRepository.findAll(organizationId, {
+          search: body.newRoomName,
+          page: 1,
+          limit: 10
+        })
+        const matchingRooms = roomResult.data.filter(r =>
+          r.name.toLowerCase().includes(body.newRoomName!.toLowerCase())
+        )
+
+        if (matchingRooms.length === 0) {
+          return reply.status(404).send({
+            error: `Could not find room "${body.newRoomName}".`
+          })
+        }
+        if (matchingRooms.length > 1) {
+          return reply.status(400).send({
+            error: `Multiple rooms match "${body.newRoomName}". Please be more specific.`
+          })
+        }
+
+        const newRoom = matchingRooms[0]
+
+        // Update the session with new room
+        const updatedSession = await sessionRepository.update(session.id, id, {
+          roomId: newRoom.id
+        })
+
+        if (!updatedSession) {
+          return reply.status(500).send({ error: 'Failed to reassign room' })
+        }
+
+        await logAudit(ctx.userId, 'update', 'session', session.id, organizationId, {
+          action: 'voice_reassign_room',
+          from: { roomId: session.roomId, roomName: session.roomName },
+          to: { roomId: newRoom.id, roomName: newRoom.name }
+        })
+
+        return {
+          data: {
+            action: 'reassigned_room',
+            session: {
+              ...updatedSession,
+              therapistName: session.therapistName,
+              patientName: session.patientName,
+              roomName: newRoom.name
+            },
+            from: { roomName: session.roomName },
+            to: { roomName: newRoom.name },
+            message: `Moved session to ${newRoom.name}`
           }
         }
       }

@@ -165,6 +165,14 @@ const hintsData = computed<Record<PageType, { title: string; intro: string; hint
       {
         example: 'Remove the 3 PM session with Emma',
         description: `Cancels a session identified by the ${patientLabelSingularLower.value} name and time.`
+      },
+      {
+        example: `Change the ${staffLabelSingularLower.value} for Monday's 9 AM to Emily`,
+        description: `Reassigns a session to a different ${staffLabelSingularLower.value}.`
+      },
+      {
+        example: `Move Sarah's 10 AM session to ${roomLabelSingular.value} B`,
+        description: `Changes the ${roomLabelSingularLower.value} for a session without changing the time.`
       }
     ]
   },
