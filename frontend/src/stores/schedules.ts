@@ -35,12 +35,20 @@ export const useSchedulesStore = defineStore('schedules', () => {
   const currentWeekSchedule = computed(() => {
     const now = new Date()
     const startOfWeek = new Date(now)
-    startOfWeek.setDate(now.getDate() - now.getDay() + 1) // Monday
+    // Use Sunday as week start (consistent with SchedulePage)
+    startOfWeek.setDate(now.getDate() - now.getDay())
     startOfWeek.setHours(0, 0, 0, 0)
 
+    // Format as YYYY-MM-DD in local timezone to avoid UTC shift issues
+    const year = startOfWeek.getFullYear()
+    const month = String(startOfWeek.getMonth() + 1).padStart(2, '0')
+    const day = String(startOfWeek.getDate()).padStart(2, '0')
+    const currentWeekStr = `${year}-${month}-${day}`
+
     return schedules.value.find((s) => {
-      const scheduleDate = new Date(s.weekStartDate)
-      return scheduleDate.getTime() === startOfWeek.getTime()
+      // Handle both "2026-01-05" and "2026-01-05T00:00:00.000Z" formats
+      const scheduleDateStr = s.weekStartDate.split('T')[0]
+      return scheduleDateStr === currentWeekStr
     })
   })
 

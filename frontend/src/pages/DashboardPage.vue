@@ -30,7 +30,7 @@ const pendingRequestsCount = computed(() => availabilityStore.pendingRequests.le
 const stats = computed(() => ({
   activeTherapists: staffStore.totalCount,
   activePatients: patientsStore.totalCount,
-  sessionsThisWeek: schedulesStore.currentWeekSchedule?.sessions?.length || 0,
+  sessionsThisWeek: schedulesStore.currentWeekSchedule?.sessionCount || schedulesStore.currentWeekSchedule?.sessions?.length || 0,
   conflicts: 0 // TODO: Calculate from sessions
 }))
 
@@ -42,19 +42,25 @@ const upcomingWeeks = computed(() => {
 
   for (let i = 1; i <= 3; i++) {
     const weekStart = new Date(today)
-    weekStart.setDate(today.getDate() - today.getDay() + 1 + (i * 7))
+    // Use Sunday as week start (consistent with SchedulePage)
+    weekStart.setDate(today.getDate() - today.getDay() + (i * 7))
     const weekEnd = new Date(weekStart)
     weekEnd.setDate(weekStart.getDate() + 4)
 
-    const weekStr = weekStart.toISOString().split('T')[0]
-    const schedule = schedulesStore.schedules.find(s => s.weekStartDate === weekStr)
+    // Format as YYYY-MM-DD in local timezone to avoid UTC shift issues
+    const year = weekStart.getFullYear()
+    const month = String(weekStart.getMonth() + 1).padStart(2, '0')
+    const day = String(weekStart.getDate()).padStart(2, '0')
+    const weekStr = `${year}-${month}-${day}`
+    const schedule = schedulesStore.schedules.find(s => s.weekStartDate.split('T')[0] === weekStr)
 
     weeks.push({
       weekStart: weekStr,
       weekLabel: `${formatShortDate(weekStart)} - ${formatShortDate(weekEnd)}`,
       status: schedule?.status || 'not_started',
-      sessions: schedule?.sessions?.length || null,
-      conflicts: 0
+      sessions: schedule?.sessionCount || schedule?.sessions?.length || null,
+      conflicts: 0,
+      scheduleId: schedule?.id
     })
   }
 
@@ -75,6 +81,20 @@ function getStatusLabel(status: string): string {
   if (status === 'published') return 'Published'
   if (status === 'draft') return 'Draft'
   return 'Not Started'
+}
+
+function formatWeekRange(weekStartDate: string): string {
+  // Parse the date string (handle both YYYY-MM-DD and ISO formats)
+  const dateStr = weekStartDate.split('T')[0]
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const startDate = new Date(year, month - 1, day)
+  const endDate = new Date(startDate)
+  endDate.setDate(startDate.getDate() + 6)
+
+  const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+  const startStr = startDate.toLocaleDateString('en-US', options)
+  const endStr = endDate.toLocaleDateString('en-US', options)
+  return `${startStr} - ${endStr}`
 }
 
 async function handlePublishSchedule(scheduleId: string) {
@@ -178,12 +198,12 @@ onMounted(async () => {
             </div>
             <div v-else>
               <p class="text-muted mb-2">
-                {{ currentWeekSchedule.weekStartDate }}
+                {{ formatWeekRange(currentWeekSchedule.weekStartDate) }}
               </p>
               <div class="schedule-summary">
                 <div class="summary-row">
                   <span>Total Sessions</span>
-                  <strong>{{ currentWeekSchedule.sessions?.length || 0 }}</strong>
+                  <strong>{{ currentWeekSchedule.sessionCount || currentWeekSchedule.sessions?.length || 0 }}</strong>
                 </div>
                 <div class="summary-row">
                   <span>{{ staffLabel }}</span>

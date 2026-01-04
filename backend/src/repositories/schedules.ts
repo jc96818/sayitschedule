@@ -89,12 +89,23 @@ export class ScheduleRepository {
         where,
         take,
         skip,
-        orderBy: { weekStartDate: 'desc' }
+        orderBy: { weekStartDate: 'desc' },
+        include: {
+          _count: {
+            select: { sessions: true }
+          }
+        }
       }),
       prisma.schedule.count({ where })
     ])
 
-    return paginate(data, total, params)
+    // Map to include sessionCount for frontend
+    const dataWithCount = data.map(schedule => ({
+      ...schedule,
+      sessionCount: schedule._count.sessions
+    }))
+
+    return paginate(dataWithCount, total, params)
   }
 
   async findById(id: string, organizationId?: string): Promise<Schedule | null> {

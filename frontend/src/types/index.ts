@@ -198,6 +198,8 @@ export interface Schedule {
   createdAt: string
   publishedAt: string | null
   version: number
+  // Session count from list endpoint
+  sessionCount?: number
   // Optional joined data (populated when fetching with sessions)
   sessions?: Session[]
 }
