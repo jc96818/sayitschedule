@@ -503,7 +503,7 @@ export const roomService = {
 
 // Schedule Modification Types (used by scheduleService)
 export interface ScheduleModification {
-  action: 'move' | 'cancel' | 'swap' | 'create' | 'reassign_therapist' | 'reassign_room' | 'reassign_patient'
+  action: 'move' | 'cancel' | 'swap' | 'create' | 'reassign_therapist' | 'reassign_room' | 'reassign_patient' | 'change_duration'
   therapistName?: string
   patientName?: string
   currentDate?: string
@@ -516,6 +516,7 @@ export interface ScheduleModification {
   newTherapistName?: string
   newRoomName?: string
   newPatientName?: string
+  newDurationMinutes?: number
   // For swap action
   swapTherapistName?: string
   swapPatientName?: string
@@ -529,8 +530,8 @@ export interface VoiceModifyResult {
   session: Session
   session2?: Session  // For swap action - the second session
   message: string
-  from?: { date?: string; startTime?: string; therapistName?: string; roomName?: string; patientName?: string; session1?: { date?: string; startTime?: string }; session2?: { date?: string; startTime?: string } }
-  to?: { date?: string; startTime?: string; therapistName?: string; roomName?: string; patientName?: string; session1?: { date?: string; startTime?: string }; session2?: { date?: string; startTime?: string } }
+  from?: { date?: string; startTime?: string; endTime?: string; therapistName?: string; roomName?: string; patientName?: string; session1?: { date?: string; startTime?: string }; session2?: { date?: string; startTime?: string } }
+  to?: { date?: string; startTime?: string; endTime?: string; durationMinutes?: number; therapistName?: string; roomName?: string; patientName?: string; session1?: { date?: string; startTime?: string }; session2?: { date?: string; startTime?: string } }
 }
 
 // Schedule copy modification types

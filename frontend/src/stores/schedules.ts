@@ -215,6 +215,7 @@ export const useSchedulesStore = defineStore('schedules', () => {
           newTherapistName: data.newTherapistName as string | undefined,
           newRoomName: data.newRoomName as string | undefined,
           newPatientName: data.newPatientName as string | undefined,
+          newDurationMinutes: data.newDurationMinutes as number | undefined,
           swapTherapistName: data.swapTherapistName as string | undefined,
           swapPatientName: data.swapPatientName as string | undefined,
           swapDayOfWeek: data.swapDayOfWeek as string | undefined,
@@ -315,6 +316,19 @@ export const useSchedulesStore = defineStore('schedules', () => {
               patientName: response.data.session2.patientName,
               roomName: response.data.session2.roomName
             }
+          }
+        }
+      } else if (response.data.action === 'duration_changed') {
+        // Update the session with new duration in local state
+        const sessionIndex = currentSchedule.value.sessions.findIndex(
+          (s) => s.id === response.data.session.id
+        )
+        if (sessionIndex !== -1) {
+          currentSchedule.value.sessions[sessionIndex] = {
+            ...response.data.session,
+            therapistName: response.data.session.therapistName,
+            patientName: response.data.session.patientName,
+            roomName: response.data.session.roomName
           }
         }
       }

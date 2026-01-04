@@ -1134,6 +1134,24 @@ onMounted(() => {
                 </div>
               </div>
             </template>
+            <!-- Change duration action -->
+            <template v-else-if="schedulesStore.pendingModification.action === 'change_duration'">
+              <strong>Change Duration:</strong>
+              <div class="modification-details">
+                <div class="detail-row">
+                  <span class="detail-label">Session:</span>
+                  <span>
+                    {{ schedulesStore.pendingModification.therapistName || schedulesStore.pendingModification.patientName }}
+                    {{ schedulesStore.pendingModification.currentDayOfWeek ? capitalizeFirst(schedulesStore.pendingModification.currentDayOfWeek) : '' }}
+                    {{ formatTime(schedulesStore.pendingModification.currentStartTime) }}
+                  </span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">New Duration:</span>
+                  <span class="highlight-change">{{ schedulesStore.pendingModification.newDurationMinutes }} minutes</span>
+                </div>
+              </div>
+            </template>
             <div v-if="schedulesStore.parseConfidence" class="confidence-indicator">
               Confidence: {{ Math.round(schedulesStore.parseConfidence * 100) }}%
             </div>

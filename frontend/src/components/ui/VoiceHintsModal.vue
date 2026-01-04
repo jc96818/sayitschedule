@@ -181,6 +181,14 @@ const hintsData = computed<Record<PageType, { title: string; intro: string; hint
       {
         example: `Swap Sarah's 9 AM with John's 10 AM`,
         description: `Exchanges the time slots between two sessions.`
+      },
+      {
+        example: `Make Sarah's 9 AM session 90 minutes`,
+        description: `Changes the duration of a session to the specified length.`
+      },
+      {
+        example: `Shorten Monday's 2 PM to 30 minutes`,
+        description: `Reduces the session length to 30 minutes.`
       }
     ]
   },

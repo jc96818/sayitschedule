@@ -101,7 +101,7 @@ export interface ParsedSessionData {
 }
 
 export interface ParsedScheduleModifyData {
-  action: 'move' | 'cancel' | 'swap' | 'create' | 'reassign_therapist' | 'reassign_room' | 'reassign_patient'
+  action: 'move' | 'cancel' | 'swap' | 'create' | 'reassign_therapist' | 'reassign_room' | 'reassign_patient' | 'change_duration'
   therapistName?: string
   patientName?: string
   currentDate?: string
@@ -114,6 +114,7 @@ export interface ParsedScheduleModifyData {
   newTherapistName?: string
   newRoomName?: string
   newPatientName?: string
+  newDurationMinutes?: number
   // For swap action
   swapTherapistName?: string
   swapPatientName?: string
@@ -259,9 +260,10 @@ ACTIONS:
 - reassign_therapist: Change the ${staffSingularLower} assigned to a session (uses newTherapistName)
 - reassign_room: Change the ${roomSingularLower} for a session (uses newRoomName)
 - reassign_patient: Change the ${patientSingularLower} for a session (uses newPatientName)
+- change_duration: Change the length/duration of a session (uses newDurationMinutes)
 
 EXTRACT:
-- action (required): one of [move, cancel, swap, create, reassign_therapist, reassign_room, reassign_patient]
+- action (required): one of [move, cancel, swap, create, reassign_therapist, reassign_room, reassign_patient, change_duration]
 - therapistName: the ${staffSingularLower}'s name (to identify the session)
 - patientName: the ${patientSingularLower}'s name (alternative way to identify)
 - currentDayOfWeek: current day (monday/tuesday/etc) - lowercase
@@ -272,6 +274,7 @@ EXTRACT:
 - newTherapistName: for reassign_therapist, the new ${staffSingularLower}'s name
 - newRoomName: for reassign_room, the new ${roomSingularLower} name
 - newPatientName: for reassign_patient, the new ${patientSingularLower}'s name
+- newDurationMinutes: for change_duration, the new session length in minutes (e.g., 30, 45, 60, 90, 120)
 - swapTherapistName: for swap, the ${staffSingularLower} whose session to swap with
 - swapPatientName: for swap, the ${patientSingularLower} whose session to swap with
 - swapDayOfWeek: for swap, the day of the second session
@@ -298,7 +301,11 @@ EXAMPLES:
 - "Switch Sarah's 9 AM patient to Noah" → action: reassign_patient, therapistName: Sarah, currentStartTime: 09:00, newPatientName: Noah
 - "Swap Sarah's Monday 9 AM with John's Tuesday 10 AM" → action: swap, therapistName: Sarah, currentDayOfWeek: monday, currentStartTime: 09:00, swapTherapistName: John, swapDayOfWeek: tuesday, swapStartTime: 10:00
 - "Exchange the Monday 2 PM session with Tuesday's 11 AM" → action: swap, currentDayOfWeek: monday, currentStartTime: 14:00, swapDayOfWeek: tuesday, swapStartTime: 11:00
-- "Swap David's Monday 11 AM with Michael's Wednesday 11 AM" → action: swap, therapistName: David, currentDayOfWeek: monday, currentStartTime: 11:00, swapTherapistName: Michael, swapDayOfWeek: wednesday, swapStartTime: 11:00`,
+- "Swap David's Monday 11 AM with Michael's Wednesday 11 AM" → action: swap, therapistName: David, currentDayOfWeek: monday, currentStartTime: 11:00, swapTherapistName: Michael, swapDayOfWeek: wednesday, swapStartTime: 11:00
+- "Make Sarah's 9 AM session 90 minutes" → action: change_duration, therapistName: Sarah, currentStartTime: 09:00, newDurationMinutes: 90
+- "Change Monday's 10 AM to a 2 hour session" → action: change_duration, currentDayOfWeek: monday, currentStartTime: 10:00, newDurationMinutes: 120
+- "Shorten the Friday 2 PM session to 30 minutes" → action: change_duration, currentDayOfWeek: friday, currentStartTime: 14:00, newDurationMinutes: 30
+- "Extend Emma's session to 1.5 hours" → action: change_duration, patientName: Emma, newDurationMinutes: 90`,
 
     schedule_generate: `${basePrompt}
 

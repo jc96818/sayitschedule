@@ -36,7 +36,7 @@ const updateSessionSchema = z.object({
 })
 
 const voiceModifySchema = z.object({
-  action: z.enum(['move', 'cancel', 'swap', 'create', 'reassign_therapist', 'reassign_room', 'reassign_patient']),
+  action: z.enum(['move', 'cancel', 'swap', 'create', 'reassign_therapist', 'reassign_room', 'reassign_patient', 'change_duration']),
   therapistName: z.string().optional(),
   patientName: z.string().optional(),
   currentDate: z.string().optional(),
@@ -49,6 +49,7 @@ const voiceModifySchema = z.object({
   newTherapistName: z.string().optional(),  // For reassign_therapist action
   newRoomName: z.string().optional(),        // For reassign_room action
   newPatientName: z.string().optional(),     // For reassign_patient action
+  newDurationMinutes: z.number().optional(), // For change_duration action
   // For swap action - identifies the second session
   swapTherapistName: z.string().optional(),
   swapPatientName: z.string().optional(),
@@ -1195,6 +1196,71 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
               session2: { date: session1OriginalDate, startTime: session1OriginalStartTime }
             },
             message: `Swapped ${session1.therapistName}'s ${session1OriginalStartTime} with ${session2.therapistName}'s ${session2OriginalStartTime}`
+          }
+        }
+      }
+
+      case 'change_duration': {
+        // Change the duration of a session
+        const session = matchingResults[0].session
+
+        if (!body.newDurationMinutes) {
+          return reply.status(400).send({
+            error: 'Please specify the new duration in minutes.'
+          })
+        }
+
+        const durationMinutes = body.newDurationMinutes
+        if (durationMinutes < 15 || durationMinutes > 480) {
+          return reply.status(400).send({
+            error: 'Duration must be between 15 minutes and 8 hours.'
+          })
+        }
+
+        // Calculate new end time based on start time and duration
+        const [hours, minutes] = session.startTime.split(':').map(Number)
+        const startMinutes = hours * 60 + minutes
+        const endMinutes = startMinutes + durationMinutes
+        const endHours = Math.floor(endMinutes / 60)
+        const endMins = endMinutes % 60
+        const newEndTime = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`
+
+        // Validate end time doesn't exceed midnight
+        if (endHours >= 24) {
+          return reply.status(400).send({
+            error: 'Session cannot extend past midnight.'
+          })
+        }
+
+        const originalEndTime = session.endTime
+
+        // Update the session with new end time
+        const updatedSession = await sessionRepository.update(session.id, id, {
+          endTime: newEndTime
+        })
+
+        if (!updatedSession) {
+          return reply.status(500).send({ error: 'Failed to change duration' })
+        }
+
+        await logAudit(ctx.userId, 'update', 'session', session.id, organizationId, {
+          action: 'voice_change_duration',
+          from: { endTime: originalEndTime },
+          to: { endTime: newEndTime, durationMinutes }
+        })
+
+        return {
+          data: {
+            action: 'duration_changed',
+            session: {
+              ...updatedSession,
+              therapistName: session.therapistName,
+              patientName: session.patientName,
+              roomName: session.roomName
+            },
+            from: { endTime: originalEndTime },
+            to: { endTime: newEndTime, durationMinutes },
+            message: `Changed session duration to ${durationMinutes} minutes`
           }
         }
       }
