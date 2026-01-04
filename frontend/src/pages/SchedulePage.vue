@@ -384,7 +384,9 @@ function handlePrint() {
 }
 
 async function loadSchedule() {
-  const weekStart = currentWeekDate.value.toISOString().split('T')[0]
+  // Format in local timezone to avoid UTC shift issues
+  const d = currentWeekDate.value
+  const weekStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   // Find schedule for this week
   await schedulesStore.fetchSchedules()
   const schedule = schedulesStore.schedules.find(s => {

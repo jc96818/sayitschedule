@@ -711,7 +711,7 @@ describe('Schedule Routes', () => {
       expect(body.error).toContain('Cannot modify a published schedule')
     })
 
-    it('returns 501 for swap action', async () => {
+    it('returns 400 for swap action when second session not specified', async () => {
       vi.mocked(scheduleRepository.findByIdWithSessions).mockResolvedValue(mockSchedule as any)
       vi.mocked(findMatchingSessions).mockResolvedValue([
         { session: { id: 'session-1' }, matchScore: 80, matchDetails: [] }
@@ -726,7 +726,9 @@ describe('Schedule Routes', () => {
         }
       })
 
-      expect(response.statusCode).toBe(501)
+      expect(response.statusCode).toBe(400)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toContain('swap')
     })
 
     describe('create action', () => {

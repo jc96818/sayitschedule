@@ -116,11 +116,15 @@ describe('useSchedulesStore', () => {
       // Create a schedule for current week
       const now = new Date()
       const startOfWeek = new Date(now)
-      startOfWeek.setDate(now.getDate() - now.getDay() + 1) // Monday
+      // Use Sunday as week start (consistent with SchedulePage)
+      startOfWeek.setDate(now.getDate() - now.getDay())
       startOfWeek.setHours(0, 0, 0, 0)
 
-      // Format as YYYY-MM-DD (matching what the store expects)
-      const weekStartDate = startOfWeek.toISOString().split('T')[0]
+      // Format as YYYY-MM-DD in local timezone (matching what the store expects)
+      const year = startOfWeek.getFullYear()
+      const month = String(startOfWeek.getMonth() + 1).padStart(2, '0')
+      const day = String(startOfWeek.getDate()).padStart(2, '0')
+      const weekStartDate = `${year}-${month}-${day}`
 
       const currentWeekSchedule: Schedule = {
         ...mockSchedule,

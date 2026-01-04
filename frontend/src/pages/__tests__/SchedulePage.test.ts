@@ -95,13 +95,18 @@ const createTestRouter = () => {
   })
 }
 
-// Get current week start date for testing
+// Get current week start date for testing (Sunday)
 const getCurrentWeekStart = () => {
   const today = new Date()
   const startOfWeek = new Date(today)
-  startOfWeek.setDate(today.getDate() - today.getDay() + 1) // Monday
+  // Use Sunday as week start (consistent with SchedulePage)
+  startOfWeek.setDate(today.getDate() - today.getDay())
   startOfWeek.setHours(0, 0, 0, 0)
-  return startOfWeek.toISOString().split('T')[0]
+  // Format in local timezone to avoid UTC shift
+  const year = startOfWeek.getFullYear()
+  const month = String(startOfWeek.getMonth() + 1).padStart(2, '0')
+  const day = String(startOfWeek.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 describe('SchedulePage', () => {
@@ -285,8 +290,11 @@ describe('SchedulePage', () => {
     it('should have prev and next week buttons', async () => {
       const wrapper = await mountSchedulePage()
 
-      expect(wrapper.text()).toContain('Prev')
-      expect(wrapper.text()).toContain('Next')
+      // Navigation buttons use icons with title attributes
+      const prevButton = wrapper.find('button[title="Previous week"]')
+      const nextButton = wrapper.find('button[title="Next week"]')
+      expect(prevButton.exists()).toBe(true)
+      expect(nextButton.exists()).toBe(true)
     })
 
     it('should call schedule list on prev week click', async () => {
@@ -295,7 +303,7 @@ describe('SchedulePage', () => {
       // Clear initial call count
       vi.mocked(scheduleService.list).mockClear()
 
-      const prevButton = wrapper.findAll('button').find(btn => btn.text().includes('Prev'))
+      const prevButton = wrapper.find('button[title="Previous week"]')
       await prevButton?.trigger('click')
       await flushPromises()
 
@@ -308,7 +316,7 @@ describe('SchedulePage', () => {
       // Clear initial call count
       vi.mocked(scheduleService.list).mockClear()
 
-      const nextButton = wrapper.findAll('button').find(btn => btn.text().includes('Next'))
+      const nextButton = wrapper.find('button[title="Next week"]')
       await nextButton?.trigger('click')
       await flushPromises()
 
@@ -566,9 +574,11 @@ describe('SchedulePage', () => {
 
       // The week days computed property should produce correct local dates
       // regardless of timezone. We verify this by checking that the component
-      // renders the expected day names for the current week
-      expect(wrapper.text()).toContain('Prev')
-      expect(wrapper.text()).toContain('Next')
+      // renders the navigation buttons (icons with title attributes)
+      const prevButton = wrapper.find('button[title="Previous week"]')
+      const nextButton = wrapper.find('button[title="Next week"]')
+      expect(prevButton.exists()).toBe(true)
+      expect(nextButton.exists()).toBe(true)
     })
 
     it('should correctly identify sessions for time slots', async () => {
