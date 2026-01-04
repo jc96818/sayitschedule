@@ -156,15 +156,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="time-off-requests-page">
-    <div class="page-header">
-      <div class="header-content">
+  <div>
+    <header class="header">
+      <div class="header-title">
         <h2>Time-Off Requests</h2>
         <p>Review and manage {{ staffLabelSingular.toLowerCase() }} time-off requests</p>
       </div>
-    </div>
+    </header>
 
-    <!-- Stats Cards -->
+    <div class="page-content time-off-content">
+      <!-- Stats Cards -->
     <div class="stats-cards">
       <div class="stat-card pending" @click="statusFilter = 'pending'">
         <div class="stat-icon">
@@ -350,30 +351,13 @@ onMounted(() => {
         </tbody>
       </table>
     </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.time-off-requests-page {
-  padding: 24px;
+.time-off-content {
   max-width: 1400px;
-  margin: 0 auto;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.header-content h2 {
-  margin: 0 0 4px 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.header-content p {
-  margin: 0;
-  color: var(--text-secondary);
 }
 
 /* Stats Cards */
@@ -660,10 +644,6 @@ onMounted(() => {
 }
 
 @media (max-width: 640px) {
-  .time-off-requests-page {
-    padding: 16px;
-  }
-
   .filters-bar {
     flex-direction: column;
     align-items: stretch;
