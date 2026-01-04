@@ -255,7 +255,14 @@ export const useSchedulesStore = defineStore('schedules', () => {
           (s) => s.id === response.data.session.id
         )
         if (sessionIndex !== -1) {
-          currentSchedule.value.sessions[sessionIndex] = response.data.session
+          // Preserve joined name fields from original session since API doesn't return them
+          const originalSession = currentSchedule.value.sessions[sessionIndex]
+          currentSchedule.value.sessions[sessionIndex] = {
+            ...response.data.session,
+            therapistName: response.data.session.therapistName || originalSession.therapistName,
+            patientName: response.data.session.patientName || originalSession.patientName,
+            roomName: response.data.session.roomName || originalSession.roomName
+          }
         }
       } else if (response.data.action === 'created') {
         // Add the new session to local state
