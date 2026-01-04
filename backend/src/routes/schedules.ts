@@ -29,8 +29,10 @@ const updateSessionSchema = z.object({
   date: z.string().optional(),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
-  status: z.enum(['scheduled', 'completed', 'cancelled', 'no_show']).optional(),
-  notes: z.string().optional()
+  status: z.enum(['scheduled', 'confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled', 'late_cancel', 'no_show']).optional(),
+  notes: z.string().optional(),
+  cancellationReason: z.enum(['patient_request', 'caregiver_request', 'therapist_unavailable', 'weather', 'illness', 'scheduling_conflict', 'rescheduled', 'other']).nullish(),
+  cancellationNotes: z.string().nullish()
 })
 
 const voiceModifySchema = z.object({
@@ -527,10 +529,19 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
     const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
     const timezone = orgSettings.timezone || 'America/New_York'
 
-    const session = await sessionRepository.update(sessionId, scheduleId, {
+    // Build update data, adding cancellation metadata if status is being set to cancelled/late_cancel
+    const updateData: Record<string, unknown> = {
       ...body,
       date: body.date ? parseLocalDateStart(body.date, timezone) : undefined
-    })
+    }
+
+    // Set cancellation timestamp and user when cancelling
+    if (body.status === 'cancelled' || body.status === 'late_cancel') {
+      updateData.cancelledAt = new Date()
+      updateData.cancelledById = ctx.userId
+    }
+
+    const session = await sessionRepository.update(sessionId, scheduleId, updateData)
 
     if (!session) {
       return reply.status(404).send({ error: 'Session not found' })

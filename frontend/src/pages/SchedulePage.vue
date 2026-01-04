@@ -4,7 +4,7 @@ import { useSchedulesStore } from '@/stores/schedules'
 import { useStaffStore } from '@/stores/staff'
 import { useRoomsStore } from '@/stores/rooms'
 import { usePatientsStore } from '@/stores/patients'
-import { Button, Badge, Alert, StatCard, VoiceInput, VoiceHintsModal, WeekCalendarPicker } from '@/components/ui'
+import { Button, Badge, Alert, StatCard, VoiceInput, VoiceHintsModal, WeekCalendarPicker, SessionDetailModal } from '@/components/ui'
 import { voiceService } from '@/services/api'
 import { getFederalHoliday } from '@/utils/holidays'
 import { useLabels } from '@/composables/useLabels'
@@ -40,6 +40,12 @@ const newSession = ref({
   endTime: '',
   notes: ''
 })
+
+// Session detail modal state
+const showSessionDetailModal = ref(false)
+const selectedSession = ref<Session | null>(null)
+const sessionDetailLoading = ref(false)
+const sessionDetailError = ref<string | null>(null)
 
 // Voice generation state
 const showGenerateConfirmation = ref(false)
@@ -573,6 +579,49 @@ async function handlePublish() {
   }
 }
 
+// Session detail modal handlers
+function openSessionDetail(session: Session) {
+  selectedSession.value = session
+  sessionDetailError.value = null
+  showSessionDetailModal.value = true
+}
+
+async function handleUpdateSession(sessionId: string, data: Partial<Session>) {
+  if (!currentSchedule.value) return
+
+  sessionDetailLoading.value = true
+  sessionDetailError.value = null
+  try {
+    await schedulesStore.updateSession(currentSchedule.value.id, sessionId, data)
+    // Update the selected session with new data
+    if (selectedSession.value?.id === sessionId) {
+      selectedSession.value = currentSchedule.value.sessions.find(s => s.id === sessionId) || null
+    }
+    // Close modal if session was cancelled
+    if (data.status === 'cancelled') {
+      showSessionDetailModal.value = false
+    }
+  } catch (error) {
+    sessionDetailError.value = error instanceof Error ? error.message : 'Failed to update session'
+  } finally {
+    sessionDetailLoading.value = false
+  }
+}
+
+async function handleDeleteSession(sessionId: string) {
+  sessionDetailLoading.value = true
+  sessionDetailError.value = null
+  try {
+    await schedulesStore.deleteSession(sessionId)
+    showSessionDetailModal.value = false
+    selectedSession.value = null
+  } catch (error) {
+    sessionDetailError.value = error instanceof Error ? error.message : 'Failed to delete session'
+  } finally {
+    sessionDetailLoading.value = false
+  }
+}
+
 onMounted(() => {
   loadSchedule()
   staffStore.fetchStaff() // Load staff for therapist filter and gender lookup
@@ -963,6 +1012,7 @@ onMounted(() => {
                     v-for="session in getSessionsForTimeSlot(dayIndex, timeSlot)"
                     :key="session.id"
                     :class="['calendar-event', getTherapistColor(session)]"
+                    @click="openSessionDetail(session)"
                   >
                     <div class="therapist">{{ session.therapistName || (session.therapistId || session.staffId)?.slice(0, 8) }}</div>
                     <div class="patient">{{ session.patientName || session.patientId?.slice(0, 8) }}</div>
@@ -1028,7 +1078,7 @@ onMounted(() => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="session in group.sessions" :key="session.id">
+                    <tr v-for="session in group.sessions" :key="session.id" class="clickable-row" @click="openSessionDetail(session)">
                       <td>
                         <span class="day-badge">{{ formatDayOfWeek(session.date) }}</span>
                         <span class="text-muted text-sm">{{ formatShortDate(parseLocalDate(session.date)) }}</span>
@@ -1079,7 +1129,7 @@ onMounted(() => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="session in group.sessions" :key="session.id">
+                    <tr v-for="session in group.sessions" :key="session.id" class="clickable-row" @click="openSessionDetail(session)">
                       <td>
                         <span class="day-badge">{{ formatDayOfWeek(session.date) }}</span>
                         <span class="text-muted text-sm">{{ formatShortDate(parseLocalDate(session.date)) }}</span>
@@ -1137,7 +1187,7 @@ onMounted(() => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="session in group.sessions" :key="session.id">
+                    <tr v-for="session in group.sessions" :key="session.id" class="clickable-row" @click="openSessionDetail(session)">
                       <td>
                         <span class="day-badge">{{ formatDayOfWeek(session.date) }}</span>
                         <span class="text-muted text-sm">{{ formatShortDate(parseLocalDate(session.date)) }}</span>
@@ -1384,6 +1434,17 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Session Detail Modal -->
+    <SessionDetailModal
+      v-model="showSessionDetailModal"
+      :session="selectedSession"
+      :schedule-status="currentSchedule?.status || 'draft'"
+      :loading="sessionDetailLoading"
+      :error="sessionDetailError"
+      @update-session="handleUpdateSession"
+      @delete-session="handleDeleteSession"
+    />
   </div>
 </template>
 
@@ -1489,6 +1550,12 @@ onMounted(() => {
   font-size: 12px;
   margin-bottom: 4px;
   cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.calendar-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .calendar-event.blue {
@@ -1699,6 +1766,15 @@ onMounted(() => {
 
 .session-table tr:last-child td {
   border-bottom: none;
+}
+
+.session-table .clickable-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.session-table .clickable-row:hover {
+  background-color: var(--background-color);
 }
 
 .day-badge {
