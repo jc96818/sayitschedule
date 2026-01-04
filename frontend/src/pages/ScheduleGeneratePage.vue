@@ -178,24 +178,32 @@ async function proceedWithGeneration() {
   generationStats.value = null
 
   // Show progress animation while waiting for AI
+  // Schedule generation can take 2+ minutes for larger patient lists
   const progressInterval = setInterval(() => {
-    if (generationProgress.value < 90) {
-      generationProgress.value += Math.random() * 10
+    if (generationProgress.value < 95) {
+      // Slow increment: ~0.5-1.5% every 1.5 seconds to reach 90% in ~120 seconds
+      generationProgress.value += Math.random() * 1 + 0.5
 
       // Update status messages based on progress
-      if (generationProgress.value < 20) {
+      if (generationProgress.value < 10) {
         generationStatus.value = 'Loading staff and patient data...'
-      } else if (generationProgress.value < 40) {
-        generationStatus.value = 'Analyzing scheduling rules...'
-      } else if (generationProgress.value < 60) {
-        generationStatus.value = 'AI is optimizing assignments...'
+      } else if (generationProgress.value < 20) {
+        generationStatus.value = 'Analyzing scheduling rules and constraints...'
+      } else if (generationProgress.value < 35) {
+        generationStatus.value = 'AI is evaluating therapist-patient matches...'
+      } else if (generationProgress.value < 50) {
+        generationStatus.value = 'Optimizing room assignments...'
+      } else if (generationProgress.value < 65) {
+        generationStatus.value = 'Balancing therapist workloads...'
       } else if (generationProgress.value < 80) {
-        generationStatus.value = 'Validating constraints...'
+        generationStatus.value = 'Validating all constraints...'
+      } else if (generationProgress.value < 90) {
+        generationStatus.value = 'Finalizing session times...'
       } else {
-        generationStatus.value = 'Finalizing schedule...'
+        generationStatus.value = 'Almost done, completing final checks...'
       }
     }
-  }, 500)
+  }, 1500)
 
   try {
     const result = await schedulesStore.generateSchedule(selectedWeek.value)
@@ -356,7 +364,8 @@ onMounted(() => {
         <div class="card-body text-center" style="padding: 48px;">
           <div class="generation-spinner"></div>
           <h3 style="margin: 24px 0 8px;">Generating Schedule</h3>
-          <p class="text-muted" style="margin-bottom: 24px;">{{ generationStatus }}</p>
+          <p class="text-muted" style="margin-bottom: 8px;">{{ generationStatus }}</p>
+          <p class="text-sm text-muted" style="margin-bottom: 24px;">This may take 2-3 minutes for larger patient lists</p>
           <div class="progress-bar-container">
             <div class="progress-bar" :style="{ width: `${generationProgress}%` }"></div>
           </div>
