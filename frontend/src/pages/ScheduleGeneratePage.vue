@@ -110,15 +110,18 @@ function getTherapistColor(session: { therapistId?: string; staffId?: string }):
   return (therapistId?.charCodeAt(0) ?? 0) % 2 === 0 ? 'blue' : 'green'
 }
 
-// Get next Sunday as default
+// Get current week's Sunday as minimum selectable date
 const defaultWeekStart = computed(() => {
   const today = new Date()
   const dayOfWeek = today.getDay()
-  // If today is Sunday (0), use today; otherwise calculate days until next Sunday
-  const daysUntilSunday = dayOfWeek === 0 ? 7 : 7 - dayOfWeek
-  const nextSunday = new Date(today)
-  nextSunday.setDate(today.getDate() + daysUntilSunday)
-  return nextSunday.toISOString().split('T')[0]
+  // Get the Sunday of the current week (today if Sunday, otherwise go back)
+  const currentSunday = new Date(today)
+  currentSunday.setDate(today.getDate() - dayOfWeek)
+  // Format in local timezone to avoid UTC shift
+  const year = currentSunday.getFullYear()
+  const month = String(currentSunday.getMonth() + 1).padStart(2, '0')
+  const day = String(currentSunday.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 })
 
 const weekDateRange = computed(() => {
