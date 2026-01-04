@@ -11,7 +11,8 @@ import crypto from 'crypto'
 
 // S3 Configuration
 const s3Region = process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1'
-const s3Bucket = process.env.S3_BUCKET || 'sayitschedule-uploads'
+const environment = process.env.NODE_ENV === 'production' ? 'prod' : 'dev'
+const s3Bucket = process.env.S3_BUCKET || `sayitschedule-uploads-${environment}`
 const s3UrlPrefix = process.env.S3_URL_PREFIX || `https://${s3Bucket}.s3.${s3Region}.amazonaws.com`
 
 const s3Client = new S3Client({

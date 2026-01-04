@@ -258,7 +258,9 @@ resource "aws_ecs_task_definition" "app" {
         { name = "EMAIL_REPLY_TO", value = var.email_reply_to },
         { name = "SES_CONFIGURATION_SET", value = var.ses_configuration_set },
         { name = "APP_URL", value = var.app_url },
-        { name = "SALES_EMAIL", value = var.sales_email }
+        { name = "SALES_EMAIL", value = var.sales_email },
+        { name = "S3_BUCKET", value = aws_s3_bucket.uploads.id },
+        { name = "S3_REGION", value = var.aws_region }
       ]
 
       secrets = concat(

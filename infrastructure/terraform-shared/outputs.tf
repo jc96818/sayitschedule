@@ -25,6 +25,16 @@ output "target_group_arn" {
   value       = aws_lb_target_group.app.arn
 }
 
+output "s3_uploads_bucket" {
+  description = "S3 bucket name for image uploads"
+  value       = aws_s3_bucket.uploads.id
+}
+
+output "s3_uploads_url" {
+  description = "S3 bucket URL for uploaded images"
+  value       = "https://${aws_s3_bucket.uploads.bucket_regional_domain_name}"
+}
+
 # Instructions
 output "next_steps" {
   description = "Next steps after deployment"
