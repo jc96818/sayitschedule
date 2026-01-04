@@ -269,7 +269,9 @@ TIME PARSING:
 EXAMPLES:
 - "Move John's 9 AM session to 2 PM" → action: move, therapistName: John, currentStartTime: 09:00, newStartTime: 14:00
 - "Cancel Sarah's Friday 10 AM" → action: cancel, therapistName: Sarah, currentDayOfWeek: friday, currentStartTime: 10:00
-- "Reschedule Monday 2 PM with Emma to Wednesday" → action: move, patientName: Emma, currentDayOfWeek: monday, currentStartTime: 14:00, newDayOfWeek: wednesday`,
+- "Reschedule Monday 2 PM with Emma to Wednesday" → action: move, patientName: Emma, currentDayOfWeek: monday, currentStartTime: 14:00, newDayOfWeek: wednesday
+- "Add a session for Sarah with Emma on Tuesday at 10 AM" → action: create, therapistName: Sarah, patientName: Emma, newDayOfWeek: tuesday, newStartTime: 10:00
+- "Schedule John to see Noah on Friday at 2 PM" → action: create, therapistName: John, patientName: Noah, newDayOfWeek: friday, newStartTime: 14:00`,
 
     schedule_generate: `${basePrompt}
 
@@ -332,7 +334,7 @@ Guidelines:
   if (context === 'general') {
     commandTypeHint = '<detected_type>'
   } else if (context === 'schedule_modify') {
-    commandTypeHint = '<modify_session or cancel_session based on action>'
+    commandTypeHint = '<modify_session, cancel_session, or schedule_session based on action>'
   } else if (context === 'schedule_generate') {
     commandTypeHint = 'generate_schedule'
   } else {

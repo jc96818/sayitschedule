@@ -197,6 +197,7 @@ export const useSchedulesStore = defineStore('schedules', () => {
         } else if (parsed.commandType === 'cancel_session') {
           action = 'cancel'
         } else if (data.action) {
+          // Use the action from parsed data (supports create, move, cancel, swap)
           action = data.action as ScheduleModification['action']
         }
 

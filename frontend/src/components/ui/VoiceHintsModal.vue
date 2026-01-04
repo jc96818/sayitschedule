@@ -140,8 +140,16 @@ const hintsData = computed<Record<PageType, { title: string; intro: string; hint
   },
   schedule: {
     title: 'Voice Commands for Schedule Modifications',
-    intro: 'Modify your schedule using voice commands. Move, cancel, or reschedule sessions by speaking naturally.',
+    intro: 'Modify your schedule using voice commands. Add, move, cancel, or reschedule sessions by speaking naturally.',
     hints: [
+      {
+        example: `Add a session for Sarah with Emma on Tuesday at 10 AM`,
+        description: `Creates a new session for the specified ${staffLabelSingularLower.value} and ${patientLabelSingularLower.value}.`
+      },
+      {
+        example: `Schedule John to see Noah on Friday at 2 PM`,
+        description: `Adds a new session on the specified day and time.`
+      },
       {
         example: "Move John's 9 AM session to 2 PM",
         description: 'Reschedules a specific session to a new time on the same day.'
