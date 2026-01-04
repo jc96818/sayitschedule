@@ -35,8 +35,13 @@ Schedules display sessions in a calendar grid (Monday–Friday) or in grouped vi
 ### Navigate between weeks
 
 1. Open **Schedule** from the sidebar.
-2. Use the **Prev** and **Next** buttons to navigate to different weeks.
-3. The current week range and schedule status (Draft/Published) appear in the header.
+2. Navigate to different weeks using one of these methods:
+   - **Week Calendar Picker**: Click the date range button (e.g., "Jan 5 - Jan 11, 2026") to open a calendar popup. The calendar shows an entire month with weeks displayed as rows. Weeks that have schedules show a status indicator:
+     - **Draft** (amber): A draft schedule exists for that week.
+     - **Published** (green): A published schedule exists for that week.
+   - **Prev/Next buttons**: Use the arrow buttons on either side of the date range to move one week at a time.
+   - **Today button**: In the calendar popup, click **Today** to quickly jump to the current week.
+3. The schedule status (Draft/Published) appears as a badge next to the page title.
 
 ### View sessions in different formats
 
