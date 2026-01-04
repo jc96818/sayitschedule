@@ -824,10 +824,10 @@ describe('SchedulePage', () => {
       expect(wrapper.text()).toContain('Publish Schedule')
     })
 
-    it('should not show Edit Draft Copy button for draft schedules', async () => {
+    it('should not show Create Editable Copy button for draft schedules', async () => {
       const wrapper = await mountSchedulePage({ schedule: draftSchedule, preloadStore: true })
 
-      expect(wrapper.text()).not.toContain('Edit Draft Copy')
+      expect(wrapper.text()).not.toContain('Create Editable Copy')
     })
 
     it('should show voice input for editing draft schedules', async () => {
@@ -864,10 +864,10 @@ describe('SchedulePage', () => {
       publishedAt: '2024-01-10T00:00:00Z'
     }
 
-    it('should show Edit Draft Copy button for published schedules', async () => {
+    it('should show Create Editable Copy button for published schedules', async () => {
       const wrapper = await mountSchedulePage({ schedule: publishedSchedule, preloadStore: true })
 
-      expect(wrapper.text()).toContain('Edit Draft Copy')
+      expect(wrapper.text()).toContain('Create Editable Copy')
     })
 
     it('should not show Add Session button for published schedules', async () => {
