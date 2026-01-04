@@ -4,7 +4,7 @@ import { useSchedulesStore } from '@/stores/schedules'
 import { useStaffStore } from '@/stores/staff'
 import { useRoomsStore } from '@/stores/rooms'
 import { usePatientsStore } from '@/stores/patients'
-import { Button, Badge, Alert, StatCard, VoiceInput, VoiceHintsModal } from '@/components/ui'
+import { Button, Badge, Alert, StatCard, VoiceInput, VoiceHintsModal, WeekCalendarPicker } from '@/components/ui'
 import { voiceService } from '@/services/api'
 import { getFederalHoliday } from '@/utils/holidays'
 import { useLabels } from '@/composables/useLabels'
@@ -54,23 +54,19 @@ const viewMode = ref<'calendar' | 'therapist' | 'patient' | 'room'>('calendar')
 const selectedTherapist = ref('')
 const selectedRoom = ref('')
 
-// Navigation
-const weekOffset = ref(0)
+// Navigation - use absolute week date instead of offset
+const selectedWeekDate = ref(getWeekStart(new Date()))
 
-const currentWeekDate = computed(() => {
-  const today = new Date()
-  const startOfWeek = new Date(today)
-  // Sunday is day 0, so subtract today.getDay() to get to Sunday
-  startOfWeek.setDate(today.getDate() - today.getDay() + (weekOffset.value * 7))
-  return startOfWeek
-})
+// Get the start of the week (Sunday) for a given date
+function getWeekStart(date: Date): Date {
+  const d = new Date(date)
+  const day = d.getDay()
+  d.setDate(d.getDate() - day)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
 
-const weekDateRange = computed(() => {
-  const start = new Date(currentWeekDate.value)
-  const end = new Date(start)
-  end.setDate(start.getDate() + 6)
-  return `${formatDate(start)} - ${formatDate(end)}`
-})
+const currentWeekDate = computed(() => selectedWeekDate.value)
 
 const weekDays = computed(() => {
   const days = []
@@ -148,12 +144,21 @@ function parseLocalDate(dateStr: string): Date {
 }
 
 function prevWeek() {
-  weekOffset.value--
+  const newDate = new Date(selectedWeekDate.value)
+  newDate.setDate(newDate.getDate() - 7)
+  selectedWeekDate.value = newDate
   loadSchedule()
 }
 
 function nextWeek() {
-  weekOffset.value++
+  const newDate = new Date(selectedWeekDate.value)
+  newDate.setDate(newDate.getDate() + 7)
+  selectedWeekDate.value = newDate
+  loadSchedule()
+}
+
+function onWeekSelect(weekStart: Date) {
+  selectedWeekDate.value = weekStart
   loadSchedule()
 }
 
@@ -442,20 +447,16 @@ async function confirmGenerate() {
   }
 
   try {
-    await schedulesStore.generateSchedule(parsedWeekDate.value)
+    // Save the week date before clearing it
+    const generatedWeekDate = parsedWeekDate.value
+    await schedulesStore.generateSchedule(generatedWeekDate)
     showGenerateConfirmation.value = false
     generateTranscript.value = ''
     parsedWeekDate.value = ''
     parsedWeekReference.value = ''
     parseGenerateConfidence.value = 0
     // Navigate to the generated week
-    const generatedDate = new Date(parsedWeekDate.value)
-    const today = new Date()
-    const currentMonday = new Date(today)
-    currentMonday.setDate(today.getDate() - today.getDay() + 1)
-    currentMonday.setHours(0, 0, 0, 0)
-    const diffWeeks = Math.round((generatedDate.getTime() - currentMonday.getTime()) / (7 * 24 * 60 * 60 * 1000))
-    weekOffset.value = diffWeeks
+    selectedWeekDate.value = getWeekStart(new Date(generatedWeekDate))
   } catch (error) {
     generateError.value = error instanceof Error ? error.message : 'Failed to generate schedule'
   }
@@ -585,23 +586,24 @@ onMounted(() => {
     <header class="header">
       <div class="header-left">
         <div class="header-title">
-          <h2>Weekly Schedule</h2>
-          <p>
-            {{ weekDateRange }}
-            <Badge v-if="currentSchedule" :variant="currentSchedule.status === 'published' ? 'success' : 'warning'" style="margin-left: 8px;">
+          <h2>
+            Weekly Schedule
+            <Badge v-if="currentSchedule" :variant="currentSchedule.status === 'published' ? 'success' : 'warning'" style="margin-left: 8px; vertical-align: middle;">
               {{ currentSchedule.status === 'published' ? 'Published' : 'Draft' }}
             </Badge>
-          </p>
+          </h2>
         </div>
         <div class="calendar-nav">
-          <Button variant="outline" size="sm" @click="prevWeek">
+          <Button variant="outline" size="sm" @click="prevWeek" title="Previous week">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
-            Prev
           </Button>
-          <Button variant="outline" size="sm" @click="nextWeek">
-            Next
+          <WeekCalendarPicker
+            :model-value="selectedWeekDate"
+            @update:model-value="onWeekSelect"
+          />
+          <Button variant="outline" size="sm" @click="nextWeek" title="Next week">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>

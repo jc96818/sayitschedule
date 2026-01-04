@@ -71,6 +71,37 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
     return result
   })
 
+  // Get schedule summaries for a date range (for calendar view)
+  fastify.get('/summaries', { preHandler: authenticate }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const organizationId = request.ctx.organizationId
+
+    if (!organizationId) {
+      return reply.status(400).send({ error: 'Organization context required' })
+    }
+
+    const { startDate, endDate } = request.query as { startDate?: string; endDate?: string }
+
+    if (!startDate || !endDate) {
+      return reply.status(400).send({ error: 'startDate and endDate query parameters required' })
+    }
+
+    // Fetch organization settings to get timezone
+    const orgSettings = await organizationSettingsRepository.findByOrganizationId(organizationId)
+    const timezone = orgSettings.timezone || 'America/New_York'
+
+    // Parse the date strings in the organization's timezone
+    const parsedStartDate = parseLocalDateStart(startDate, timezone)
+    const parsedEndDate = parseLocalDateStart(endDate, timezone)
+
+    const summaries = await scheduleRepository.findSummariesByDateRange(
+      organizationId,
+      parsedStartDate,
+      parsedEndDate
+    )
+
+    return { data: summaries }
+  })
+
   // Get schedule by week start date
   fastify.get('/by-week', { preHandler: authenticate }, async (request: FastifyRequest, reply: FastifyReply) => {
     const organizationId = request.ctx.organizationId

@@ -202,6 +202,15 @@ export interface Schedule {
   sessions?: Session[]
 }
 
+// Schedule Summary (lightweight for calendar view)
+export interface ScheduleSummary {
+  id: string
+  weekStartDate: string
+  status: ScheduleStatus
+  sessionCount: number
+  publishedAt: string | null
+}
+
 // Session Status
 export type SessionStatus =
   | 'scheduled'

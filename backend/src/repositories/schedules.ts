@@ -63,6 +63,14 @@ export interface ScheduleWithSessions extends Schedule {
   sessions: SessionWithDetails[]
 }
 
+export interface ScheduleSummary {
+  id: string
+  weekStartDate: Date
+  status: ScheduleStatus
+  sessionCount: number
+  publishedAt: Date | null
+}
+
 export class ScheduleRepository {
   async findAll(
     organizationId: string,
@@ -341,6 +349,46 @@ export class ScheduleRepository {
 
     // Return the new schedule with its sessions
     return this.findByIdWithSessions(createdSchedule.id, organizationId)
+  }
+
+  async findSummariesByDateRange(
+    organizationId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<ScheduleSummary[]> {
+    const schedules = await prisma.schedule.findMany({
+      where: {
+        organizationId,
+        weekStartDate: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      include: {
+        _count: {
+          select: { sessions: true }
+        }
+      },
+      orderBy: { weekStartDate: 'asc' }
+    })
+
+    // For each weekStartDate, keep only the latest version (highest version number or most recent)
+    const latestByWeek = new Map<string, typeof schedules[0]>()
+    for (const schedule of schedules) {
+      const weekKey = schedule.weekStartDate.toISOString()
+      const existing = latestByWeek.get(weekKey)
+      if (!existing || schedule.version > existing.version) {
+        latestByWeek.set(weekKey, schedule)
+      }
+    }
+
+    return Array.from(latestByWeek.values()).map(schedule => ({
+      id: schedule.id,
+      weekStartDate: schedule.weekStartDate,
+      status: schedule.status,
+      sessionCount: schedule._count.sessions,
+      publishedAt: schedule.publishedAt
+    }))
   }
 
   async createDraftCopyWithValidation(

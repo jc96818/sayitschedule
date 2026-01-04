@@ -11,6 +11,7 @@ import type {
   Rule,
   Room,
   Schedule,
+  ScheduleSummary,
   Session,
   SessionStatus,
   CancellationReason,
@@ -615,6 +616,11 @@ export const scheduleService = {
     notes?: string
   }): Promise<ApiResponse<Session>> {
     const { data } = await api.post(`/schedules/${scheduleId}/sessions`, session)
+    return data
+  },
+
+  async getSummaries(startDate: string, endDate: string): Promise<ApiResponse<ScheduleSummary[]>> {
+    const { data } = await api.get('/schedules/summaries', { params: { startDate, endDate } })
     return data
   }
 }
