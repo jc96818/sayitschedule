@@ -154,7 +154,9 @@ function goToStep(targetStep: 'setup' | 'verify') {
         </div>
 
         <div class="qr-section">
-          <div class="qr-code" v-html="qrCode"></div>
+          <div class="qr-code">
+            <img :src="qrCode" alt="MFA QR Code" />
+          </div>
           <p class="instruction">Scan this QR code with your authenticator app</p>
           <p class="apps-hint">
             Recommended apps: Google Authenticator, Authy, or Microsoft Authenticator
@@ -311,7 +313,7 @@ function goToStep(targetStep: 'setup' | 'verify') {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.qr-code :deep(svg) {
+.qr-code img {
   display: block;
   width: 180px;
   height: 180px;
