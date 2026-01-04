@@ -173,6 +173,14 @@ const hintsData = computed<Record<PageType, { title: string; intro: string; hint
       {
         example: `Move Sarah's 10 AM session to ${roomLabelSingular.value} B`,
         description: `Changes the ${roomLabelSingularLower.value} for a session without changing the time.`
+      },
+      {
+        example: `Change Monday's 10 AM ${patientLabelSingularLower.value} to Emma`,
+        description: `Reassigns a session to a different ${patientLabelSingularLower.value}.`
+      },
+      {
+        example: `Swap Sarah's 9 AM with John's 10 AM`,
+        description: `Exchanges the time slots between two sessions.`
       }
     ]
   },

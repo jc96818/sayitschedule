@@ -36,7 +36,7 @@ const updateSessionSchema = z.object({
 })
 
 const voiceModifySchema = z.object({
-  action: z.enum(['move', 'cancel', 'swap', 'create', 'reassign_therapist', 'reassign_room']),
+  action: z.enum(['move', 'cancel', 'swap', 'create', 'reassign_therapist', 'reassign_room', 'reassign_patient']),
   therapistName: z.string().optional(),
   patientName: z.string().optional(),
   currentDate: z.string().optional(),
@@ -48,6 +48,12 @@ const voiceModifySchema = z.object({
   newEndTime: z.string().optional(),
   newTherapistName: z.string().optional(),  // For reassign_therapist action
   newRoomName: z.string().optional(),        // For reassign_room action
+  newPatientName: z.string().optional(),     // For reassign_patient action
+  // For swap action - identifies the second session
+  swapTherapistName: z.string().optional(),
+  swapPatientName: z.string().optional(),
+  swapDayOfWeek: z.string().optional(),
+  swapStartTime: z.string().optional(),
   notes: z.string().optional()
 })
 
@@ -734,13 +740,6 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
         }
       }
 
-      case 'swap': {
-        // Swap requires two sessions - not fully implemented yet
-        return reply.status(501).send({
-          error: 'Session swap is not yet implemented. Please use move to reschedule sessions individually.'
-        })
-      }
-
       case 'create': {
         // Create a new session via voice command
         if (!body.therapistName && !body.patientName) {
@@ -1023,6 +1022,179 @@ export async function scheduleRoutes(fastify: FastifyInstance) {
             from: { roomName: session.roomName },
             to: { roomName: newRoom.name },
             message: `Moved session to ${newRoom.name}`
+          }
+        }
+      }
+
+      case 'reassign_patient': {
+        // Reassign session to a different patient
+        const session = matchingResults[0].session
+
+        if (!body.newPatientName) {
+          return reply.status(400).send({
+            error: 'Please specify the new patient name.'
+          })
+        }
+
+        // Look up the new patient by name
+        const { patientRepository } = await import('../repositories/patients.js')
+        const patientResult = await patientRepository.findAll(organizationId, {
+          search: body.newPatientName,
+          page: 1,
+          limit: 10
+        })
+        const matchingPatients = patientResult.data.filter(p =>
+          p.name.toLowerCase().includes(body.newPatientName!.toLowerCase())
+        )
+
+        if (matchingPatients.length === 0) {
+          return reply.status(404).send({
+            error: `Could not find patient "${body.newPatientName}".`
+          })
+        }
+        if (matchingPatients.length > 1) {
+          return reply.status(400).send({
+            error: `Multiple patients match "${body.newPatientName}". Please be more specific.`
+          })
+        }
+
+        const newPatient = matchingPatients[0]
+
+        // Update the session with new patient
+        const updatedSession = await sessionRepository.update(session.id, id, {
+          patientId: newPatient.id
+        })
+
+        if (!updatedSession) {
+          return reply.status(500).send({ error: 'Failed to reassign patient' })
+        }
+
+        const newPatientName = newPatient.name
+
+        await logAudit(ctx.userId, 'update', 'session', session.id, organizationId, {
+          action: 'voice_reassign_patient',
+          from: { patientId: session.patientId, patientName: session.patientName },
+          to: { patientId: newPatient.id, patientName: newPatientName }
+        })
+
+        return {
+          data: {
+            action: 'reassigned_patient',
+            session: {
+              ...updatedSession,
+              therapistName: session.therapistName,
+              patientName: newPatientName,
+              roomName: session.roomName
+            },
+            from: { patientName: session.patientName },
+            to: { patientName: newPatientName },
+            message: `Changed patient to ${newPatientName}`
+          }
+        }
+      }
+
+      case 'swap': {
+        // Swap times between two sessions
+        const session1 = matchingResults[0].session
+
+        // Find the second session to swap with
+        if (!body.swapTherapistName && !body.swapPatientName && !body.swapStartTime) {
+          return reply.status(400).send({
+            error: 'Please specify the session to swap with (therapist name, patient name, or time).'
+          })
+        }
+
+        // Find the second session
+        const swap2Results = await findMatchingSessions({
+          scheduleId: id,
+          therapistName: body.swapTherapistName,
+          patientName: body.swapPatientName,
+          dayOfWeek: body.swapDayOfWeek,
+          startTime: body.swapStartTime,
+          timezone
+        })
+
+        if (swap2Results.length === 0) {
+          const swapIdentifier = body.swapTherapistName || body.swapPatientName || `${body.swapDayOfWeek} ${body.swapStartTime}`
+          return reply.status(404).send({
+            error: `Could not find session to swap with: ${swapIdentifier}`
+          })
+        }
+
+        // If multiple matches, check if first result is significantly better (use threshold of 20 points)
+        // This allows for cases where we have an exact match vs partial matches
+        if (swap2Results.length > 1 && swap2Results[0].matchScore - swap2Results[1].matchScore < 20) {
+          return reply.status(400).send({
+            error: `Found multiple sessions matching swap criteria. Please be more specific.`
+          })
+        }
+
+        const session2 = swap2Results[0].session
+
+        // Can't swap a session with itself
+        if (session1.id === session2.id) {
+          return reply.status(400).send({
+            error: 'Cannot swap a session with itself.'
+          })
+        }
+
+        // Swap the times (date, startTime, endTime)
+        const session1OriginalDate = session1.date
+        const session1OriginalStartTime = session1.startTime
+        const session1OriginalEndTime = session1.endTime
+
+        const session2OriginalDate = session2.date
+        const session2OriginalStartTime = session2.startTime
+        const session2OriginalEndTime = session2.endTime
+
+        // Update session 1 with session 2's time slot
+        const updatedSession1 = await sessionRepository.update(session1.id, id, {
+          date: session2OriginalDate,
+          startTime: session2OriginalStartTime,
+          endTime: session2OriginalEndTime
+        })
+
+        // Update session 2 with session 1's time slot
+        const updatedSession2 = await sessionRepository.update(session2.id, id, {
+          date: session1OriginalDate,
+          startTime: session1OriginalStartTime,
+          endTime: session1OriginalEndTime
+        })
+
+        if (!updatedSession1 || !updatedSession2) {
+          return reply.status(500).send({ error: 'Failed to swap sessions' })
+        }
+
+        await logAudit(ctx.userId, 'update', 'session', session1.id, organizationId, {
+          action: 'voice_swap_sessions',
+          session1: { id: session1.id, from: { date: session1OriginalDate, startTime: session1OriginalStartTime }, to: { date: session2OriginalDate, startTime: session2OriginalStartTime } },
+          session2: { id: session2.id, from: { date: session2OriginalDate, startTime: session2OriginalStartTime }, to: { date: session1OriginalDate, startTime: session1OriginalStartTime } }
+        })
+
+        return {
+          data: {
+            action: 'swapped',
+            session: {
+              ...updatedSession1,
+              therapistName: session1.therapistName,
+              patientName: session1.patientName,
+              roomName: session1.roomName
+            },
+            session2: {
+              ...updatedSession2,
+              therapistName: session2.therapistName,
+              patientName: session2.patientName,
+              roomName: session2.roomName
+            },
+            from: {
+              session1: { date: session1OriginalDate, startTime: session1OriginalStartTime },
+              session2: { date: session2OriginalDate, startTime: session2OriginalStartTime }
+            },
+            to: {
+              session1: { date: session2OriginalDate, startTime: session2OriginalStartTime },
+              session2: { date: session1OriginalDate, startTime: session1OriginalStartTime }
+            },
+            message: `Swapped ${session1.therapistName}'s ${session1OriginalStartTime} with ${session2.therapistName}'s ${session2OriginalStartTime}`
           }
         }
       }

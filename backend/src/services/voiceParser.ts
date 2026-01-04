@@ -101,7 +101,7 @@ export interface ParsedSessionData {
 }
 
 export interface ParsedScheduleModifyData {
-  action: 'move' | 'cancel' | 'swap' | 'create' | 'reassign_therapist' | 'reassign_room'
+  action: 'move' | 'cancel' | 'swap' | 'create' | 'reassign_therapist' | 'reassign_room' | 'reassign_patient'
   therapistName?: string
   patientName?: string
   currentDate?: string
@@ -113,6 +113,12 @@ export interface ParsedScheduleModifyData {
   newEndTime?: string
   newTherapistName?: string
   newRoomName?: string
+  newPatientName?: string
+  // For swap action
+  swapTherapistName?: string
+  swapPatientName?: string
+  swapDayOfWeek?: string
+  swapStartTime?: string
   notes?: string
 }
 
@@ -248,13 +254,14 @@ Determine the action and extract the relevant information:
 ACTIONS:
 - move: Reschedule a session to a different time or day
 - cancel: Remove/delete a session
-- swap: Exchange two sessions' times
+- swap: Exchange two sessions' times (swap one session's time slot with another)
 - create: Add a new session (if they're not modifying existing)
 - reassign_therapist: Change the ${staffSingularLower} assigned to a session (uses newTherapistName)
 - reassign_room: Change the ${roomSingularLower} for a session (uses newRoomName)
+- reassign_patient: Change the ${patientSingularLower} for a session (uses newPatientName)
 
 EXTRACT:
-- action (required): one of [move, cancel, swap, create, reassign_therapist, reassign_room]
+- action (required): one of [move, cancel, swap, create, reassign_therapist, reassign_room, reassign_patient]
 - therapistName: the ${staffSingularLower}'s name (to identify the session)
 - patientName: the ${patientSingularLower}'s name (alternative way to identify)
 - currentDayOfWeek: current day (monday/tuesday/etc) - lowercase
@@ -264,6 +271,11 @@ EXTRACT:
 - newEndTime: new end time (usually startTime + 1 hour)
 - newTherapistName: for reassign_therapist, the new ${staffSingularLower}'s name
 - newRoomName: for reassign_room, the new ${roomSingularLower} name
+- newPatientName: for reassign_patient, the new ${patientSingularLower}'s name
+- swapTherapistName: for swap, the ${staffSingularLower} whose session to swap with
+- swapPatientName: for swap, the ${patientSingularLower} whose session to swap with
+- swapDayOfWeek: for swap, the day of the second session
+- swapStartTime: for swap, the time of the second session
 - notes: any additional context
 
 TIME PARSING:
@@ -281,7 +293,12 @@ EXAMPLES:
 - "Change the therapist for Monday's 9 AM to Emily" → action: reassign_therapist, currentDayOfWeek: monday, currentStartTime: 09:00, newTherapistName: Emily
 - "Assign David to the 2 PM session with Emma" → action: reassign_therapist, patientName: Emma, currentStartTime: 14:00, newTherapistName: David
 - "Move Sarah's 10 AM session to Room B" → action: reassign_room, therapistName: Sarah, currentStartTime: 10:00, newRoomName: Room B
-- "Put the Friday 3 PM session in the Sensory Room" → action: reassign_room, currentDayOfWeek: friday, currentStartTime: 15:00, newRoomName: Sensory Room`,
+- "Put the Friday 3 PM session in the Sensory Room" → action: reassign_room, currentDayOfWeek: friday, currentStartTime: 15:00, newRoomName: Sensory Room
+- "Change the patient for Monday's 10 AM to Emma instead" → action: reassign_patient, currentDayOfWeek: monday, currentStartTime: 10:00, newPatientName: Emma
+- "Switch Sarah's 9 AM patient to Noah" → action: reassign_patient, therapistName: Sarah, currentStartTime: 09:00, newPatientName: Noah
+- "Swap Sarah's Monday 9 AM with John's Tuesday 10 AM" → action: swap, therapistName: Sarah, currentDayOfWeek: monday, currentStartTime: 09:00, swapTherapistName: John, swapDayOfWeek: tuesday, swapStartTime: 10:00
+- "Exchange the Monday 2 PM session with Tuesday's 11 AM" → action: swap, currentDayOfWeek: monday, currentStartTime: 14:00, swapDayOfWeek: tuesday, swapStartTime: 11:00
+- "Swap David's Monday 11 AM with Michael's Wednesday 11 AM" → action: swap, therapistName: David, currentDayOfWeek: monday, currentStartTime: 11:00, swapTherapistName: Michael, swapDayOfWeek: wednesday, swapStartTime: 11:00`,
 
     schedule_generate: `${basePrompt}
 

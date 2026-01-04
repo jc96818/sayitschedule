@@ -214,6 +214,11 @@ export const useSchedulesStore = defineStore('schedules', () => {
           newEndTime: data.newEndTime as string | undefined,
           newTherapistName: data.newTherapistName as string | undefined,
           newRoomName: data.newRoomName as string | undefined,
+          newPatientName: data.newPatientName as string | undefined,
+          swapTherapistName: data.swapTherapistName as string | undefined,
+          swapPatientName: data.swapPatientName as string | undefined,
+          swapDayOfWeek: data.swapDayOfWeek as string | undefined,
+          swapStartTime: data.swapStartTime as string | undefined,
           notes: data.notes as string | undefined
         }
         parseConfidence.value = parsed.confidence
@@ -270,19 +275,46 @@ export const useSchedulesStore = defineStore('schedules', () => {
       } else if (response.data.action === 'created') {
         // Add the new session to local state
         currentSchedule.value.sessions.push(response.data.session)
-      } else if (response.data.action === 'reassigned_therapist' || response.data.action === 'reassigned_room') {
+      } else if (response.data.action === 'reassigned_therapist' || response.data.action === 'reassigned_room' || response.data.action === 'reassigned_patient') {
         // Update the reassigned session in local state
         const sessionIndex = currentSchedule.value.sessions.findIndex(
           (s) => s.id === response.data.session.id
         )
         if (sessionIndex !== -1) {
           // For reassignments, update with new values from response
-          // The response includes the new therapist/room name
+          // The response includes the new therapist/room/patient name
           currentSchedule.value.sessions[sessionIndex] = {
             ...response.data.session,
             therapistName: response.data.session.therapistName,
             patientName: response.data.session.patientName,
             roomName: response.data.session.roomName
+          }
+        }
+      } else if (response.data.action === 'swapped') {
+        // Update both swapped sessions in local state
+        const session1Index = currentSchedule.value.sessions.findIndex(
+          (s) => s.id === response.data.session.id
+        )
+        if (session1Index !== -1) {
+          currentSchedule.value.sessions[session1Index] = {
+            ...response.data.session,
+            therapistName: response.data.session.therapistName,
+            patientName: response.data.session.patientName,
+            roomName: response.data.session.roomName
+          }
+        }
+        // Update second session if present
+        if (response.data.session2) {
+          const session2Index = currentSchedule.value.sessions.findIndex(
+            (s) => s.id === response.data.session2!.id
+          )
+          if (session2Index !== -1) {
+            currentSchedule.value.sessions[session2Index] = {
+              ...response.data.session2,
+              therapistName: response.data.session2.therapistName,
+              patientName: response.data.session2.patientName,
+              roomName: response.data.session2.roomName
+            }
           }
         }
       }

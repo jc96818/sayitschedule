@@ -1087,6 +1087,53 @@ onMounted(() => {
                 </div>
               </div>
             </template>
+            <!-- Reassign patient action -->
+            <template v-else-if="schedulesStore.pendingModification.action === 'reassign_patient'">
+              <strong>Change {{ patientLabelSingular }}:</strong>
+              <div class="modification-details">
+                <div v-if="schedulesStore.pendingModification.therapistName" class="detail-row">
+                  <span class="detail-label">{{ staffLabelSingular }}:</span>
+                  <span>{{ schedulesStore.pendingModification.therapistName }}</span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.patientName" class="detail-row">
+                  <span class="detail-label">Current {{ patientLabelSingular }}:</span>
+                  <span>{{ schedulesStore.pendingModification.patientName }}</span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.currentDayOfWeek || schedulesStore.pendingModification.currentStartTime" class="detail-row">
+                  <span class="detail-label">Session:</span>
+                  <span>
+                    {{ schedulesStore.pendingModification.currentDayOfWeek ? capitalizeFirst(schedulesStore.pendingModification.currentDayOfWeek) : '' }}
+                    {{ formatTime(schedulesStore.pendingModification.currentStartTime) }}
+                  </span>
+                </div>
+                <div v-if="schedulesStore.pendingModification.newPatientName" class="detail-row">
+                  <span class="detail-label">New {{ patientLabelSingular }}:</span>
+                  <span class="highlight-change">{{ schedulesStore.pendingModification.newPatientName }}</span>
+                </div>
+              </div>
+            </template>
+            <!-- Swap sessions action -->
+            <template v-else-if="schedulesStore.pendingModification.action === 'swap'">
+              <strong>Swap Sessions:</strong>
+              <div class="modification-details">
+                <div class="detail-row">
+                  <span class="detail-label">Session 1:</span>
+                  <span>
+                    {{ schedulesStore.pendingModification.therapistName || schedulesStore.pendingModification.patientName }}
+                    {{ schedulesStore.pendingModification.currentDayOfWeek ? capitalizeFirst(schedulesStore.pendingModification.currentDayOfWeek) : '' }}
+                    {{ formatTime(schedulesStore.pendingModification.currentStartTime) }}
+                  </span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Session 2:</span>
+                  <span class="highlight-change">
+                    {{ schedulesStore.pendingModification.swapTherapistName || schedulesStore.pendingModification.swapPatientName }}
+                    {{ schedulesStore.pendingModification.swapDayOfWeek ? capitalizeFirst(schedulesStore.pendingModification.swapDayOfWeek) : '' }}
+                    {{ formatTime(schedulesStore.pendingModification.swapStartTime) }}
+                  </span>
+                </div>
+              </div>
+            </template>
             <div v-if="schedulesStore.parseConfidence" class="confidence-indicator">
               Confidence: {{ Math.round(schedulesStore.parseConfidence * 100) }}%
             </div>
