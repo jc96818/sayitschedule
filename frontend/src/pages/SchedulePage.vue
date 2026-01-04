@@ -47,6 +47,12 @@ const selectedSession = ref<Session | null>(null)
 const sessionDetailLoading = ref(false)
 const sessionDetailError = ref<string | null>(null)
 
+// Drag-and-drop state
+const isDraggingSession = ref(false)
+const draggedSession = ref<Session | null>(null)
+const draggedFromCell = ref<{ dayIndex: number; timeSlot: string } | null>(null)
+const dragOverCell = ref<{ dayIndex: number; timeSlot: string } | null>(null)
+
 // Voice generation state
 const showGenerateConfirmation = ref(false)
 const generateTranscript = ref('')
@@ -622,6 +628,143 @@ async function handleDeleteSession(sessionId: string) {
   }
 }
 
+// Drag-and-drop handlers
+function handleSessionDragStart(event: DragEvent, session: Session, dayIndex: number, timeSlot: string) {
+  // Only allow dragging for draft schedules
+  if (currentSchedule.value?.status !== 'draft') {
+    event.preventDefault()
+    return
+  }
+
+  // Set drag data
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', session.id)
+  }
+
+  // Update state
+  isDraggingSession.value = true
+  draggedSession.value = session
+  draggedFromCell.value = { dayIndex, timeSlot }
+}
+
+function handleSessionDragEnd() {
+  resetDragState()
+}
+
+function handleCellDragOver(event: DragEvent, dayIndex: number, timeSlot: string) {
+  // Prevent default to allow drop
+  event.preventDefault()
+
+  // Only allow drops for draft schedules
+  if (currentSchedule.value?.status !== 'draft') {
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'none'
+    }
+    return
+  }
+
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+
+  // Update hover state
+  if (dragOverCell.value?.dayIndex !== dayIndex || dragOverCell.value?.timeSlot !== timeSlot) {
+    dragOverCell.value = { dayIndex, timeSlot }
+  }
+}
+
+function handleCellDragLeave(event: DragEvent) {
+  // Only clear if leaving the cell entirely (not entering a child element)
+  const relatedTarget = event.relatedTarget as HTMLElement | null
+  const currentTarget = event.currentTarget as HTMLElement
+  if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
+    dragOverCell.value = null
+  }
+}
+
+async function handleSessionDrop(event: DragEvent, dayIndex: number, timeSlot: string) {
+  event.preventDefault()
+
+  // Guard clauses
+  if (!isDraggingSession.value || !draggedSession.value || !currentSchedule.value) {
+    resetDragState()
+    return
+  }
+
+  // Check if dropped in same cell
+  if (draggedFromCell.value?.dayIndex === dayIndex &&
+      draggedFromCell.value?.timeSlot === timeSlot) {
+    resetDragState()
+    return
+  }
+
+  // Calculate new date and times
+  const newDate = formatWeekDayDate(weekDays.value[dayIndex].date)
+  const newStartTime = parseTimeSlot(timeSlot)
+  const newEndTime = calculateNewEndTime(draggedSession.value, newStartTime)
+
+  // Store session ID before resetting state
+  const sessionId = draggedSession.value.id
+
+  // Reset drag state immediately for visual feedback
+  resetDragState()
+
+  // Perform update
+  try {
+    await schedulesStore.updateSession(
+      currentSchedule.value.id,
+      sessionId,
+      {
+        date: newDate,
+        startTime: newStartTime,
+        endTime: newEndTime
+      }
+    )
+  } catch (error) {
+    console.error('Failed to move session:', error)
+  }
+}
+
+function resetDragState() {
+  isDraggingSession.value = false
+  draggedSession.value = null
+  draggedFromCell.value = null
+  dragOverCell.value = null
+}
+
+function calculateNewEndTime(session: Session, newStartTime: string): string {
+  if (!session.startTime || !session.endTime) {
+    // Default to 1-hour duration if times are missing
+    const [h, m] = newStartTime.split(':').map(Number)
+    const endHour = h + 1
+    return `${endHour.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+  }
+
+  // Calculate original duration in minutes
+  const [origStartH, origStartM] = session.startTime.split(':').map(Number)
+  const [origEndH, origEndM] = session.endTime.split(':').map(Number)
+  const durationMinutes = (origEndH * 60 + origEndM) - (origStartH * 60 + origStartM)
+
+  // Apply duration to new start time
+  const [newH, newM] = newStartTime.split(':').map(Number)
+  const newEndMinutes = newH * 60 + newM + durationMinutes
+  const endHour = Math.floor(newEndMinutes / 60)
+  const endMin = newEndMinutes % 60
+
+  return `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`
+}
+
+function isCellDropTarget(dayIndex: number, timeSlot: string): boolean {
+  return dragOverCell.value?.dayIndex === dayIndex &&
+         dragOverCell.value?.timeSlot === timeSlot
+}
+
+function isCellDragSource(dayIndex: number, timeSlot: string): boolean {
+  return draggedFromCell.value?.dayIndex === dayIndex &&
+         draggedFromCell.value?.timeSlot === timeSlot
+}
+
 onMounted(() => {
   loadSchedule()
   staffStore.fetchStaff() // Load staff for therapist filter and gender lookup
@@ -1006,13 +1149,23 @@ onMounted(() => {
                   v-for="(day, dayIndex) in weekDays"
                   :key="`${timeSlot}-${day.name}`"
                   class="calendar-cell"
-                  :class="{ 'holiday-cell': day.isHoliday }"
+                  :class="{
+                    'holiday-cell': day.isHoliday,
+                    'drag-over': isCellDropTarget(dayIndex, timeSlot),
+                    'drag-source': isCellDragSource(dayIndex, timeSlot)
+                  }"
+                  @dragover="handleCellDragOver($event, dayIndex, timeSlot)"
+                  @dragleave="handleCellDragLeave"
+                  @drop="handleSessionDrop($event, dayIndex, timeSlot)"
                 >
                   <div
                     v-for="session in getSessionsForTimeSlot(dayIndex, timeSlot)"
                     :key="session.id"
-                    :class="['calendar-event', getTherapistColor(session)]"
+                    :class="['calendar-event', getTherapistColor(session), { 'dragging': draggedSession?.id === session.id }]"
+                    :draggable="currentSchedule?.status === 'draft'"
                     @click="openSessionDetail(session)"
+                    @dragstart="handleSessionDragStart($event, session, dayIndex, timeSlot)"
+                    @dragend="handleSessionDragEnd"
                   >
                     <div class="therapist">{{ session.therapistName || (session.therapistId || session.staffId)?.slice(0, 8) }}</div>
                     <div class="patient">{{ session.patientName || session.patientId?.slice(0, 8) }}</div>
@@ -1534,6 +1687,7 @@ onMounted(() => {
   border-right: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
   background-color: var(--card-background);
+  transition: background-color 0.15s ease, outline 0.15s ease;
 }
 
 .calendar-cell:last-child {
@@ -1544,16 +1698,42 @@ onMounted(() => {
   background-color: #fef2f2;
 }
 
+/* Drag-and-drop: drop target highlighting */
+.calendar-cell.drag-over {
+  background-color: rgba(37, 99, 235, 0.1);
+  outline: 2px dashed var(--primary-color);
+  outline-offset: -2px;
+}
+
+/* Drag-and-drop: source cell dimming */
+.calendar-cell.drag-source {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
 .calendar-event {
   padding: 8px;
   border-radius: var(--radius-sm);
   font-size: 12px;
   margin-bottom: 4px;
   cursor: pointer;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.1s ease;
 }
 
-.calendar-event:hover {
+.calendar-event[draggable="true"] {
+  cursor: grab;
+}
+
+.calendar-event[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.calendar-event.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+  box-shadow: none;
+}
+
+.calendar-event:hover:not(.dragging) {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
